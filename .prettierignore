@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# AWS SAM
+.aws-sam/
+.serverless/
+
+# Cache
+.cache/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+
+# Misc
+.git/
+.vscode/
+.kiro/

@@ -1,0 +1,29 @@
+version = 0.1
+
+[default.global.parameters]
+stack_name = "genai-inference-model-evaluation-tool"
+
+[default.build.parameters]
+cached = true
+parallel = true
+use_container = true
+
+
+[ahmed.deploy.parameters]
+stack_name = "genai-inference-model-evaluation-tool-ahmed"
+s3_prefix = "genai-inference-model-evaluation-tool-ahmed"
+resolve_s3 = true
+region = "us-west-2"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"ahmed\""
+
+
+[lucas.deploy.parameters]
+stack_name = "genai-inference-model-evaluation-tool-lucas"
+s3_prefix = "genai-inference-model-evaluation-tool-lucas"
+resolve_s3 = true
+region = "us-west-2"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"lucas\""
