@@ -2,12 +2,18 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Bedrock Model Evaluation Tool
 
+Parameters:
+  LogRetentionInDays:
+    Type: Number
+    Default: 14
+
 Globals:
   Function:
     Timeout: 30
     MemorySize: 256
+    CodeUri: backend/
     Architectures:
-      - x86_64
+      - arm64
   HttpApi:
     CorsConfiguration:
       AllowOrigins:
@@ -27,18 +33,55 @@ Resources:
     Properties:
       StageName: $default
 
+  # CloudWatch Log Groups
+  HealthFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${HealthFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  DatasetUploadFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${DatasetUploadFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  EvaluationLaunchFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${EvaluationLaunchFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  EvaluationStatusFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${EvaluationStatusFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  EvaluationResultsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${EvaluationResultsFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  EvalFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${EvalFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  EvaluationEngineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${AWS::StackName}-evaluation-engine'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  # Lambda Functions
   HealthFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/health.handler
       Runtime: nodejs20.x
-      CodeUri: backend/
-      Environment:
-        Variables:
-          EVAL_FUNCTION_NAME: !Ref PythonEvalFunction
-      Policies:
-        - LambdaInvokePolicy:
-            FunctionName: !Ref PythonEvalFunction
+      Handler: index.handler
       Events:
         HealthApi:
           Type: HttpApi
@@ -58,17 +101,188 @@ Resources:
         OutExtension:
           - .js=.mjs
         EntryPoints:
-          - src/handlers/health.ts
+          - src/handlers/Health/Health.ts
 
-  PythonEvalFunction:
+  DatasetUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DatasetBucket
+      Events:
+        UploadApi:
+          Type: HttpApi
+          Properties:
+            Path: /datasets
+            Method: POST
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/DatasetUpload/DatasetUpload.ts
+
+  EvaluationLaunchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Timeout: 60
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref EvaluationJobsTable
+          ECS_CLUSTER: !Ref EvaluationCluster
+          TASK_DEFINITION: !Ref EvaluationTaskDefinition
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EvaluationJobsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ecs:RunTask
+              Resource: !Ref EvaluationTaskDefinition
+            - Effect: Allow
+              Action:
+                - iam:PassRole
+              Resource:
+                - !GetAtt FargateExecutionRole.Arn
+                - !GetAtt FargateTaskRole.Arn
+      Events:
+        LaunchApi:
+          Type: HttpApi
+          Properties:
+            Path: /evaluations
+            Method: POST
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/EvaluationLaunch/EvaluationLaunch.ts
+
+  EvaluationStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref EvaluationJobsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref EvaluationJobsTable
+      Events:
+        StatusApi:
+          Type: HttpApi
+          Properties:
+            Path: /evaluations/{id}
+            Method: GET
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/EvaluationStatus/EvaluationStatus.ts
+
+  EvaluationResultsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref EvaluationJobsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref EvaluationJobsTable
+      Events:
+        ResultsApi:
+          Type: HttpApi
+          Properties:
+            Path: /evaluations/{id}/results
+            Method: GET
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/EvaluationResults/EvaluationResults.ts
+
+  EvalFunction:
     Type: AWS::Serverless::Function
     Properties:
       PackageType: Image
-      ImageUri: 576872909007.dkr.ecr.us-west-2.amazonaws.com/genai-evaluation:latest
       Timeout: 900
       MemorySize: 5120
     Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: backend/python/
       DockerTag: latest
+
+  # S3 Buckets
+  DatasetBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'bedrock-eval-datasets-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3600
 
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -94,8 +308,8 @@ Resources:
             Condition:
               StringEquals:
                 'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
-          - Action: 's3:*'
-            Effect: Deny
+          - Effect: Deny
+            Action: 's3:*'
             Principal: '*'
             Resource:
               - !GetAtt FrontendBucket.Arn
@@ -104,6 +318,114 @@ Resources:
               Bool:
                 'aws:SecureTransport': false
 
+  # DynamoDB Table
+  EvaluationJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-evaluation-jobs'
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: evaluation_id
+          AttributeType: S
+        - AttributeName: dataset_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: evaluation_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: dataset_id-index
+          KeySchema:
+            - AttributeName: dataset_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ECS Cluster
+  EvaluationCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${AWS::StackName}-evaluation-cluster'
+
+  # IAM Roles
+  FargateExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  FargateTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EvaluationEnginePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub '${DatasetBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt EvaluationJobsTable.Arn
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: '*'
+
+  # Fargate Task Definition
+  EvaluationTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${AWS::StackName}-evaluation-engine'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: '2048'
+      Memory: '4096'
+      RuntimePlatform:
+        CpuArchitecture: ARM64
+        OperatingSystemFamily: LINUX
+      ExecutionRoleArn: !GetAtt FargateExecutionRole.Arn
+      TaskRoleArn: !GetAtt FargateTaskRole.Arn
+      ContainerDefinitions:
+        - Name: evaluation-engine
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${AWS::StackName}-evaluation-engine:latest'
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref EvaluationEngineLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: evaluation-engine
+          Environment:
+            - Name: DATASET_BUCKET
+              Value: !Ref DatasetBucket
+            - Name: DYNAMODB_TABLE
+              Value: !Ref EvaluationJobsTable
+            - Name: EVALUATION_TIMEOUT_MINUTES
+              Value: '30'
+
+  # CloudFront
   CloudFrontOAC:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
@@ -134,8 +456,7 @@ Resources:
           CachedMethods:
             - GET
             - HEAD
-          ForwardedValues:
-            QueryString: false
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
         CustomErrorResponses:
           - ErrorCode: 403
             ResponseCode: 200
@@ -154,3 +475,15 @@ Outputs:
   FrontendBucketName:
     Description: S3 bucket for frontend assets
     Value: !Ref FrontendBucket
+  DatasetBucketName:
+    Description: S3 bucket for dataset storage
+    Value: !Ref DatasetBucket
+  EvaluationJobsTableName:
+    Description: DynamoDB table for evaluation jobs
+    Value: !Ref EvaluationJobsTable
+  EvaluationClusterName:
+    Description: ECS cluster for evaluation tasks
+    Value: !Ref EvaluationCluster
+  EvaluationTaskDefinitionArn:
+    Description: Fargate task definition ARN
+    Value: !Ref EvaluationTaskDefinition

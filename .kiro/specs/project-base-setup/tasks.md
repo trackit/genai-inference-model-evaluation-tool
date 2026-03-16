@@ -82,15 +82,15 @@ Set up the pnpm monorepo skeleton for the Bedrock Model Evaluation Tool. Tasks p
 - [x] 8. Checkpoint — Validate SAM template
   - Ensure `sam validate --lint` passes on `template.yaml`. Ensure all tests pass. Ask the user if questions arise.
 
-- [ ] 9. Write tests for Lambda handlers and configuration
-  - [ ]\* 9.1 Write property test: Health handler always returns 200 with valid JSON body (Property 1)
+- [x] 9. Write tests for Lambda handlers and configuration
+  - [x]\* 9.1 Write property test: Health handler always returns 200 with valid JSON body (Property 1)
     - **Property 1: Health handler always returns 200 with valid JSON body**
     - **Validates: Requirements 3.3**
-  - [ ]\* 9.2 Write property test: Python evaluation handler returns structured response (Property 2)
+  - [x]\* 9.2 Write property test: Python evaluation handler returns structured response (Property 2)
     - **Property 2: Python evaluation handler returns structured response**
     - Note: This is a Python handler — write as a Vitest test that invokes the handler via subprocess or validate the contract in TypeScript
     - **Validates: Requirements 4.3**
-  - [ ]\* 9.3 Write unit tests verifying key configuration files
+  - [x]\* 9.3 Write unit tests verifying key configuration files
     - Verify root `package.json` has `"private": true` and required scripts
     - Verify `pnpm-workspace.yaml` lists `frontend` and `backend`
     - Verify `template.yaml` has SAM Transform, HttpApi, CloudFront, S3, Outputs
