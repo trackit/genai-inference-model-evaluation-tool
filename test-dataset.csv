@@ -1,0 +1,11 @@
+prompt,context,reference_output
+"What is the capital of France?","","Paris"
+"Summarize this article","Article text here","Summary"
+"Translate to Spanish","Hello world","Hola mundo"
+"What is 2+2?","","4"
+"Who wrote Hamlet?","","Shakespeare"
+"What is photosynthesis?","","Process of converting light to energy"
+"Name a programming language","","Python"
+"What is the speed of light?","","299,792,458 m/s"
+"What is DNA?","","Deoxyribonucleic acid"
+"Capital of Japan?","","Tokyo"

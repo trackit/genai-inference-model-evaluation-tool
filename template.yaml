@@ -6,12 +6,20 @@ Parameters:
   LogRetentionInDays:
     Type: Number
     Default: 14
+  Owner:
+    Type: String
+  Project:
+    Type: String
+    Default: genai-inference-evaluation-tool
 
 Globals:
   Function:
     Timeout: 30
     MemorySize: 256
     CodeUri: backend/
+    Tags:
+      Owner: !Ref Owner
+      Project: !Ref Project
     Architectures:
       - arm64
   HttpApi:
@@ -32,6 +40,10 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: $default
+      Tags:
+        Project: !Ref Project
+        Owner: !Ref Owner
+        Name: !Sub '${AWS::StackName}-api'
 
   # CloudWatch Log Groups
   HealthFunctionLogGroup:
@@ -82,6 +94,8 @@ Resources:
     Properties:
       Runtime: nodejs20.x
       Handler: index.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-health-function'
       Events:
         HealthApi:
           Type: HttpApi
@@ -110,6 +124,8 @@ Resources:
       Handler: index.handler
       Timeout: 60
       MemorySize: 512
+      Tags:
+        Name: !Sub '${AWS::StackName}-dataset-upload-function'
       Environment:
         Variables:
           DATASET_BUCKET: !Ref DatasetBucket
@@ -143,6 +159,8 @@ Resources:
       Runtime: nodejs20.x
       Handler: index.handler
       Timeout: 60
+      Tags:
+        Name: !Sub '${AWS::StackName}-evaluation-launch-function'
       Environment:
         Variables:
           DYNAMODB_TABLE: !Ref EvaluationJobsTable
@@ -188,6 +206,8 @@ Resources:
     Properties:
       Runtime: nodejs20.x
       Handler: index.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-evaluation-status-function'
       Environment:
         Variables:
           DYNAMODB_TABLE: !Ref EvaluationJobsTable
@@ -220,6 +240,8 @@ Resources:
     Properties:
       Runtime: nodejs20.x
       Handler: index.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-evaluation-results-function'
       Environment:
         Variables:
           DYNAMODB_TABLE: !Ref EvaluationJobsTable
@@ -253,6 +275,8 @@ Resources:
       PackageType: Image
       Timeout: 900
       MemorySize: 5120
+      Tags:
+        Name: !Sub '${AWS::StackName}-eval-function'
     Metadata:
       Dockerfile: Dockerfile
       DockerContext: backend/python/
@@ -263,6 +287,13 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub 'bedrock-eval-datasets-${AWS::AccountId}-${AWS::Region}'
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-dataset-bucket'
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -287,6 +318,13 @@ Resources:
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-frontend-bucket'
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -324,6 +362,13 @@ Resources:
     Properties:
       TableName: !Sub '${AWS::StackName}-evaluation-jobs'
       BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-evaluation-jobs-table'
       SSESpecification:
         SSEEnabled: true
       AttributeDefinitions:
@@ -347,6 +392,13 @@ Resources:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub '${AWS::StackName}-evaluation-cluster'
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-evaluation-cluster'
 
   # IAM Roles
   FargateExecutionRole:

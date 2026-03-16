@@ -21,14 +21,14 @@ The implementation follows an incremental approach: infrastructure → backend A
   - _Requirements: 10.2, 10.4, 10.5_
 
 
-- [ ] 2. Implement dataset upload handler (TypeScript Lambda)
-  - [ ] 2.1 Create layered architecture: handler → use case → service layer
+- [x] 2. Implement dataset upload handler (TypeScript Lambda)
+  - [x] 2.1 Create layered architecture: handler → use case → service layer
     - Write handler function to parse multipart/form-data requests
     - Implement DatasetUploadUseCase with validation and storage orchestration
     - Implement DatasetService with S3 upload operations
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7_
 
-  - [ ]* 2.2 Write property test for CSV validation
+  - [x] 2.2 Write property test for CSV validation
     - **Property 1: CSV Validation**
     - **Validates: Requirements 1.1**
 
@@ -44,7 +44,7 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Property 4: Optional Field Preservation**
     - **Validates: Requirements 1.5, 1.6**
 
-  - [ ] 2.6 Implement CSV parser with validation
+  - [x] 2.6 Implement CSV parser with validation
     - Parse CSV content into dataset structure
     - Validate "prompt" column exists
     - Preserve optional "context" and "reference_output" columns
@@ -57,7 +57,7 @@ The implementation follows an incremental approach: infrastructure → backend A
     - Test empty optional fields
     - _Requirements: 1.1, 9.4_
 
-  - [ ] 2.8 Implement JSONL parser with validation
+  - [x] 2.8 Implement JSONL parser with validation
     - Parse JSONL content into dataset structure
     - Validate "prompt" field exists in each line
     - Preserve optional "context" and "reference_output" fields
@@ -70,7 +70,7 @@ The implementation follows an incremental approach: infrastructure → backend A
     - Test empty optional fields
     - _Requirements: 1.2, 9.5_
 
-  - [ ] 2.10 Implement dataset size validation
+  - [x] 2.10 Implement dataset size validation
     - Reject datasets with fewer than 10 samples
     - Reject files exceeding 10MB
     - Return clear error messages for size violations
@@ -82,12 +82,12 @@ The implementation follows an incremental approach: infrastructure → backend A
     - Test file size at 10MB boundary
     - _Requirements: 1.3, 1.7_
 
-  - [ ] 2.12 Implement malicious content scanning
+  - [x] 2.12 Implement malicious content scanning
     - Scan uploaded files for malicious patterns
     - Reject files containing suspicious content
     - _Requirements: 10.7_
 
-  - [ ] 2.13 Implement S3 upload with metadata
+  - [x] 2.13 Implement S3 upload with metadata
     - Generate unique dataset_id (UUID)
     - Upload file to S3 with encryption
     - Store metadata (sample_count, has_reference_outputs, has_context)
@@ -99,7 +99,7 @@ The implementation follows an incremental approach: infrastructure → backend A
     - Test upload failure handling
     - _Requirements: 1.4, 10.4_
 
-  - [ ] 2.15 Implement error handling and response formatting
+  - [x] 2.15 Implement error handling and response formatting
     - Return consistent error response format
     - Map validation errors to appropriate HTTP status codes (400)
     - Map server errors to 500 status codes

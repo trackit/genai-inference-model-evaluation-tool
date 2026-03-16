@@ -1,0 +1,10 @@
+{"prompt":"What is the capital of France?","reference_output":"Paris"}
+{"prompt":"Summarize this article","context":"Article text","reference_output":"Summary"}
+{"prompt":"Translate to Spanish","context":"Hello world","reference_output":"Hola mundo"}
+{"prompt":"What is 2+2?","reference_output":"4"}
+{"prompt":"Who wrote Hamlet?","reference_output":"Shakespeare"}
+{"prompt":"What is photosynthesis?","reference_output":"Process"}
+{"prompt":"Name a programming language","reference_output":"Python"}
+{"prompt":"What is the speed of light?","reference_output":"299,792,458 m/s"}
+{"prompt":"What is DNA?","reference_output":"Deoxyribonucleic acid"}
+{"prompt":"Capital of Japan?","reference_output":"Tokyo"}

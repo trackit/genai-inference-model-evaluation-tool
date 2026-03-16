@@ -120,6 +120,23 @@ try {
 - Maximum: 1200 lines
 - Split large files into smaller, focused modules if possible
 
+## Package Management
+
+### Single package.json Structure
+- Use pnpm as the package manager (not npm or yarn)
+- Single root package.json contains all dependencies (runtime and dev)
+- Install dependencies: `pnpm install`
+- Add dependency: `pnpm add <package>`
+- Add dev dependency: `pnpm add -D <package>`
+
+### Test Scopes
+Run tests at different levels:
+- `pnpm test` - Run all tests
+- `pnpm test:backend` - Run all backend tests
+- `pnpm test:handlers` - Run handler tests only
+- `pnpm test:usecases` - Run use case tests only
+- `pnpm test:services` - Run service tests only
+
 ## Testing
 
 ### Test-Driven Development (TDD)
