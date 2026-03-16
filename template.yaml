@@ -30,15 +30,15 @@ Resources:
   HealthFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: dist/src/handlers/health.handler
+      Handler: src/handlers/health.handler
       Runtime: nodejs20.x
       CodeUri: backend/
-      # Environment:
-      #   Variables:
-      #     EVAL_FUNCTION_NAME: !Ref EvalFunction
-      # Policies:
-      #   - LambdaInvokePolicy:
-      #       FunctionName: !Ref EvalFunction
+      Environment:
+        Variables:
+          EVAL_FUNCTION_NAME: !Ref PythonEvalFunction
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PythonEvalFunction
       Events:
         HealthApi:
           Type: HttpApi
@@ -47,18 +47,28 @@ Resources:
             Method: GET
             ApiId: !Ref Api
     Metadata:
-      BuildMethod: nodejs20.x
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/health.ts
 
-  # EvalFunction:
-  #   Type: AWS::Serverless::Function
-  #   Properties:
-  #     PackageType: Image
-  #     Timeout: 900
-  #     MemorySize: 5120
-  #   Metadata:
-  #     Dockerfile: Dockerfile
-  #     DockerContext: backend/python/
-  #     DockerTag: latest
+  PythonEvalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      ImageUri: 576872909007.dkr.ecr.us-west-2.amazonaws.com/genai-evaluation:latest
+      Timeout: 900
+      MemorySize: 5120
+    Metadata:
+      DockerTag: latest
 
   FrontendBucket:
     Type: AWS::S3::Bucket
