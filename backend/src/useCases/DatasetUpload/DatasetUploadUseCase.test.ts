@@ -1,22 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DatasetMetadata } from '../../types/Dataset';
-import { DatasetUploadUseCase } from './DatasetUploadUseCase';
+import { DatasetMetadata } from '../../models/Dataset';
+import { DatasetUploadUseCaseImpl } from './DatasetUploadUseCase';
 
 describe('DatasetUploadUseCase', () => {
-  let useCase: DatasetUploadUseCase;
-  let mockDatasetService: any;
+  let useCase: DatasetUploadUseCaseImpl;
+  let mockDatasetService: { uploadDataset: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     mockDatasetService = {
       uploadDataset: vi.fn().mockResolvedValue({
         dataset_id: 'test-id',
         sample_count: 10,
-        has_reference_outputs: false,
-        has_context: false,
+        has_summary: false,
+        has_class: false,
         s3_key: 'datasets/test-id.csv',
       } as DatasetMetadata),
     };
-    useCase = new DatasetUploadUseCase(mockDatasetService);
+    useCase = new DatasetUploadUseCaseImpl(mockDatasetService);
   });
 
   describe('successful uploads', () => {

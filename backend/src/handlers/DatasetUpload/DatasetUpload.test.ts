@@ -1,4 +1,7 @@
-import { APIGatewayProxyEvent } from 'aws-lambda';
+import {
+  APIGatewayEventRequestContext,
+  APIGatewayProxyEvent,
+} from 'aws-lambda';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handler } from './DatasetUpload';
 
@@ -20,6 +23,7 @@ describe('DatasetUpload Handler', () => {
       headers: {
         'content-type': contentType,
       },
+      multiValueHeaders: {},
       isBase64Encoded: false,
       httpMethod: 'POST',
       path: '/datasets',
@@ -27,13 +31,12 @@ describe('DatasetUpload Handler', () => {
       queryStringParameters: null,
       multiValueQueryStringParameters: null,
       stageVariables: null,
-      requestContext: {} as any,
+      requestContext: {} as APIGatewayEventRequestContext,
       resource: '',
     };
   };
 
   const createMultipartBody = (filename: string, content: string): string => {
-    const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
     return [
       `------WebKitFormBoundary7MA4YWxkTrZu0gW`,
       `Content-Disposition: form-data; name="file"; filename="${filename}"`,

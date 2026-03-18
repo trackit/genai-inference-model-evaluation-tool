@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { JsonlParser } from './JsonlParser';
 
 describe('JsonlParser', () => {
   const parser = new JsonlParser();
@@ -64,6 +63,30 @@ describe('JsonlParser', () => {
       expect(result.samples).toHaveLength(1);
       expect(result.samples[0].context).toBe('AI includes: ML, DL, NLP');
     });
+
+    it('should preserve context field when provided', () => {
+      const jsonl = `{"prompt":"Summarize this","context":"Long article text here"}`;
+
+      const result = parser.parse(jsonl);
+
+      expect(result.samples).toHaveLength(1);
+      expect(result.samples[0]).toEqual({
+        prompt: 'Summarize this',
+        context: 'Long article text here',
+      });
+    });
+
+    it('should preserve reference_output field when provided', () => {
+      const jsonl = `{"prompt":"What is AI?","reference_output":"Artificial Intelligence"}`;
+
+      const result = parser.parse(jsonl);
+
+      expect(result.samples).toHaveLength(1);
+      expect(result.samples[0]).toEqual({
+        prompt: 'What is AI?',
+        reference_output: 'Artificial Intelligence',
+      });
+    });
   });
 
   describe('error handling', () => {
@@ -107,6 +130,16 @@ describe('JsonlParser', () => {
 {"question":"Missing prompt field"}`;
 
       expect(() => parser.parse(jsonl)).toThrow('Error parsing line 2');
+    });
+
+    it('should provide descriptive error with line number for malformed JSON', () => {
+      const jsonl = `{"prompt":"First line"}
+{"prompt":"Second line"
+{"prompt":"Third line"}`;
+
+      expect(() => parser.parse(jsonl)).toThrow(
+        'Error parsing line 2: Invalid JSON',
+      );
     });
   });
 });

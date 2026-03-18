@@ -1,6 +1,11 @@
-import { Dataset } from '../../types/Dataset';
+import { createInjectionToken } from '@trackit.io/di-container';
+import { Dataset } from '../../models/Dataset';
 
-export class CsvParser {
+export type CsvParser = {
+  parse(content: string): Dataset;
+};
+
+class CsvParserImpl implements CsvParser {
   parse(content: string): Dataset {
     const lines = content.trim().split('\n');
 
@@ -13,13 +18,13 @@ export class CsvParser {
     const headerLine = lines[0];
     const headers = this.parseCSVLine(headerLine);
 
-    const promptIndex = headers.indexOf('prompt');
-    if (promptIndex === -1) {
-      throw new Error('CSV file must contain a "prompt" column');
+    const documentIndex = headers.indexOf('document');
+    if (documentIndex === -1) {
+      throw new Error('CSV file must contain a "document" column');
     }
 
-    const contextIndex = headers.indexOf('context');
-    const referenceOutputIndex = headers.indexOf('reference_output');
+    const summaryIndex = headers.indexOf('summary');
+    const classIndex = headers.indexOf('class');
 
     const samples = [];
     for (let i = 1; i < lines.length; i++) {
@@ -35,24 +40,16 @@ export class CsvParser {
           );
         }
 
-        const sample: any = {
-          prompt: values[promptIndex],
+        const sample: { document: string; summary?: string; class_label?: string } = {
+          document: values[documentIndex],
         };
 
-        if (
-          contextIndex !== -1 &&
-          values[contextIndex] &&
-          values[contextIndex] !== ''
-        ) {
-          sample.context = values[contextIndex];
+        if (summaryIndex !== -1 && values[summaryIndex] && values[summaryIndex] !== '') {
+          sample.summary = values[summaryIndex];
         }
 
-        if (
-          referenceOutputIndex !== -1 &&
-          values[referenceOutputIndex] &&
-          values[referenceOutputIndex] !== ''
-        ) {
-          sample.reference_output = values[referenceOutputIndex];
+        if (classIndex !== -1 && values[classIndex] && values[classIndex] !== '') {
+          sample.class_label = values[classIndex];
         }
 
         samples.push(sample);
@@ -94,3 +91,7 @@ export class CsvParser {
     return result;
   }
 }
+
+export const tokenCsvParser = createInjectionToken<CsvParser>('CsvParser', {
+  useClass: CsvParserImpl,
+});

@@ -1,18 +1,17 @@
-import { CsvParser } from '../../parsers/CsvParser/CsvParser';
-import { JsonlParser } from '../../parsers/JsonlParser/JsonlParser';
-import { DatasetService } from '../../services/DatasetService/DatasetService';
-import { Dataset, DatasetMetadata } from '../../types/Dataset';
+import { createInjectionToken, inject } from '@trackit.io/di-container';
+import { Dataset, DatasetMetadata } from '../../models/Dataset';
+import { tokenCsvParser } from '../../parsers/CsvParser/CsvParser';
+import { tokenJsonlParser } from '../../parsers/JsonlParser/JsonlParser';
+import { tokenDatasetService } from '../../services/DatasetService/DatasetService';
 
-export class DatasetUploadUseCase {
-  private csvParser: CsvParser;
-  private jsonlParser: JsonlParser;
-  private datasetService: DatasetService;
+export type DatasetUploadUseCase = {
+  execute(content: string, filename: string): Promise<DatasetMetadata>;
+};
 
-  constructor(datasetService: DatasetService) {
-    this.csvParser = new CsvParser();
-    this.jsonlParser = new JsonlParser();
-    this.datasetService = datasetService;
-  }
+export class DatasetUploadUseCaseImpl implements DatasetUploadUseCase {
+  private readonly csvParser = inject(tokenCsvParser);
+  private readonly jsonlParser = inject(tokenJsonlParser);
+  private readonly datasetService = inject(tokenDatasetService);
 
   async execute(content: string, filename: string): Promise<DatasetMetadata> {
     const fileExtension = this.getFileExtension(filename);
@@ -48,11 +47,11 @@ export class DatasetUploadUseCase {
 
   private validateFileSize(content: string): void {
     const sizeInBytes = Buffer.byteLength(content, 'utf8');
-    const maxSizeInBytes = 10 * 1024 * 1024;
+    const maxSizeInBytes = 200 * 1024 * 1024;
     const minSizeInBytes = 10;
 
     if (sizeInBytes > maxSizeInBytes) {
-      throw new Error('File size exceeds maximum limit of 10MB');
+      throw new Error('File size exceeds maximum limit of 200MB');
     }
 
     if (sizeInBytes < minSizeInBytes) {
@@ -60,10 +59,7 @@ export class DatasetUploadUseCase {
     }
   }
 
-  private parseDataset(
-    content: string,
-    fileExtension: 'csv' | 'jsonl',
-  ): Dataset {
+  private parseDataset(content: string, fileExtension: 'csv' | 'jsonl'): Dataset {
     if (fileExtension === 'csv') {
       return this.csvParser.parse(content);
     } else {
@@ -96,3 +92,8 @@ export class DatasetUploadUseCase {
     }
   }
 }
+
+export const tokenDatasetUploadUseCase =
+  createInjectionToken<DatasetUploadUseCase>('DatasetUploadUseCase', {
+    useClass: DatasetUploadUseCaseImpl,
+  });

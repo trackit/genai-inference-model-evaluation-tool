@@ -1,7 +1,7 @@
 export interface DatasetSample {
-  prompt: string;
-  context?: string;
-  reference_output?: string;
+  document: string;
+  summary?: string;
+  class_label?: string;
 }
 
 export interface Dataset {
@@ -11,8 +11,8 @@ export interface Dataset {
 export interface DatasetMetadata {
   dataset_id: string;
   sample_count: number;
-  has_reference_outputs: boolean;
-  has_context: boolean;
+  has_summary: boolean;
+  has_class: boolean;
   s3_key: string;
 }
 
@@ -21,8 +21,8 @@ export interface DatasetUploadResponse {
   data?: {
     dataset_id: string;
     sample_count: number;
-    has_reference_outputs: boolean;
-    has_context: boolean;
+    has_summary: boolean;
+    has_class: boolean;
   };
   error?: {
     code: string;

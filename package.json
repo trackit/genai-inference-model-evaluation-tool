@@ -6,21 +6,25 @@
   "scripts": {
     "dev": "sam local start-api",
     "build": "pnpm --dir frontend build && sam build",
+    "build:backend": "bash scripts/build.sh",
+    "deploy:backend": "bash scripts/deploy.sh",
     "test": "vitest run",
     "test:backend": "vitest run backend/",
     "test:handlers": "vitest run backend/src/handlers/",
-    "test:usecases": "vitest run backend/src/use-cases/",
+    "test:usecases": "vitest run backend/src/useCases/",
     "test:services": "vitest run backend/src/services/",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.800.0",
+    "@aws-sdk/client-ecs": "^3.800.0",
     "@aws-sdk/client-lambda": "^3.800.0",
-    "@aws-sdk/client-s3": "^3.800.0"
+    "@aws-sdk/client-s3": "^3.800.0",
+    "@trackit.io/di-container": "1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
-    "@trackit.io/di-container": "1.0.0",
     "@tsconfig/node24": "^24.0.0",
     "@types/aws-lambda": "^8.10.149",
     "@types/node": "^24.12.0",

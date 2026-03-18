@@ -1,27 +1,18 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DatasetService } from '../../services/DatasetService/DatasetService';
-import { DatasetUploadResponse } from '../../types/Dataset';
-import { DatasetUploadUseCase } from '../../use-cases/DatasetUpload/DatasetUploadUseCase';
+import { inject } from '@trackit.io/di-container';
+import type {
+  APIGatewayProxyEventV2,
+  APIGatewayProxyResultV2,
+} from 'aws-lambda';
+import { DatasetUploadResponse } from '../../models/Dataset';
+import { tokenDatasetUploadUseCase } from '../../useCases/DatasetUpload/DatasetUploadUseCase';
+
+const useCase = inject(tokenDatasetUploadUseCase);
 
 export const handler = async (
-  event: APIGatewayProxyEvent,
-): Promise<APIGatewayProxyResult> => {
+  event: APIGatewayProxyEventV2,
+): Promise<APIGatewayProxyResultV2> => {
   try {
-    const bucketName = process.env.DATASET_BUCKET_NAME;
-    const region = process.env.AWS_REGION || 'us-east-1';
-
-    if (!bucketName) {
-      return createErrorResponse(
-        500,
-        'CONFIGURATION_ERROR',
-        'S3 bucket not configured',
-      );
-    }
-
     const { content, filename } = parseMultipartFormData(event);
-
-    const datasetService = new DatasetService(bucketName, region);
-    const useCase = new DatasetUploadUseCase(datasetService);
 
     const metadata = await useCase.execute(content, filename);
 
@@ -30,17 +21,13 @@ export const handler = async (
       data: {
         dataset_id: metadata.dataset_id,
         sample_count: metadata.sample_count,
-        has_reference_outputs: metadata.has_reference_outputs,
-        has_context: metadata.has_context,
+        has_summary: metadata.has_summary,
+        has_class: metadata.has_class,
       },
     };
 
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
       body: JSON.stringify(response),
     };
   } catch (error) {
@@ -48,12 +35,11 @@ export const handler = async (
   }
 };
 
-function parseMultipartFormData(event: APIGatewayProxyEvent): {
+function parseMultipartFormData(event: APIGatewayProxyEventV2): {
   content: string;
   filename: string;
 } {
-  const contentType =
-    event.headers['content-type'] || event.headers['Content-Type'];
+  const contentType = event.headers['content-type'];
 
   if (!contentType?.includes('multipart/form-data')) {
     throw new Error('Content-Type must be multipart/form-data');
@@ -93,17 +79,17 @@ function parseMultipartFormData(event: APIGatewayProxyEvent): {
   return { content, filename };
 }
 
-function handleError(error: unknown): APIGatewayProxyResult {
+function handleError(error: unknown): APIGatewayProxyResultV2 {
   const errorMessage =
     error instanceof Error ? error.message : 'Unknown error occurred';
 
   let statusCode = 500;
   let errorCode = 'INTERNAL_ERROR';
-  const details: any = {};
+  const details: Record<string, unknown> = {};
 
-  if (errorMessage.includes('prompt')) {
+  if (errorMessage.includes('document')) {
     statusCode = 400;
-    errorCode = 'MISSING_PROMPT';
+    errorCode = 'MISSING_DOCUMENT';
   } else if (errorMessage.includes('at least 10 samples')) {
     statusCode = 400;
     errorCode = 'TOO_SMALL';
@@ -143,33 +129,6 @@ function handleError(error: unknown): APIGatewayProxyResult {
 
   return {
     statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    },
-    body: JSON.stringify(response),
-  };
-}
-
-function createErrorResponse(
-  statusCode: number,
-  code: string,
-  message: string,
-): APIGatewayProxyResult {
-  const response: DatasetUploadResponse = {
-    success: false,
-    error: {
-      code,
-      message,
-    },
-  };
-
-  return {
-    statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    },
     body: JSON.stringify(response),
   };
 }

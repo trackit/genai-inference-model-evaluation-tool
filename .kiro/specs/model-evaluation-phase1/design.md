@@ -8,7 +8,7 @@ The Bedrock Model Evaluation Tool enables users to compare foundation models ava
 
 - Enable both technical and non-technical users to compare LLMs for their specific use cases
 - Provide quantitative metrics (accuracy, latency, cost) and visual comparisons
-- Support datasets of 10-100+ samples in CSV or JSONL format
+- Support datasets of 10-100+ samples in CSV or JSONL format for text summarization and text classification use cases
 - Complete evaluations within 30 minutes for typical datasets
 - Recommend the optimal model based on user-defined preferences
 
@@ -150,7 +150,7 @@ sequenceDiagram
     Fargate->>S3: Load dataset
     Fargate->>DDB: Update status: running
     
-    loop For each prompt
+    loop For each document
         Fargate->>Bedrock: Invoke model
         Bedrock-->>Fargate: Response + tokens
         Fargate->>Fargate: Calculate metrics
@@ -214,8 +214,7 @@ Content-Type: multipart/form-data
   data: {
     dataset_id: string,
     sample_count: number,
-    has_reference_outputs: boolean,
-    has_context: boolean
+    has_summary_or_class: boolean
   }
 }
 ```
@@ -225,7 +224,7 @@ Content-Type: multipart/form-data
 {
   success: false,
   error: {
-    code: string, // "INVALID_FORMAT" | "TOO_SMALL" | "TOO_LARGE" | "MISSING_PROMPT"
+    code: string, // "INVALID_FORMAT" | "TOO_SMALL" | "TOO_LARGE" | "MISSING_DOCUMENT"
     message: string,
     details?: {
       row?: number,
@@ -237,13 +236,13 @@ Content-Type: multipart/form-data
 ```
 
 **Validation Rules:**
-- File size: 10 bytes - 10MB
+- File size: 10 bytes - 200MB
 - Format: CSV or JSONL
-- Required field: "prompt"
-- Optional fields: "context", "reference_output"
+- Required field: "document"
+- Optional fields: "summary" (for text summarization), "class" (for text classification)
 - Minimum samples: 10
-- CSV: Must have header row with "prompt" column
-- JSONL: Each line must be valid JSON with "prompt" field
+- CSV: Must have header row with "document" column
+- JSONL: Each line must be valid JSON with "document" field
 
 #### POST /evaluations
 
@@ -366,16 +365,15 @@ interface DatasetUploader {
 interface DatasetMetadata {
   dataset_id: string;
   sample_count: number;
-  has_reference_outputs: boolean;
-  has_context: boolean;
+  has_summary_or_class: boolean;
   s3_key: string;
 }
 
 interface Dataset {
   samples: Array<{
-    prompt: string;
-    context?: string;
-    reference_output?: string;
+    document: string;
+    summary?: string;
+    class?: string;
   }>;
 }
 ```
@@ -444,7 +442,7 @@ class EvaluationEngine:
         pass
 
 class BedrockClient:
-    def invoke_model(self, model_id: str, prompt: str, context: Optional[str]) -> InvocationResult:
+    def invoke_model(self, model_id: str, document: str) -> InvocationResult:
         """Invoke a Bedrock model and record metrics."""
         pass
 
@@ -606,28 +604,29 @@ datasets/{dataset_id}.jsonl
 #### CSV Format
 
 ```csv
-prompt,context,reference_output
-"What is the capital of France?","","Paris"
-"Summarize this article","Article text here","Summary text"
+document,summary
+"What is the capital of France?","Paris"
+"Summarize this article: Article text here","Summary text"
 ```
 
 **Requirements:**
 - Header row required
-- "prompt" column required
-- "context" and "reference_output" columns optional
+- "document" column required
+- "summary" or "class" columns optional
 - UTF-8 encoding
 
 #### JSONL Format
 
 ```jsonl
-{"prompt": "What is the capital of France?", "reference_output": "Paris"}
-{"prompt": "Summarize this article", "context": "Article text here", "reference_output": "Summary text"}
+{"document": "What is the capital of France?", "summary": "Paris"}
+{"document": "Summarize this article: Article text here", "summary": "Summary text"}
+{"document": "This movie was excellent", "class": "positive"}
 ```
 
 **Requirements:**
 - One JSON object per line
-- "prompt" field required
-- "context" and "reference_output" fields optional
+- "document" field required
+- "summary" or "class" fields optional
 - UTF-8 encoding
 
 ### Bedrock Model Pricing (for cost calculation)
@@ -657,13 +656,13 @@ A property is a characteristic or behavior that should hold true across all vali
 
 ### Property 1: CSV Validation
 
-For any CSV file, the Dataset_Uploader should validate that it contains a "prompt" column, and reject files without this required column.
+For any CSV file, the Dataset_Uploader should validate that it contains a "document" column, and reject files without this required column.
 
 **Validates: Requirements 1.1**
 
 ### Property 2: JSONL Validation
 
-For any JSONL file, the Dataset_Uploader should validate that each line contains a "prompt" field, and reject files where any line is missing this required field.
+For any JSONL file, the Dataset_Uploader should validate that each line contains a "document" field, and reject files where any line is missing this required field.
 
 **Validates: Requirements 1.2**
 
@@ -675,7 +674,7 @@ For any valid dataset, uploading it to S3 should return a dataset identifier tha
 
 ### Property 4: Optional Field Preservation
 
-For any dataset containing optional fields ("context" or "reference_output"), the stored version should preserve all field values exactly as provided.
+For any dataset containing optional fields ("summary" or "class"), the stored version should preserve all field values exactly as provided.
 
 **Validates: Requirements 1.5, 1.6**
 
@@ -717,7 +716,7 @@ For any valid dataset_id in an evaluation job, the Evaluation_Engine should succ
 
 ### Property 11: Complete Model Invocation
 
-For any dataset with N prompts and M selected models, the Bedrock_Client should perform exactly N × M invocations (excluding failures).
+For any dataset with N documents and M selected models, the Bedrock_Client should perform exactly N × M invocations (excluding failures).
 
 **Validates: Requirements 3.4**
 
@@ -729,13 +728,13 @@ For any model invocation result, it should contain input token count, output tok
 
 ### Property 13: Error Resilience
 
-For any evaluation where one model invocation fails, the Evaluation_Engine should continue processing all remaining prompts and models.
+For any evaluation where one model invocation fails, the Evaluation_Engine should continue processing all remaining documents and models.
 
 **Validates: Requirements 3.6, 11.3**
 
 ### Property 14: Metrics Computation Completeness
 
-For any completed evaluation, the results should contain accuracy (if reference outputs exist), latency, and cost metrics for each model.
+For any completed evaluation, the results should contain accuracy (if summary or class fields exist), latency, and cost metrics for each model.
 
 **Validates: Requirements 3.7**
 
@@ -747,7 +746,7 @@ For any completed evaluation, the results stored in DynamoDB should be retrievab
 
 ### Property 16: Accuracy Metrics Completeness
 
-For any dataset with reference outputs, the computed accuracy metrics should include BLEU, ROUGE, METEOR, Levenshtein, BERTScore, G-eval reasoning, and G-eval faithfulness scores.
+For any dataset with summary or class fields, the computed accuracy metrics should include BLEU, ROUGE, METEOR, Levenshtein, BERTScore, G-eval reasoning, and G-eval faithfulness scores.
 
 **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7**
 
@@ -759,7 +758,7 @@ For any set of per-sample accuracy scores, the mean score should equal the sum o
 
 ### Property 18: Accuracy Metrics Conditional Computation
 
-For any dataset without reference outputs, the results should not contain deterministic or semantic accuracy metrics.
+For any dataset without summary or class fields, the results should not contain deterministic or semantic accuracy metrics.
 
 **Validates: Requirements 4.10**
 
@@ -915,7 +914,7 @@ For any client making excessive requests beyond the rate limit, subsequent reque
 
 ### Property 44: Invocation Error Logging
 
-For any failed Bedrock model invocation, the error log should contain the model identifier, prompt identifier, and error details.
+For any failed Bedrock model invocation, the error log should contain the model identifier, document identifier, and error details.
 
 **Validates: Requirements 11.2**
 
@@ -997,8 +996,8 @@ All API errors follow a consistent format:
 
 #### Dataset Upload Errors
 
-- **Invalid Format**: Return 400 with specific format issue (missing prompt column, malformed JSON)
-- **Size Violations**: Return 400 with size constraint details (too small, too large)
+- **Invalid Format**: Return 400 with specific format issue (missing document column, malformed JSON)
+- **Size Violations**: Return 400 with size constraint details (too small, too large, exceeds 200MB limit)
 - **Malicious Content**: Return 400 with security violation message
 - **Storage Failure**: Return 500 with retry guidance
 
@@ -1096,10 +1095,10 @@ Each correctness property in this document must be implemented as a property-bas
 
 #### Edge Cases to Test
 
-- **Dataset size boundaries**: Exactly 10 samples (minimum), very large datasets
+- **Dataset size boundaries**: Exactly 10 samples (minimum), very large datasets (up to 200MB)
 - **Timeout boundary**: Evaluations approaching 30-minute limit
-- **Empty optional fields**: Datasets with no context, no reference outputs
-- **Single model/prompt**: Minimum viable evaluation
+- **Empty optional fields**: Datasets with no summary, no class fields
+- **Single model/document**: Minimum viable evaluation
 - **All models fail**: Complete failure scenario
 - **Malformed data**: Invalid CSV/JSONL, missing fields, wrong types
 
@@ -1116,6 +1115,7 @@ Some requirements are best tested with specific examples:
 - S3 encryption is enabled (Requirement 10.4)
 - DynamoDB encryption is enabled (Requirement 10.5)
 - Weights are displayed with recommendation (Requirement 12.5)
+- File size limit of 200MB is enforced (Requirement 1.7)
 
 ### Integration Testing
 
@@ -1137,7 +1137,7 @@ Test interactions with AWS services:
 #### End-to-End Tests
 
 Test complete user workflows:
-1. User uploads CSV dataset with reference outputs
+1. User uploads CSV dataset with summary or class fields
 2. User selects 3 models and custom weights
 3. System evaluates models and computes metrics
 4. User views results with recommendation

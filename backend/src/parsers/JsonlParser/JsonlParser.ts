@@ -1,6 +1,11 @@
-import { Dataset } from '../../types/Dataset';
+import { createInjectionToken } from '@trackit.io/di-container';
+import { Dataset } from '../../models/Dataset';
 
-export class JsonlParser {
+export type JsonlParser = {
+  parse(content: string): Dataset;
+};
+
+class JsonlParserImpl implements JsonlParser {
   parse(content: string): Dataset {
     const lines = content.trim().split('\n');
 
@@ -12,20 +17,20 @@ export class JsonlParser {
       try {
         const obj = JSON.parse(line);
 
-        if (!obj.prompt) {
-          throw new Error('Each line must contain a "prompt" field');
+        if (!obj.document) {
+          throw new Error('Each line must contain a "document" field');
         }
 
-        const sample: any = {
-          prompt: obj.prompt,
+        const sample: { document: string; summary?: string; class_label?: string } = {
+          document: obj.document,
         };
 
-        if (obj.context && obj.context !== '') {
-          sample.context = obj.context;
+        if (obj.summary && obj.summary !== '') {
+          sample.summary = obj.summary;
         }
 
-        if (obj.reference_output && obj.reference_output !== '') {
-          sample.reference_output = obj.reference_output;
+        if (obj.class && obj.class !== '') {
+          sample.class_label = obj.class;
         }
 
         samples.push(sample);
@@ -42,3 +47,8 @@ export class JsonlParser {
     return { samples };
   }
 }
+
+export const tokenJsonlParser = createInjectionToken<JsonlParser>(
+  'JsonlParser',
+  { useClass: JsonlParserImpl },
+);

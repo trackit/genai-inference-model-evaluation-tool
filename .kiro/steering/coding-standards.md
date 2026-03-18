@@ -28,7 +28,7 @@ backend/src/
 │   └── EvaluationResults/
 │       ├── EvaluationResults.ts
 │       └── EvaluationResults.test.ts
-├── use-cases/
+├── useCases/
 │   ├── DatasetUpload/
 │   │   ├── DatasetUploadUseCase.ts
 │   │   └── DatasetUploadUseCase.test.ts
@@ -40,15 +40,21 @@ backend/src/
 │   ├── DatasetService/
 │   │   ├── DatasetService.ts
 │   │   └── DatasetService.test.ts
-│   ├── EvaluationService/
-│   │   ├── EvaluationService.ts
-│   │   └── EvaluationService.test.ts
+│   ├── EvaluationJobsRepository/
+│   │   ├── EvaluationJobsRepository.ts
+│   │   └── EvaluationJobsRepository.test.ts
+│   ├── FargateService/
+│   │   ├── FargateService.ts
+│   │   └── FargateService.test.ts
 │   └── ...
 ├── parsers/
-│   ├── CsvParser.ts
-│   └── JsonlParser.ts
+│   ├── CsvParser/
+│   │   └── CsvParser.ts
+│   └── JsonlParser/
+│       └── JsonlParser.ts
 └── models/
-    └── Dataset.ts
+    ├── Dataset.ts
+    └── Evaluation.ts
 ```
 
 ## Code Style

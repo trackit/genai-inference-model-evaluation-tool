@@ -30,8 +30,8 @@ Users can override and add any Bedrock model by providing a Bedrock model endpoi
 
 - CSV or JSONL file containing:
   - `prompt` (required)
-  - `context` (optional)
-  - `reference_output` (optional)
+  - `summary` (optional)
+  - `class` (optional)
 
 ## Output
 
@@ -46,7 +46,7 @@ Users can override and add any Bedrock model by providing a Bedrock model endpoi
 ## Accuracy
 
 - Deterministic: BLEU, ROUGE, METEOR, Levenshtein
-- Semantic: BERTScore, MoverScore
+- Semantic: BERTScore
 - LLM-as-judge: G-eval (via DeepEval) for reasoning and faithfulness
 
 Both deterministic and LLM-as-judge should be used together to mitigate judge bias (e.g., Claude rating Claude outputs higher).

@@ -14,7 +14,7 @@ This document specifies the requirements for Phase 1 of the Bedrock Model Evalua
 - **Metric_Calculator**: Component that computes accuracy, latency, and cost metrics
 - **Progress_Tracker**: Component that monitors and reports evaluation job status
 - **Model_Recommender**: Component that selects the optimal model based on user preferences
-- **Dataset**: Collection of prompts with optional context and reference outputs in CSV or JSONL format
+- **Dataset**: Collection of documents with optional reference outputs (summary or class) in CSV or JSONL format, supporting text summarization and text classification evaluation use cases
 - **Evaluation_Job**: Asynchronous process that runs model inference and metric calculations
 - **Foundation_Model**: Pre-trained LLM accessible through Amazon Bedrock (Claude Sonnet, Claude Opus, Amazon Nova)
 
@@ -26,13 +26,13 @@ This document specifies the requirements for Phase 1 of the Bedrock Model Evalua
 
 #### Acceptance Criteria
 
-1. WHEN a user uploads a CSV file, THE Dataset_Uploader SHALL validate that it contains a "prompt" column
-2. WHEN a user uploads a JSONL file, THE Dataset_Uploader SHALL validate that each line contains a "prompt" field
+1. WHEN a user uploads a CSV file, THE Dataset_Uploader SHALL validate that it contains a "document" column
+2. WHEN a user uploads a JSONL file, THE Dataset_Uploader SHALL validate that each line contains a "document" field
 3. WHEN a dataset contains fewer than 10 samples, THE Dataset_Uploader SHALL return an error message indicating minimum dataset size
 4. WHEN a valid dataset is uploaded, THE Dataset_Uploader SHALL store it in S3 and return a dataset identifier
-5. WHERE a dataset includes "context" fields, THE Dataset_Uploader SHALL preserve them for model inference
-6. WHERE a dataset includes "reference_output" fields, THE Dataset_Uploader SHALL preserve them for accuracy evaluation
-7. WHEN a dataset file exceeds 10MB, THE Dataset_Uploader SHALL return an error message indicating maximum file size
+5. WHERE a dataset includes "summary" fields, THE Dataset_Uploader SHALL preserve them for accuracy evaluation in text summarization use cases
+6. WHERE a dataset includes "class" fields, THE Dataset_Uploader SHALL preserve them for accuracy evaluation in text classification use cases
+7. WHEN a dataset file exceeds 200MB, THE Dataset_Uploader SHALL return an error message indicating maximum file size
 
 ### Requirement 2: Model Selection and Configuration
 
@@ -54,9 +54,9 @@ This document specifies the requirements for Phase 1 of the Bedrock Model Evalua
 1. WHEN an evaluation request is submitted, THE API_Gateway SHALL create an Evaluation_Job and return a job identifier
 2. WHEN an Evaluation_Job is created, THE API_Gateway SHALL launch the Evaluation_Engine on Fargate
 3. WHEN the Evaluation_Engine starts, THE Evaluation_Engine SHALL load the dataset from S3
-4. FOR EACH prompt in the dataset, THE Bedrock_Client SHALL invoke each selected Foundation_Model and record the response
+4. FOR EACH document in the dataset, THE Bedrock_Client SHALL invoke each selected Foundation_Model and record the response
 5. FOR EACH model invocation, THE Bedrock_Client SHALL record input token count, output token count, time to first token, and total latency
-6. WHEN a model invocation fails, THE Evaluation_Engine SHALL log the error and continue with remaining prompts
+6. WHEN a model invocation fails, THE Evaluation_Engine SHALL log the error and continue with remaining documents
 7. WHEN all model invocations complete, THE Metric_Calculator SHALL compute accuracy, latency, and cost metrics
 8. WHEN metric calculations complete, THE Evaluation_Engine SHALL store results in DynamoDB
 9. WHEN an Evaluation_Job exceeds 30 minutes, THE Evaluation_Engine SHALL terminate and store partial results with a timeout status
@@ -67,16 +67,17 @@ This document specifies the requirements for Phase 1 of the Bedrock Model Evalua
 
 #### Acceptance Criteria
 
-1. WHERE a dataset includes "reference_output" fields, THE Metric_Calculator SHALL compute BLEU scores using fmeval
-2. WHERE a dataset includes "reference_output" fields, THE Metric_Calculator SHALL compute ROUGE scores using fmeval
-3. WHERE a dataset includes "reference_output" fields, THE Metric_Calculator SHALL compute METEOR scores using fmeval
-4. WHERE a dataset includes "reference_output" fields, THE Metric_Calculator SHALL compute Levenshtein similarity scores
-5. WHERE a dataset includes "reference_output" fields, THE Metric_Calculator SHALL compute BERTScore using fmeval
-6. WHERE a dataset includes "reference_output" fields, THE Metric_Calculator SHALL compute G-eval reasoning scores using DeepEval
-7. WHERE a dataset includes "reference_output" fields, THE Metric_Calculator SHALL compute G-eval faithfulness scores using DeepEval
-8. WHEN computing G-eval scores, THE Metric_Calculator SHALL use Claude Opus as the judge model
-9. FOR EACH accuracy metric, THE Metric_Calculator SHALL compute the mean score across all dataset samples
-10. WHERE a dataset does not include "reference_output" fields, THE Metric_Calculator SHALL skip deterministic and semantic accuracy metrics
+1. WHERE a dataset includes "summary" or "class" fields, THE Metric_Calculator SHALL compute BLEU scores using fmeval
+2. WHERE a dataset includes "summary" or "class" fields, THE Metric_Calculator SHALL compute ROUGE scores using fmeval
+3. WHERE a dataset includes "summary" or "class" fields, THE Metric_Calculator SHALL compute METEOR scores using fmeval
+4. WHERE a dataset includes "summary" or "class" fields, THE Metric_Calculator SHALL compute Levenshtein similarity scores
+5. WHERE a dataset includes "summary" or "class" fields, THE Metric_Calculator SHALL compute BERTScore using fmeval
+6. FOR EACH deterministic and semantic accuracy metric, THE Metric_Calculator SHALL compute the mean score across all dataset samples
+7. WHERE a dataset does not include "summary" or "class" fields, THE Metric_Calculator SHALL skip deterministic and semantic accuracy metrics
+8. WHERE a dataset includes "summary" or "class" fields, THE Metric_Calculator SHALL compute G-eval reasoning scores using DeepEval with Claude Opus as judge
+9. WHERE a dataset includes "summary" or "class" fields, THE Metric_Calculator SHALL compute G-eval faithfulness scores using DeepEval with Claude Opus as judge
+10. FOR EACH G-eval metric, THE Metric_Calculator SHALL compute the mean score across all dataset samples
+11. WHERE a dataset does not include "summary" or "class" fields, THE Metric_Calculator SHALL skip G-eval metrics
 
 ### Requirement 5: Performance Metric Calculation
 
@@ -116,7 +117,7 @@ This document specifies the requirements for Phase 1 of the Bedrock Model Evalua
 2. THE API_Gateway SHALL return results including all computed metrics for each evaluated model
 3. THE Results_Visualizer SHALL display a radar chart comparing models across accuracy, latency, and cost dimensions
 4. THE Results_Visualizer SHALL display quantitative metric values for each model in a table format
-5. WHERE accuracy metrics are available, THE Results_Visualizer SHALL display mean scores for BLEU, ROUGE, METEOR, Levenshtein, BERTScore, G-eval reasoning, and G-eval faithfulness
+5. WHERE accuracy metrics are available, THE Results_Visualizer SHALL display mean scores for BLEU, ROUGE, METEOR, Levenshtein, BERTScore
 6. THE Results_Visualizer SHALL display mean tokens per second, mean time to first token, mean total latency, and total cost for each model
 7. WHEN a results request is received for a non-existent job identifier, THE API_Gateway SHALL return an error message indicating the job was not found
 
@@ -168,8 +169,8 @@ This document specifies the requirements for Phase 1 of the Bedrock Model Evalua
 #### Acceptance Criteria
 
 1. WHEN a dataset upload fails, THE Dataset_Uploader SHALL return a descriptive error message indicating the specific validation failure
-2. WHEN a Bedrock model invocation fails, THE Evaluation_Engine SHALL log the error with model identifier, prompt identifier, and error details
-3. WHEN a Bedrock model invocation fails, THE Evaluation_Engine SHALL continue processing remaining prompts and models
+2. WHEN a Bedrock model invocation fails, THE Evaluation_Engine SHALL log the error with model identifier, document identifier, and error details
+3. WHEN a Bedrock model invocation fails, THE Evaluation_Engine SHALL continue processing remaining documents and models
 4. IF more than 50 percent of model invocations fail for a specific model, THEN THE Evaluation_Engine SHALL mark that model evaluation as failed
 5. WHEN metric calculation fails, THE Evaluation_Engine SHALL log the error and store partial results with a failure indicator
 6. WHEN an Evaluation_Job fails, THE API_Gateway SHALL return error details in the job status response

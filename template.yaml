@@ -36,6 +36,13 @@ Globals:
         - '*'
 
 Resources:
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: infrastructure/network.yaml
+      Parameters:
+        ProjectName: !Ref AWS::StackName
+
   Api:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -115,7 +122,7 @@ Resources:
         OutExtension:
           - .js=.mjs
         EntryPoints:
-          - src/handlers/Health/Health.ts
+          - src/handlers/health.ts
 
   DatasetUploadFunction:
     Type: AWS::Serverless::Function
@@ -166,6 +173,9 @@ Resources:
           DYNAMODB_TABLE: !Ref EvaluationJobsTable
           ECS_CLUSTER: !Ref EvaluationCluster
           TASK_DEFINITION: !Ref EvaluationTaskDefinition
+          DATASET_BUCKET: !Ref DatasetBucket
+          SUBNET_ID: !GetAtt NetworkStack.Outputs.PublicSubnetId
+          SECURITY_GROUP_ID: !GetAtt NetworkStack.Outputs.FargateSecurityGroupId
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref EvaluationJobsTable
