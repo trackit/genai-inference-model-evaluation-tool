@@ -1,4 +1,6 @@
 import { createInjectionToken } from '@trackit.io/di-container';
+
+import { BasicError, BasicErrorType } from '../../errors';
 import { Dataset } from '../../models/Dataset';
 
 export type CsvParser = {
@@ -10,7 +12,9 @@ class CsvParserImpl implements CsvParser {
     const lines = content.trim().split('\n');
 
     if (lines.length < 2) {
-      throw new Error(
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'INVALID_FORMAT',
         'CSV file must contain a header row and at least one data row',
       );
     }
@@ -20,7 +24,11 @@ class CsvParserImpl implements CsvParser {
 
     const documentIndex = headers.indexOf('document');
     if (documentIndex === -1) {
-      throw new Error('CSV file must contain a "document" column');
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'MISSING_DOCUMENT',
+        'CSV file must contain a "document" column',
+      );
     }
 
     const summaryIndex = headers.indexOf('summary');
@@ -35,28 +43,47 @@ class CsvParserImpl implements CsvParser {
         const values = this.parseCSVLine(line);
 
         if (values.length !== headers.length) {
-          throw new Error(
+          throw new BasicError(
+            BasicErrorType.BAD_REQUEST,
+            'INVALID_FORMAT',
             `Expected ${headers.length} columns but found ${values.length}`,
           );
         }
 
-        const sample: { document: string; summary?: string; class_label?: string } = {
+        const sample: {
+          document: string;
+          summary?: string;
+          class_label?: string;
+        } = {
           document: values[documentIndex],
         };
 
-        if (summaryIndex !== -1 && values[summaryIndex] && values[summaryIndex] !== '') {
+        if (
+          summaryIndex !== -1 &&
+          values[summaryIndex] &&
+          values[summaryIndex] !== ''
+        ) {
           sample.summary = values[summaryIndex];
         }
 
-        if (classIndex !== -1 && values[classIndex] && values[classIndex] !== '') {
+        if (
+          classIndex !== -1 &&
+          values[classIndex] &&
+          values[classIndex] !== ''
+        ) {
           sample.class_label = values[classIndex];
         }
 
         samples.push(sample);
       } catch (error) {
+        if (error instanceof BasicError) throw error;
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown parsing error';
-        throw new Error(`Error parsing row ${i + 1}: ${errorMessage}`);
+        throw new BasicError(
+          BasicErrorType.BAD_REQUEST,
+          'INVALID_FORMAT',
+          `Error parsing row ${i + 1}: ${errorMessage}`,
+        );
       }
     }
 

@@ -1,4 +1,6 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
+
+import { BasicError, BasicErrorType } from '../../errors';
 import { Dataset, DatasetMetadata } from '../../models/Dataset';
 import { tokenCsvParser } from '../../parsers/CsvParser/CsvParser';
 import { tokenJsonlParser } from '../../parsers/JsonlParser/JsonlParser';
@@ -40,7 +42,9 @@ export class DatasetUploadUseCaseImpl implements DatasetUploadUseCase {
       return 'jsonl';
     }
 
-    throw new Error(
+    throw new BasicError(
+      BasicErrorType.BAD_REQUEST,
+      'INVALID_FILE_FORMAT',
       'Invalid file format. Only CSV and JSONL files are supported',
     );
   }
@@ -51,15 +55,26 @@ export class DatasetUploadUseCaseImpl implements DatasetUploadUseCase {
     const minSizeInBytes = 10;
 
     if (sizeInBytes > maxSizeInBytes) {
-      throw new Error('File size exceeds maximum limit of 200MB');
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'FILE_TOO_LARGE',
+        'File size exceeds maximum limit of 200MB',
+      );
     }
 
     if (sizeInBytes < minSizeInBytes) {
-      throw new Error('File is too small to be a valid dataset');
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'FILE_TOO_SMALL',
+        'File is too small to be a valid dataset',
+      );
     }
   }
 
-  private parseDataset(content: string, fileExtension: 'csv' | 'jsonl'): Dataset {
+  private parseDataset(
+    content: string,
+    fileExtension: 'csv' | 'jsonl',
+  ): Dataset {
     if (fileExtension === 'csv') {
       return this.csvParser.parse(content);
     } else {
@@ -69,7 +84,9 @@ export class DatasetUploadUseCaseImpl implements DatasetUploadUseCase {
 
   private validateDatasetSize(dataset: Dataset): void {
     if (dataset.samples.length < 10) {
-      throw new Error(
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'INSUFFICIENT_SAMPLES',
         `Dataset must contain at least 10 samples. Found ${dataset.samples.length} samples`,
       );
     }
@@ -87,7 +104,11 @@ export class DatasetUploadUseCaseImpl implements DatasetUploadUseCase {
 
     for (const pattern of maliciousPatterns) {
       if (pattern.test(content)) {
-        throw new Error('File contains potentially malicious content');
+        throw new BasicError(
+          BasicErrorType.BAD_REQUEST,
+          'MALICIOUS_CONTENT',
+          'File contains potentially malicious content',
+        );
       }
     }
   }

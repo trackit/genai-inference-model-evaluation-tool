@@ -22,6 +22,10 @@ export interface EvaluationJob {
   weights: WeightConfig;
   status: JobStatus;
   progress: number;
+  current_model?: string;
+  samples_processed?: number;
+  total_samples?: number;
+  error_message?: string;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +44,26 @@ export interface EvaluationLaunchResponse {
     status: JobStatus;
     created_at: string;
   };
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
+}
+
+export interface EvaluationStatusData {
+  evaluation_id: string;
+  status: JobStatus;
+  progress: number;
+  current_model?: string;
+  samples_processed?: number;
+  total_samples?: number;
+  error_message?: string;
+}
+
+export interface EvaluationStatusResponse {
+  success: boolean;
+  data?: EvaluationStatusData;
   error?: {
     code: string;
     message: string;

@@ -34,9 +34,7 @@ class FargateServiceImpl implements FargateService {
             containerOverrides: [
               {
                 name: 'evaluation-engine',
-                environment: [
-                  { name: 'EVALUATION_ID', value: evaluationId },
-                ],
+                environment: [{ name: 'EVALUATION_ID', value: evaluationId }],
               },
             ],
           },

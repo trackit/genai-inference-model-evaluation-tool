@@ -1,4 +1,6 @@
 import { createInjectionToken } from '@trackit.io/di-container';
+
+import { BasicError, BasicErrorType } from '../../errors';
 import { Dataset } from '../../models/Dataset';
 
 export type JsonlParser = {
@@ -18,10 +20,18 @@ class JsonlParserImpl implements JsonlParser {
         const obj = JSON.parse(line);
 
         if (!obj.document) {
-          throw new Error('Each line must contain a "document" field');
+          throw new BasicError(
+            BasicErrorType.BAD_REQUEST,
+            'MISSING_DOCUMENT',
+            'Each line must contain a "document" field',
+          );
         }
 
-        const sample: { document: string; summary?: string; class_label?: string } = {
+        const sample: {
+          document: string;
+          summary?: string;
+          class_label?: string;
+        } = {
           document: obj.document,
         };
 
@@ -35,12 +45,21 @@ class JsonlParserImpl implements JsonlParser {
 
         samples.push(sample);
       } catch (error) {
+        if (error instanceof BasicError) throw error;
         if (error instanceof SyntaxError) {
-          throw new Error(`Error parsing line ${i + 1}: Invalid JSON`);
+          throw new BasicError(
+            BasicErrorType.BAD_REQUEST,
+            'INVALID_FORMAT',
+            `Error parsing line ${i + 1}: Invalid JSON`,
+          );
         }
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown parsing error';
-        throw new Error(`Error parsing line ${i + 1}: ${errorMessage}`);
+        throw new BasicError(
+          BasicErrorType.BAD_REQUEST,
+          'INVALID_FORMAT',
+          `Error parsing line ${i + 1}: ${errorMessage}`,
+        );
       }
     }
 

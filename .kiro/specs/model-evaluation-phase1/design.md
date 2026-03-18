@@ -98,6 +98,15 @@ graph TB
 
 #### API Gateway + Lambda Handlers
 
+Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**
+
+- **Handler**: thin entry point, instantiates the adapter and delegates
+- **Adapter**: parses the API Gateway event (`parseApiEvent`), calls the use case, wraps via `handleHttpRequest`
+- **Use Case**: pure business logic, throws `BasicError` for domain errors; never deals with HTTP
+
+Dependency injection uses `@trackit.io/di-container` — services are wired via `createInjectionToken` and resolved with `inject()`.
+
+Routes:
 - **POST /datasets**: Validate and store dataset in S3
 - **POST /evaluations**: Create evaluation job, launch Fargate container
 - **GET /evaluations/{id}**: Return job status and progress
@@ -214,7 +223,8 @@ Content-Type: multipart/form-data
   data: {
     dataset_id: string,
     sample_count: number,
-    has_summary_or_class: boolean
+    has_summary: boolean,
+    has_class: boolean
   }
 }
 ```
@@ -224,13 +234,9 @@ Content-Type: multipart/form-data
 {
   success: false,
   error: {
-    code: string, // "INVALID_FORMAT" | "TOO_SMALL" | "TOO_LARGE" | "MISSING_DOCUMENT"
+    code: string,   // e.g. "MISSING_DOCUMENT" | "INVALID_FORMAT" | "DATASET_TOO_SMALL" | "FILE_TOO_LARGE"
     message: string,
-    details?: {
-      row?: number,
-      line?: number,
-      issue?: string
-    }
+    details?: Array<{ field: string, message: string }>  // Zod validation errors
   }
 }
 ```
@@ -353,19 +359,101 @@ Retrieve evaluation results.
 
 ### Component Interfaces
 
-#### Dataset Uploader (TypeScript Lambda)
+#### Lambda Handler Pattern
+
+Each Lambda function follows a three-layer pattern:
+
+1. **Handler** (`*.ts`) — thin entry point, instantiates the adapter and delegates
+2. **Adapter** (`*Adapter.ts`) — parses the API Gateway event using `parseApiEvent`, calls the use case, returns via `handleHttpRequest`
+3. **Use Case** (`*UseCase.ts`) — pure business logic, throws `BasicError` for domain errors
 
 ```typescript
-interface DatasetUploader {
-  validateAndStore(file: File): Promise<DatasetMetadata>;
-  parseCSV(content: string): Promise<Dataset>;
-  parseJSONL(content: string): Promise<Dataset>;
+// Handler (entry point)
+const adapter = new XyzAdapter();
+export const handler = async (event: APIGatewayProxyEventV2) => adapter.handle(event);
+
+// Adapter (HTTP translation layer)
+class XyzAdapter {
+  private readonly useCase = inject(tokenXyzUseCase);
+
+  async handle(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
+    return handleHttpRequest({ event, func: this.processRequest.bind(this) });
+  }
+
+  private async processRequest(event: APIGatewayProxyEventV2) {
+    const { pathParameters, body } = parseApiEvent(event, {
+      pathSchema: z.object({ id: z.string() }),
+      bodySchema: z.object({ ... }),
+    });
+    return this.useCase.execute(pathParameters.id, body);
+  }
 }
+
+// Use Case (business logic)
+class XyzUseCaseImpl {
+  async execute(id: string): Promise<Result> {
+    const item = await this.repository.get(id);
+    if (!item) {
+      throw new BasicError(BasicErrorType.NOT_FOUND, 'NOT_FOUND', `Item not found: ${id}`);
+    }
+    return item;
+  }
+}
+```
+
+#### Error Handling
+
+Errors are modelled as `BasicError` instances with a `BasicErrorType` that maps directly to HTTP status codes. `handleHttpRequest` catches these automatically — use cases never deal with HTTP status codes directly.
+
+```typescript
+// errors/BasicError.ts
+export enum BasicErrorType {
+  BAD_REQUEST = 'BAD_REQUEST',   // → 400
+  FORBIDDEN = 'FORBIDDEN',       // → 403
+  NOT_FOUND = 'NOT_FOUND',       // → 404
+  CONFLICT = 'CONFLICT',         // → 409
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE', // → 503
+}
+
+export class BasicError extends Error {
+  constructor(
+    public readonly type: BasicErrorType,
+    public readonly code: string,   // machine-readable, e.g. 'DATASET_TOO_SMALL'
+    message: string,                // human-readable
+    public readonly description?: string,
+  ) { ... }
+}
+```
+
+Zod validation errors from `parseApiEvent` are also caught by `handleHttpRequest` and returned as 400 responses with field-level details.
+
+#### Event Parsing Utilities (`handlers/api/`)
+
+```typescript
+// parseApiEvent — parses and validates path, query, and body with Zod schemas
+parseApiEvent(event, { pathSchema?, querySchema?, bodySchema? })
+  → { pathParameters, queryStringParameters, body }
+
+// handleHttpRequest — wraps use case execution, handles all error types
+handleHttpRequest({ event, func, statusCode? })
+  → APIGatewayProxyResultV2  // { success: true, data: ... } or { success: false, error: ... }
+```
+
+#### Dataset Upload (TypeScript Lambda)
+
+```typescript
+// DatasetUploadAdapter: parses multipart/form-data manually, extracts file content + filename
+// DatasetUploadUseCase: validates extension → validates file size → parses → validates sample count → scans for malicious content → uploads to S3
+
+type DatasetUploadUseCase = {
+  execute(content: string, filename: string): Promise<DatasetMetadata>;
+};
 
 interface DatasetMetadata {
   dataset_id: string;
   sample_count: number;
-  has_summary_or_class: boolean;
+  has_summary: boolean;
+  has_class: boolean;
   s3_key: string;
 }
 
@@ -373,7 +461,7 @@ interface Dataset {
   samples: Array<{
     document: string;
     summary?: string;
-    class?: string;
+    class_label?: string;
   }>;
 }
 ```
@@ -381,40 +469,53 @@ interface Dataset {
 #### Evaluation Launcher (TypeScript Lambda)
 
 ```typescript
-interface EvaluationLauncher {
-  createJob(request: EvaluationRequest): Promise<EvaluationJob>;
-  launchFargateContainer(job: EvaluationJob): Promise<void>;
-  validateModels(models: ModelConfig[]): Promise<void>;
-  normalizeWeights(weights?: WeightConfig): WeightConfig;
-}
+// EvaluationLaunchAdapter: parses JSON body with Zod, delegates to use case
+// EvaluationLaunchUseCase: validates models → normalizes weights → creates DynamoDB job → launches Fargate task
+
+type EvaluationLaunchUseCase = {
+  launchEvaluation(request: EvaluationRequest): Promise<EvaluationJob>;
+};
 
 interface EvaluationRequest {
   dataset_id: string;
-  models: ModelConfig[];
-  weights?: WeightConfig;
-}
-
-interface ModelConfig {
-  type: "default" | "custom";
-  identifier: string;
-}
-
-interface WeightConfig {
-  accuracy: number;
-  latency: number;
-  cost: number;
+  models: Array<{ type: 'default'; identifier: string }>;
+  weights?: { accuracy?: number; latency?: number; cost?: number };
 }
 
 interface EvaluationJob {
   evaluation_id: string;
   dataset_id: string;
   models: ModelConfig[];
-  weights: WeightConfig;
+  weights: WeightConfig;  // always normalized, sums to 1.0
   status: JobStatus;
+  progress: number;
   created_at: string;
+  updated_at: string;
 }
 
-type JobStatus = "pending" | "running" | "completed" | "failed" | "timeout";
+type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'timeout';
+```
+
+#### Evaluation Status (TypeScript Lambda)
+
+```typescript
+// EvaluationStatusAdapter: parses path parameter { id } with Zod, delegates to use case
+// GetEvaluationStatusUseCase: fetches job from DynamoDB, throws BasicError(NOT_FOUND) if missing,
+//   always includes error_message for 'failed' and 'timeout' statuses
+
+type GetEvaluationStatusUseCase = {
+  getStatus(evaluationId: string): Promise<EvaluationStatusData>;
+};
+
+interface EvaluationStatusData {
+  evaluation_id: string;
+  status: JobStatus;
+  progress: number;           // 0–100
+  current_model?: string;
+  samples_processed?: number;
+  total_samples?: number;
+  error_message?: string;     // always present when status is 'failed' or 'timeout'
+}
 ```
 
 #### Evaluation Engine (Python Fargate Container)
@@ -423,82 +524,42 @@ type JobStatus = "pending" | "running" | "completed" | "failed" | "timeout";
 class EvaluationEngine:
     def run(self, job: EvaluationJob) -> None:
         """Main entry point for evaluation execution."""
-        pass
-    
+
     def load_dataset(self, dataset_id: str) -> Dataset:
         """Load dataset from S3."""
-        pass
-    
+
     def evaluate_models(self, dataset: Dataset, models: List[ModelConfig]) -> List[ModelResults]:
         """Run inference and metric calculation for all models."""
-        pass
-    
+
     def update_progress(self, evaluation_id: str, progress: int, current_model: str) -> None:
         """Update job progress in DynamoDB."""
-        pass
-    
+
     def store_results(self, evaluation_id: str, results: EvaluationResults) -> None:
         """Store final results in DynamoDB."""
-        pass
 
 class BedrockClient:
     def invoke_model(self, model_id: str, document: str) -> InvocationResult:
         """Invoke a Bedrock model and record metrics."""
-        pass
 
 class MetricCalculator:
     def calculate_accuracy(self, predictions: List[str], references: List[str]) -> AccuracyMetrics:
         """Calculate all accuracy metrics using fmeval and DeepEval."""
-        pass
-    
+
     def calculate_latency(self, invocations: List[InvocationResult]) -> LatencyMetrics:
         """Calculate latency metrics from invocation results."""
-        pass
-    
+
     def calculate_cost(self, invocations: List[InvocationResult], model_id: str) -> CostMetrics:
         """Calculate cost based on token usage and Bedrock pricing."""
-        pass
 
 class ModelRecommender:
     def recommend(self, results: List[ModelResults], weights: WeightConfig) -> Recommendation:
         """Select optimal model based on weighted scoring."""
-        pass
-    
+
     def normalize_metrics(self, results: List[ModelResults]) -> List[NormalizedMetrics]:
         """Normalize all metrics to 0-1 scale."""
-        pass
-    
+
     def calculate_weighted_score(self, metrics: NormalizedMetrics, weights: WeightConfig) -> float:
         """Calculate weighted score for a model."""
-        pass
-```
-
-#### Progress Tracker (TypeScript Lambda)
-
-```typescript
-interface ProgressTracker {
-  getStatus(evaluation_id: string): Promise<JobStatus>;
-  getResults(evaluation_id: string): Promise<EvaluationResults>;
-}
-
-interface JobStatus {
-  evaluation_id: string;
-  status: "pending" | "running" | "completed" | "failed" | "timeout";
-  progress: number;
-  current_model?: string;
-  samples_processed?: number;
-  total_samples?: number;
-  error_message?: string;
-}
-
-interface EvaluationResults {
-  evaluation_id: string;
-  dataset_id: string;
-  models: ModelResults[];
-  recommendation: Recommendation;
-  weights: WeightConfig;
-  completed_at: string;
-}
 ```
 
 #### Results Visualizer (React Component)
@@ -529,27 +590,20 @@ interface ResultsVisualizer {
 **Attributes:**
 ```typescript
 {
-  evaluation_id: string,          // UUID
-  dataset_id: string,              // S3 key reference
-  models: Array<{
-    type: string,
-    identifier: string
-  }>,
-  weights: {
-    accuracy: number,
-    latency: number,
-    cost: number
-  },
-  status: string,                  // "pending" | "running" | "completed" | "failed" | "timeout"
-  progress: number,                // 0-100
+  evaluation_id: string,          // UUID, partition key
+  dataset_id: string,             // S3 key reference
+  models: string,                 // JSON-serialized Array<{ type, identifier }>
+  weights: string,                // JSON-serialized { accuracy, latency, cost } — always normalized
+  status: string,                 // "pending" | "running" | "completed" | "failed" | "timeout"
+  progress: number,               // 0-100
   current_model?: string,
   samples_processed?: number,
   total_samples?: number,
-  error_message?: string,
-  created_at: string,              // ISO 8601
-  updated_at: string,              // ISO 8601
-  completed_at?: string,           // ISO 8601
-  
+  error_message?: string,         // always present when status is "failed" or "timeout"
+  created_at: string,             // ISO 8601
+  updated_at: string,             // ISO 8601, updated on every write
+  completed_at?: string,          // ISO 8601, set on completion
+
   // Results (populated on completion)
   model_results?: Array<{
     identifier: string,

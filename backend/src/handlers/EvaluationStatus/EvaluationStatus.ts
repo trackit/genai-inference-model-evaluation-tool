@@ -3,9 +3,9 @@ import type {
   APIGatewayProxyResultV2,
 } from 'aws-lambda';
 
-import { DatasetUploadAdapter } from './DatasetUploadAdapter';
+import { EvaluationStatusAdapter } from './EvaluationStatusAdapter';
 
-const adapter = new DatasetUploadAdapter();
+const adapter = new EvaluationStatusAdapter();
 
 export const handler = async (
   event: APIGatewayProxyEventV2,

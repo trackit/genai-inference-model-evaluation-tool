@@ -1,6 +1,7 @@
 import {
   AttributeValue,
   DynamoDBClient,
+  GetItemCommand,
   PutItemCommand,
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
@@ -31,6 +32,8 @@ export type EvaluationJobsRepository = {
       error_message?: string;
     },
   ): Promise<void>;
+
+  getEvaluation(evaluationId: string): Promise<EvaluationJob | null>;
 };
 
 export const tokenDynamoDBClient = createInjectionToken<DynamoDBClient>(
@@ -146,6 +149,46 @@ class EvaluationJobsRepositoryImpl implements EvaluationJobsRepository {
         ExpressionAttributeValues: expressionValues,
       }),
     );
+  }
+
+  public async getEvaluation(
+    evaluationId: string,
+  ): Promise<EvaluationJob | null> {
+    const result = await this.dynamoClient.send(
+      new GetItemCommand({
+        TableName: this.tableName,
+        Key: {
+          evaluation_id: { S: evaluationId },
+        },
+      }),
+    );
+
+    if (!result.Item) {
+      return null;
+    }
+
+    const item = result.Item;
+
+    return {
+      evaluation_id: item['evaluation_id'].S!,
+      dataset_id: item['dataset_id'].S!,
+      models: JSON.parse(item['models'].S!) as ModelConfig[],
+      weights: JSON.parse(item['weights'].S!) as WeightConfig,
+      status: item['status'].S! as JobStatus,
+      progress: Number(item['progress'].N ?? '0'),
+      current_model: item['current_model']?.S,
+      samples_processed:
+        item['samples_processed']?.N !== undefined
+          ? Number(item['samples_processed'].N)
+          : undefined,
+      total_samples:
+        item['total_samples']?.N !== undefined
+          ? Number(item['total_samples'].N)
+          : undefined,
+      error_message: item['error_message']?.S,
+      created_at: item['created_at'].S!,
+      updated_at: item['updated_at'].S!,
+    };
   }
 }
 

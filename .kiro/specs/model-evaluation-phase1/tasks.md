@@ -4,7 +4,7 @@
 
 This implementation plan breaks down the Bedrock Model Evaluation Tool into discrete coding tasks following a layered architecture pattern. The system consists of TypeScript Lambda handlers (API layer), a Python Fargate container (evaluation engine), a React frontend (UI), and SAM infrastructure definitions.
 
-The implementation follows an incremental approach: infrastructure → backend API → evaluation engine → frontend → integration. Each task builds on previous work and includes testing sub-tasks to validate functionality early.
+Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**. The adapter uses `parseApiEvent` (Zod-based) and `handleHttpRequest` for consistent error handling. Use cases throw `BasicError` for domain errors — never HTTP status codes directly.
 
 ## Tasks
 
@@ -22,15 +22,17 @@ The implementation follows an incremental approach: infrastructure → backend A
 
 
 - [x] 2. Implement dataset upload handler (TypeScript Lambda)
-  - [x] 2.1 Create layered architecture: handler → use case → service layer
-    - Write handler function to parse multipart/form-data requests
-    - Implement DatasetUploadUseCase with validation and storage orchestration
-    - Implement DatasetService with S3 upload operations
+  - [x] 2.1 Create layered architecture: handler → adapter → use case → service layer
+    - Handler (`DatasetUpload.ts`) delegates to `DatasetUploadAdapter`
+    - Adapter parses multipart/form-data, calls use case via `handleHttpRequest`
+    - `DatasetUploadUseCase` orchestrates validation and storage
+    - `DatasetService` handles S3 upload with SSE-AES256 encryption
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7_
 
-  - [x] 2.2 Write property test for CSV validation
+  - [-] 2.2 Write property test for document column validation
     - **Property 1: CSV Validation**
     - **Validates: Requirements 1.1**
+    - Note: test exists at `CsvParser.property.test.ts` but references `prompt` column — needs updating to match actual `document` column implementation
 
   - [ ]* 2.3 Write property test for JSONL validation
     - **Property 2: JSONL Validation**
@@ -45,10 +47,9 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 1.5, 1.6**
 
   - [x] 2.6 Implement CSV parser with validation
-    - Parse CSV content into dataset structure
-    - Validate "document" column exists
-    - Preserve optional "summary" and "class" columns
-    - Return descriptive errors with row numbers for malformed data
+    - Parses CSV into `Dataset` with `document`, `summary`, `class_label` fields
+    - Validates `document` column exists (throws `BasicError` `MISSING_DOCUMENT`)
+    - Returns descriptive errors with row numbers for malformed data
     - _Requirements: 1.1, 1.5, 1.6, 9.1, 9.4_
 
   - [ ]* 2.7 Write unit tests for CSV parser edge cases
@@ -58,10 +59,9 @@ The implementation follows an incremental approach: infrastructure → backend A
     - _Requirements: 1.1, 9.4_
 
   - [x] 2.8 Implement JSONL parser with validation
-    - Parse JSONL content into dataset structure
-    - Validate "document" field exists in each line
-    - Preserve optional "summary" and "class" fields
-    - Return descriptive errors with line numbers for malformed JSON
+    - Parses JSONL into `Dataset` with `document`, `summary`, `class_label` fields
+    - Validates `document` field exists per line (throws `BasicError` `MISSING_DOCUMENT`)
+    - Returns descriptive errors with line numbers for malformed JSON
     - _Requirements: 1.2, 1.5, 1.6, 9.2, 9.5_
 
   - [ ]* 2.9 Write unit tests for JSONL parser edge cases
@@ -100,22 +100,28 @@ The implementation follows an incremental approach: infrastructure → backend A
     - _Requirements: 1.4, 10.4_
 
   - [x] 2.15 Implement error handling and response formatting
-    - Return consistent error response format
-    - Map validation errors to appropriate HTTP status codes (400)
-    - Map server errors to 500 status codes
+    - `handleHttpRequest` maps `BasicError` → HTTP status codes automatically
+    - Zod validation errors → 400 with field-level details
+    - Unhandled errors → 500
     - _Requirements: 11.1, 11.7_
 
-  - [ ]* 2.16 Write property test for parsing error messages
+  - [-] 2.16 Fix handler test type mismatch
+    - `DatasetUpload.test.ts` uses `APIGatewayProxyEvent` (V1) but handler expects `APIGatewayProxyEventV2`
+    - Update test to use V2 event shape
+    - _Requirements: 11.1, 11.7_
+
+  - [ ]* 2.17 Write property test for parsing error messages
     - **Property 39: Parsing Error Messages**
     - **Validates: Requirements 9.4, 9.5, 11.1**
 
 
 - [x] 3. Implement evaluation launcher handler (TypeScript Lambda)
-  - [x] 3.1 Create layered architecture: handler → use case → repository/service layer
-    - Write handler function to parse evaluation request
-    - Implement EvaluationLaunchUseCase with validation and job creation
-    - Implement EvaluationJobsRepository with DynamoDB operations for job storage
-    - Implement FargateService with ECS/Fargate task launch operations
+  - [x] 3.1 Create layered architecture: handler → adapter → use case → repository/service layer
+    - Handler delegates to `EvaluationLaunchAdapter`
+    - Adapter uses `parseApiEvent` with Zod schema for body validation
+    - `EvaluationLaunchUseCase` validates models, normalizes weights, creates job, launches Fargate
+    - `EvaluationJobsRepository` handles DynamoDB operations
+    - `FargateService` handles ECS task launch
     - _Requirements: 2.3, 3.1, 3.2_
 
   - [ ]* 3.2 Write property test for model selection validation
@@ -139,7 +145,6 @@ The implementation follows an incremental approach: infrastructure → backend A
   - [ ]* 3.6 Write unit tests for model validation
     - Test zero models selected
     - Test default model identifiers
-    - Test custom endpoint IDs
     - Test invalid identifiers
     - _Requirements: 2.2, 2.3, 2.4_
 
@@ -175,9 +180,7 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 3.1**
 
   - [x] 3.13 Implement Fargate container launch
-    - Launch Fargate task with evaluation_id as parameter
-    - Pass environment variables for S3 bucket, DynamoDB table, region
-    - Handle launch failures gracefully
+    - Launches ECS task with evaluation_id
     - _Requirements: 3.2_
 
   - [ ]* 3.14 Write property test for Fargate container launch
@@ -190,35 +193,36 @@ The implementation follows an incremental approach: infrastructure → backend A
     - _Requirements: 3.1, 3.2_
 
   - [x] 3.16 Implement error handling and response formatting
-    - Return consistent error response format
-    - Map validation errors to 400 status codes
-    - Map server errors to 500 status codes
+    - `handleHttpRequest` + `BasicError` pattern handles all error mapping
     - _Requirements: 11.7_
 
 - [ ] 4. Implement status and results handlers (TypeScript Lambda)
-  - [ ] 4.1 Create status handler with layered architecture
-    - Write handler function to parse evaluation_id from path
-    - Implement GetEvaluationStatusUseCase to retrieve job status
-    - Implement GetEvaluation with DynamoDB query operations in EvaluationJobsRepository
+  - [x] 4.1 Create status handler with layered architecture
+    - Handler delegates to `EvaluationStatusAdapter`
+    - Adapter uses `parseApiEvent` with path schema `{ id: string }`
+    - `GetEvaluationStatusUseCase` fetches job, throws `BasicError(NOT_FOUND)` if missing
+    - `EvaluationJobsRepository.getEvaluation` reads from DynamoDB
     - _Requirements: 6.1, 6.2, 6.3_
 
   - [ ]* 4.2 Write property test for status retrieval
     - **Property 23: Status Retrieval**
     - **Validates: Requirements 6.1, 6.2**
 
-  - [ ] 4.3 Implement status response formatting
-    - Return status, progress, current_model, samples_processed, total_samples
+  - [x] 4.3 Implement status response formatting
+    - Return status, progress, current_model, samples_processed, total_samples as handler response
     - Include error_message for failed jobs
     - _Requirements: 6.1, 6.2, 6.3, 6.5_
 
   - [ ]* 4.4 Write unit tests for status handler
     - Test pending, running, completed, failed, timeout statuses
-    - Test progress calculation
-    - Test error message inclusion
+    - Test error_message always present for failed/timeout
+    - Test 404 for non-existent evaluation_id
     - _Requirements: 6.1, 6.2, 6.3, 6.5_
 
   - [ ] 4.5 Create results handler with layered architecture
-    - Write handler function to parse evaluation_id from path
+    - Handler + Adapter + UseCase following same pattern as status handler
+    - Parse `evaluation_id` from path, fetch completed job from DynamoDB
+    - Throw `BasicError(NOT_FOUND)` for missing jobs
     - _Requirements: 7.1, 7.2_
 
   - [ ]* 4.6 Write property test for results retrieval
@@ -242,13 +246,14 @@ The implementation follows an incremental approach: infrastructure → backend A
     - _Requirements: 7.1, 7.2, 7.7_
 
   - [ ] 4.10 Implement error handling for both handlers
-    - Return 404 for non-existent jobs
-    - Return 500 for DynamoDB failures
-    - Use consistent error response format
+    - `BasicError(NOT_FOUND)` → 404 via `handleHttpRequest`
+    - DynamoDB failures → 500
     - _Requirements: 7.7, 11.7_
 
 
 - [ ] 5. Checkpoint - Backend API handlers complete
+  - Fix property test field name mismatch (task 2.2): `prompt` → `document`
+  - Fix handler test type mismatch (task 2.16): V1 → V2 event shape
   - Ensure all Lambda handler tests pass
   - Verify API Gateway integration with handlers
   - Ask the user if questions arise
@@ -264,7 +269,7 @@ The implementation follows an incremental approach: infrastructure → backend A
   - [ ] 6.2 Implement dataset loader
     - Load dataset from S3 using dataset_id from job configuration
     - Parse CSV or JSONL format based on file extension
-    - Return dataset structure with documents, summaries, classes
+    - Return dataset structure with documents, summaries, class_labels
     - _Requirements: 3.3_
 
   - [ ]* 6.3 Write property test for dataset loading
@@ -380,10 +385,7 @@ The implementation follows an incremental approach: infrastructure → backend A
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
   - [ ] 8.2 Implement deterministic accuracy metrics
-    - Calculate BLEU scores using fmeval
-    - Calculate ROUGE scores using fmeval
-    - Calculate METEOR scores using fmeval
-    - Calculate Levenshtein similarity scores
+    - Calculate BLEU, ROUGE, METEOR, Levenshtein scores using fmeval
     - Return mean score across all samples for each metric
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6_
 
@@ -392,10 +394,7 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 4.6**
 
   - [ ]* 8.4 Write unit tests for deterministic metrics
-    - Test BLEU calculation with known examples
-    - Test ROUGE calculation with known examples
-    - Test METEOR calculation with known examples
-    - Test Levenshtein calculation with known examples
+    - Test each metric calculation with known examples
     - Test mean aggregation
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6_
 
@@ -405,14 +404,11 @@ The implementation follows an incremental approach: infrastructure → backend A
     - _Requirements: 4.5, 4.6_
 
   - [ ]* 8.6 Write unit tests for semantic metrics
-    - Test BERTScore calculation with known examples
-    - Test mean aggregation
     - _Requirements: 4.5, 4.6_
 
   - [ ] 8.7 Implement conditional accuracy calculation
-    - Check if dataset has summary or class fields
-    - Skip all accuracy metrics if no reference outputs
-    - Return None/null for accuracy metrics when skipped
+    - Skip all accuracy metrics if dataset has no summary or class_label fields
+    - Return None for accuracy metrics when skipped
     - _Requirements: 4.7_
 
   - [ ]* 8.8 Write property test for accuracy metrics conditional computation
@@ -423,10 +419,8 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Property 16: Accuracy Metrics Completeness**
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5**
 
-  - [ ] 8.10 Implement error handling for deterministic/semantic metric calculation
-    - Log errors when metric calculation fails
-    - Store partial results with failure indicator
-    - Continue with remaining metrics on individual failures
+  - [ ] 8.10 Implement error handling for metric calculation
+    - Log errors, store partial results with failure indicator, continue with remaining metrics
     - _Requirements: 11.5_
 
   - [ ]* 8.11 Write property test for partial results on failure
@@ -436,27 +430,21 @@ The implementation follows an incremental approach: infrastructure → backend A
 
 - [ ] 9. Implement LLM-as-judge accuracy metrics (G-eval)
   - [ ] 9.1 Set up DeepEval dependency
-    - Install DeepEval library for G-eval metrics
-    - Configure Claude Opus as judge model for G-eval
+    - Install DeepEval library, configure Claude Opus as judge model
     - _Requirements: 4.8, 4.9_
 
   - [ ] 9.2 Implement G-eval metrics with Claude Opus judge
-    - Calculate G-eval reasoning scores using DeepEval
-    - Calculate G-eval faithfulness scores using DeepEval
-    - Configure Claude Opus as the judge model
+    - Calculate G-eval reasoning and faithfulness scores using DeepEval
     - Return mean scores across all samples
     - _Requirements: 4.8, 4.9, 4.10_
 
   - [ ]* 9.3 Write unit tests for G-eval metrics
-    - Test G-eval reasoning calculation
-    - Test G-eval faithfulness calculation
-    - Verify Claude Opus is used as judge
-    - Test mean aggregation
+    - Test reasoning and faithfulness calculation, verify Claude Opus is judge
     - _Requirements: 4.8, 4.9, 4.10_
 
   - [ ] 9.4 Integrate G-eval with conditional accuracy calculation
-    - Skip G-eval metrics if no reference outputs in dataset
-    - Combine G-eval results with deterministic/semantic metrics in ModelResults
+    - Skip G-eval if no reference outputs in dataset
+    - Combine with deterministic/semantic metrics in ModelResults
     - _Requirements: 4.11_
 
   - [ ]* 9.5 Write property test for G-eval conditional computation
@@ -466,8 +454,7 @@ The implementation follows an incremental approach: infrastructure → backend A
 
 - [ ] 10. Implement metric calculator for latency and cost metrics
   - [ ] 10.1 Implement tokens per second calculation
-    - For each invocation, calculate TPS = output_tokens / generation_time_seconds
-    - Calculate mean TPS across all invocations for each model
+    - TPS = output_tokens / generation_time_seconds, mean across all invocations
     - _Requirements: 5.1, 5.2_
 
   - [ ]* 10.2 Write property test for tokens per second calculation
@@ -479,32 +466,26 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 5.2, 5.4, 5.6**
 
   - [ ]* 10.4 Write unit tests for TPS calculation
-    - Test TPS calculation with known values
-    - Test mean aggregation
     - _Requirements: 5.1, 5.2_
 
   - [ ] 10.5 Implement time to first token calculation
-    - Extract TTFT from each invocation result
-    - Calculate mean TTFT across all invocations for each model
+    - Extract TTFT from each invocation, calculate mean
     - _Requirements: 5.3, 5.4_
 
   - [ ]* 10.6 Write unit tests for TTFT calculation
-    - Test TTFT extraction and aggregation
     - _Requirements: 5.3, 5.4_
 
   - [ ] 10.7 Implement total latency calculation
-    - Extract total latency from each invocation result
-    - Calculate mean total latency across all invocations for each model
+    - Extract total latency from each invocation, calculate mean
     - _Requirements: 5.5, 5.6_
 
   - [ ]* 10.8 Write unit tests for total latency calculation
-    - Test latency extraction and aggregation
     - _Requirements: 5.5, 5.6_
 
   - [ ] 10.9 Implement cost calculation with Bedrock pricing
-    - Define pricing table for supported models (Claude Sonnet, Opus, Nova)
-    - For each invocation, calculate cost = (input_tokens × input_price / 1000) + (output_tokens × output_price / 1000)
-    - Calculate total cost across all invocations for each model
+    - Pricing table for Claude Sonnet, Opus, Nova
+    - cost = (input_tokens × input_price / 1000) + (output_tokens × output_price / 1000)
+    - Total cost across all invocations per model
     - _Requirements: 5.7, 5.8, 5.9_
 
   - [ ]* 10.10 Write property test for cost calculation formula
@@ -516,14 +497,10 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 5.8**
 
   - [ ]* 10.12 Write unit tests for cost calculation
-    - Test cost calculation with known pricing and token counts
-    - Test total cost aggregation
-    - Test pricing lookup for different models
     - _Requirements: 5.7, 5.8, 5.9_
 
   - [ ] 10.13 Implement complete metrics aggregation
-    - Combine accuracy, latency, and cost metrics for each model
-    - Return ModelResults structure with all metrics
+    - Combine accuracy, latency, cost metrics per model into ModelResults
     - Include model status (completed/failed) and error_count
     - _Requirements: 3.7_
 
@@ -532,18 +509,15 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 3.7**
 
   - [ ]* 10.15 Write integration tests for complete metric calculation
-    - Test end-to-end metric calculation with sample invocation results
-    - Test with and without reference outputs
-    - Test with partial failures
     - _Requirements: 3.7, 4.10_
 
 
 - [ ] 11. Implement model recommender
   - [ ] 11.1 Implement metric normalization
     - Normalize all metrics to 0-1 scale
-    - For accuracy and TPS: higher is better (normalize directly)
-    - For latency and cost: lower is better (inverse normalization)
-    - Handle edge cases (all values equal, single model)
+    - Accuracy and TPS: higher is better (direct normalization)
+    - Latency and cost: lower is better (inverse normalization)
+    - Handle edge cases: all values equal, single model
     - _Requirements: 8.4, 8.5_
 
   - [ ]* 11.2 Write property test for metric normalization range
@@ -555,15 +529,11 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 8.5**
 
   - [ ]* 11.4 Write unit tests for normalization
-    - Test direct normalization (accuracy, TPS)
-    - Test inverse normalization (latency, cost)
-    - Test edge cases (single value, all equal)
     - _Requirements: 8.4, 8.5_
 
   - [ ] 11.5 Implement weighted score calculation
-    - For each model, calculate weighted_score = (normalized_accuracy × weight_accuracy) + (normalized_latency × weight_latency) + (normalized_cost × weight_cost)
-    - Handle zero weights by excluding that dimension
-    - Return weighted score for each model
+    - weighted_score = (norm_accuracy × w_accuracy) + (norm_latency × w_latency) + (norm_cost × w_cost)
+    - Exclude dimensions with zero weight
     - _Requirements: 8.1, 8.2, 12.4_
 
   - [ ]* 11.6 Write property test for weighted score computation
@@ -579,9 +549,6 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 12.4**
 
   - [ ]* 11.9 Write unit tests for weighted score calculation
-    - Test with equal weights
-    - Test with custom weights
-    - Test with zero weight for one dimension
     - _Requirements: 8.1, 8.2, 12.4_
 
   - [ ] 11.10 Implement recommendation selection
@@ -595,18 +562,13 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 8.6**
 
   - [ ]* 11.12 Write unit tests for recommendation
-    - Test recommendation with clear winner
-    - Test recommendation with close scores
-    - Test reasoning text generation
     - _Requirements: 8.6_
 
 
 - [ ] 12. Implement results storage and engine orchestration
   - [ ] 12.1 Implement results writer for DynamoDB
-    - Store model_results array in evaluation job record
-    - Store recommendation in evaluation job record
-    - Update completed_at timestamp
-    - Update status to "completed"
+    - Store model_results and recommendation in evaluation job record
+    - Update completed_at timestamp and status to "completed"
     - _Requirements: 3.8, 6.4_
 
   - [ ]* 12.2 Write property test for results storage round-trip
@@ -614,34 +576,22 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 3.8**
 
   - [ ]* 12.3 Write integration tests for results storage
-    - Test storing complete results
-    - Test storing partial results with failures
-    - Test DynamoDB write failures
     - _Requirements: 3.8_
 
   - [ ] 12.4 Wire evaluation engine components together
     - Orchestrate: load dataset → evaluate models → calculate metrics → generate recommendation → store results
-    - Update progress throughout execution
-    - Handle errors at each stage gracefully
-    - Ensure no orphaned code or hanging operations
+    - Update progress throughout, handle errors at each stage gracefully
     - _Requirements: 3.2, 3.3, 3.4, 3.7, 3.8_
 
   - [ ]* 12.5 Write integration tests for complete evaluation flow
-    - Test end-to-end evaluation with sample dataset
-    - Test with and without reference outputs
-    - Test with model failures
-    - Test timeout handling
     - _Requirements: 3.2, 3.3, 3.4, 3.7, 3.8, 3.9_
 
   - [ ] 12.6 Implement timeout handling
-    - Monitor elapsed time during evaluation
-    - If exceeding 30 minutes, terminate gracefully
+    - Monitor elapsed time, terminate gracefully at 30 minutes
     - Store partial results with "timeout" status
     - _Requirements: 3.9_
 
   - [ ]* 12.7 Write unit tests for timeout handling
-    - Test timeout detection
-    - Test partial results storage on timeout
     - _Requirements: 3.9_
 
 - [ ] 13. Checkpoint - Evaluation engine complete
@@ -679,8 +629,7 @@ The implementation follows an incremental approach: infrastructure → backend A
 
   - [ ] 14.5 Create metric weight configuration component
     - Provide sliders or number inputs for accuracy, latency, cost weights
-    - Display current weight values
-    - Show normalized weights (sum to 1.0)
+    - Display normalized weights (sum to 1.0) in real time
     - Allow zero weights for dimensions user wants to ignore
     - _Requirements: 12.1, 12.2, 12.3, 12.4_
 
@@ -715,7 +664,7 @@ The implementation follows an incremental approach: infrastructure → backend A
     - _Requirements: 6.1, 6.2, 6.3_
 
   - [ ] 14.11 Create radar chart visualization component
-    - Use charting library (recharts or similar) to render radar/hexagon chart
+    - Use recharts or similar to render radar/hexagon chart
     - Display models across accuracy, latency, cost dimensions
     - Normalize metrics for visual comparison
     - Highlight recommended model
@@ -729,10 +678,8 @@ The implementation follows an incremental approach: infrastructure → backend A
   - [ ] 14.13 Create metrics table component
     - Display all metrics in tabular format
     - Show accuracy metrics (BLEU, ROUGE, METEOR, Levenshtein, BERTScore, G-eval reasoning, G-eval faithfulness) when available
-    - Show latency metrics (TPS, TTFT, total latency)
-    - Show cost metrics (total cost, input/output tokens)
+    - Show latency metrics (TPS, TTFT, total latency) and cost metrics
     - Highlight recommended model row
-    - Show use case type (text summarization or text classification) based on dataset fields
     - _Requirements: 7.4, 7.5, 7.6, 8.7_
 
   - [ ]* 14.14 Write property test for accuracy metrics display
@@ -751,8 +698,7 @@ The implementation follows an incremental approach: infrastructure → backend A
 
   - [ ] 14.17 Create recommendation display component
     - Show recommended model identifier prominently
-    - Display weighted score
-    - Show reasoning text
+    - Display weighted score and reasoning text
     - Display configured weights used for recommendation
     - _Requirements: 8.6, 8.7, 12.5_
 
@@ -765,7 +711,6 @@ The implementation follows an incremental approach: infrastructure → backend A
     - Fetch results from GET /evaluations/{id}/results
     - Display radar chart, metrics table, and recommendation
     - Handle loading and error states
-    - Show error message for failed evaluations
     - _Requirements: 7.1, 7.2, 7.7_
 
   - [ ]* 14.20 Write integration tests for results page
@@ -777,7 +722,7 @@ The implementation follows an incremental approach: infrastructure → backend A
   - [ ] 14.21 Implement error handling and user feedback
     - Display user-friendly error messages for all error scenarios
     - Show validation errors inline with form fields
-    - Display API errors in modal or toast notifications
+    - Display API errors in toast notifications
     - _Requirements: 11.1, 11.6_
 
   - [ ]* 14.22 Write unit tests for error handling
@@ -792,37 +737,29 @@ The implementation follows an incremental approach: infrastructure → backend A
     - Implement POST /evaluations with JSON payload
     - Implement GET /evaluations/{id} for status polling
     - Implement GET /evaluations/{id}/results for results retrieval
-    - Handle authentication headers (IAM or Cognito tokens)
     - Parse and return typed responses
     - _Requirements: 10.1_
 
   - [ ]* 15.2 Write unit tests for API client
-    - Test all endpoint methods
-    - Test request formatting
-    - Test response parsing
-    - Test error handling
+    - Test all endpoint methods, request formatting, response parsing, error handling
     - Mock fetch/axios calls
     - _Requirements: 10.1_
 
   - [ ] 15.3 Implement state management for evaluation workflow
-    - Store dataset_id after upload
-    - Store evaluation_id after submission
-    - Store evaluation status and progress
-    - Store evaluation results
-    - Handle state transitions (uploading → configuring → evaluating → viewing results)
+    - Store dataset_id after upload, evaluation_id after submission
+    - Store evaluation status, progress, and results
+    - Handle state transitions: uploading → configuring → evaluating → viewing results
     - _Requirements: 1.4, 3.1, 6.1, 7.1_
 
   - [ ]* 15.4 Write unit tests for state management
-    - Test state transitions
-    - Test data persistence
+    - Test state transitions and data persistence
     - _Requirements: 1.4, 3.1, 6.1, 7.1_
+
 
 - [ ] 16. Implement security and input validation
   - [ ] 16.1 Add input validation to all API handlers
-    - Validate request body schemas using JSON schema or Zod
-    - Sanitize string inputs to prevent XSS
-    - Validate file uploads for malicious content
-    - Reject requests with invalid data types or missing required fields
+    - Zod schemas already enforce body/path validation via parseApiEvent
+    - Verify all endpoints have appropriate schemas
     - _Requirements: 10.6, 10.7_
 
   - [ ]* 16.2 Write property test for input validation
@@ -834,15 +771,13 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 10.7**
 
   - [ ]* 16.4 Write unit tests for input validation
-    - Test SQL injection patterns are rejected
-    - Test XSS patterns are rejected
+    - Test SQL injection, XSS patterns are rejected
     - Test valid inputs are accepted
     - _Requirements: 10.6_
 
   - [ ] 16.5 Implement authentication and authorization
     - Configure API Gateway with IAM or Cognito authorizer
-    - Validate authentication tokens in Lambda handlers
-    - Return 401 for unauthenticated requests
+    - Return 401/403 for unauthenticated/unauthorized requests
     - _Requirements: 10.1_
 
   - [ ]* 16.6 Write property test for authentication enforcement
@@ -856,7 +791,7 @@ The implementation follows an incremental approach: infrastructure → backend A
 
   - [ ] 16.8 Implement rate limiting
     - Configure API Gateway rate limiting
-    - Return 429 status code for throttled requests
+    - Return 429 for throttled requests
     - _Requirements: 10.8_
 
   - [ ]* 16.9 Write property test for rate limiting
@@ -864,9 +799,8 @@ The implementation follows an incremental approach: infrastructure → backend A
     - **Validates: Requirements 10.8**
 
   - [ ] 16.10 Implement secure error handling
-    - Never expose sensitive information in error messages
-    - Sanitize error details before returning to client
-    - Log detailed errors server-side for debugging
+    - Never expose credentials, internal paths, or stack traces in error responses
+    - Log detailed errors server-side only
     - _Requirements: 10.6_
 
   - [ ]* 16.11 Write property test for HTTP status code correctness
@@ -881,103 +815,81 @@ The implementation follows an incremental approach: infrastructure → backend A
   - Test complete user flow in browser
   - Ask the user if questions arise
 
+
 - [ ] 18. Integration and end-to-end testing
   - [ ] 18.1 Write API integration tests
     - Test complete flow: upload dataset → launch evaluation → poll status → retrieve results
     - Test error scenarios: invalid dataset, invalid models, non-existent job
-    - Test with real AWS services (S3, DynamoDB, Fargate) in test environment
     - _Requirements: 1.1, 2.1, 3.1, 6.1, 7.1_
 
   - [ ] 18.2 Write end-to-end tests for critical user flows
     - Test complete evaluation workflow from upload to results viewing
-    - Test with CSV dataset containing summary fields (text summarization use case)
-    - Test with JSONL dataset containing class fields (text classification use case)
-    - Test with dataset without reference outputs (no summary/class fields)
-    - Test with custom model endpoint
-    - Test with custom weights
+    - Test with CSV (summary fields) and JSONL (class fields) datasets
+    - Test with dataset without reference outputs
     - Use Playwright or Cypress for browser automation
     - _Requirements: 1.1, 2.1, 3.1, 6.1, 7.1, 12.1_
 
   - [ ] 18.3 Test error handling across system boundaries
-    - Test S3 upload failure handling
-    - Test DynamoDB write failure handling
-    - Test Bedrock API failure handling
-    - Test Fargate launch failure handling
+    - Test S3, DynamoDB, Bedrock, Fargate failure handling
     - Verify error messages propagate correctly to frontend
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6_
 
   - [ ] 18.4 Test timeout and resilience scenarios
     - Test evaluation timeout at 30-minute boundary
-    - Test partial model failures (<50% threshold)
-    - Test majority model failures (>50% threshold)
-    - Test metric calculation failures
+    - Test partial model failures (<50% and >50% thresholds)
     - Verify partial results are stored correctly
     - _Requirements: 3.9, 11.3, 11.4, 11.5_
 
   - [ ] 18.5 Verify property-based test coverage
     - Ensure all correctness properties have corresponding property tests
     - Run all property tests with 100+ iterations
-    - Document any properties that cannot be tested with property-based testing
     - _Requirements: All requirements_
 
   - [ ] 18.6 Verify test coverage meets 80% minimum
-    - Run coverage reports for TypeScript Lambda handlers
-    - Run coverage reports for Python evaluation engine
-    - Run coverage reports for React frontend
+    - Run coverage reports for TypeScript Lambda handlers, Python engine, React frontend
     - Identify and test any uncovered critical paths
     - _Requirements: All requirements_
 
 
 - [ ] 19. Deployment and infrastructure finalization
   - [ ] 19.1 Complete SAM template with all resources
-    - Finalize API Gateway configuration with CORS and authentication
-    - Finalize Lambda function configurations with appropriate memory and timeout
-    - Finalize Fargate task definition with container image and resource limits
-    - Finalize S3 bucket policies and encryption settings
-    - Finalize DynamoDB table configuration with provisioned capacity or on-demand
+    - Finalize API Gateway, Lambda, Fargate, S3, DynamoDB configurations
     - Add CloudWatch log groups for all components
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
   - [ ] 19.2 Create deployment scripts
-    - Write script to build and push Fargate container image to ECR
-    - Write script to package and deploy SAM application
-    - Write script to run integration tests against deployed stack
+    - Build and push Fargate container image to ECR
+    - Package and deploy SAM application
     - Document deployment process in README
     - _Requirements: 10.1, 10.2_
 
   - [ ] 19.3 Configure monitoring and logging
-    - Set up CloudWatch dashboards for API metrics, Lambda metrics, Fargate metrics
-    - Configure CloudWatch alarms for errors, timeouts, throttling
-    - Ensure all components log to CloudWatch with appropriate log levels
+    - CloudWatch dashboards for API, Lambda, Fargate metrics
+    - Alarms for errors, timeouts, throttling
     - _Requirements: 11.2_
 
   - [ ] 19.4 Create infrastructure documentation
-    - Document architecture diagram
-    - Document IAM roles and permissions
-    - Document environment variables and configuration
-    - Document deployment process
-    - Document monitoring and troubleshooting
+    - Architecture diagram, IAM roles, environment variables, deployment process
     - _Requirements: 10.1, 10.2, 10.3_
+
 
 - [ ] 20. Final checkpoint - Complete system validation
   - Deploy complete stack to test environment
   - Run all integration and E2E tests against deployed stack
-  - Verify all requirements are met
-  - Verify all correctness properties are validated
+  - Verify all requirements are met and correctness properties are validated
   - Verify 80%+ test coverage across all components
   - Ensure all tests pass, ask the user if questions arise
+
 
 ## Notes
 
 - Tasks marked with `*` are optional testing sub-tasks and can be skipped for faster MVP delivery
+- `[-]` indicates a task exists but has issues that need fixing before it can be marked complete
 - Each task references specific requirements for traceability
-- Checkpoints ensure incremental validation at major milestones
-- Property tests validate universal correctness properties across all inputs
+- The layered architecture is: Handler (entry point) → Adapter (`parseApiEvent` + `handleHttpRequest`) → Use Case (`BasicError` for domain errors) → Repository/Service
+- All `BasicError` instances are automatically mapped to HTTP status codes by `handleHttpRequest` — use cases never deal with HTTP directly
+- Property tests use `fast-check` (TypeScript) and `hypothesis` (Python), minimum 100 iterations each
 - Unit tests validate specific examples, edge cases, and error conditions
-- Integration tests validate interactions between components
-- E2E tests validate complete user workflows
-- The layered architecture (handler → use case → service) ensures separation of concerns and testability
-- All components follow security-first principles with input validation and least-privilege IAM permissions
 
 ## Implementation Order Rationale
 

@@ -1,4 +1,6 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
+
+import { BasicError, BasicErrorType } from '../../errors';
 import {
   EvaluationJob,
   EvaluationRequest,
@@ -36,7 +38,11 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
 
   private validateModels(models: ModelConfig[]): void {
     if (!models || models.length === 0) {
-      throw new Error('At least one model must be selected');
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'NO_MODELS',
+        'At least one model must be selected',
+      );
     }
 
     for (const model of models) {
@@ -47,12 +53,18 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
           'amazon-nova',
         ];
         if (!validDefaultIdentifiers.includes(model.identifier)) {
-          throw new Error(
+          throw new BasicError(
+            BasicErrorType.BAD_REQUEST,
+            'INVALID_MODEL_IDENTIFIER',
             `Invalid default model identifier: ${model.identifier}`,
           );
         }
       } else {
-        throw new Error(`Invalid model type: ${model.type}`);
+        throw new BasicError(
+          BasicErrorType.BAD_REQUEST,
+          'INVALID_MODEL_TYPE',
+          `Invalid model type: ${model.type}`,
+        );
       }
     }
   }
@@ -73,7 +85,11 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
     const cost = weights.cost ?? defaultWeights.cost;
 
     if (accuracy < 0 || latency < 0 || cost < 0) {
-      throw new Error('Weight values must be non-negative numbers');
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'NEGATIVE_WEIGHTS',
+        'Weight values must be non-negative numbers',
+      );
     }
 
     const sum = accuracy + latency + cost;
