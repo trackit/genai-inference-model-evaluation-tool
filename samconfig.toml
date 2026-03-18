@@ -15,7 +15,7 @@ region = "us-west-2"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"ahmed\""
-
+image_repository = "576872909007.dkr.ecr.us-west-2.amazonaws.com/genai-evaluation"
 
 [lucas.deploy.parameters]
 stack_name = "genai-inference-model-evaluation-tool-lucas"
