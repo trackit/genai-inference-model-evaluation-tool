@@ -28,6 +28,9 @@ export interface EvaluationJob {
   error_message?: string;
   created_at: string;
   updated_at: string;
+  completed_at?: string;
+  model_results?: ModelResult[];
+  recommendation?: Recommendation;
 }
 
 export type JobStatus =
@@ -69,4 +72,52 @@ export interface EvaluationStatusResponse {
     message: string;
     details?: Record<string, unknown>;
   };
+}
+
+export interface AccuracyMetrics {
+  bleu?: number;
+  rouge?: number;
+  meteor?: number;
+  levenshtein?: number;
+  bertscore?: number;
+  geval_reasoning?: number;
+  geval_faithfulness?: number;
+}
+
+export interface LatencyMetrics {
+  tokens_per_second: number;
+  time_to_first_token_ms: number;
+  total_latency_ms: number;
+}
+
+export interface CostMetrics {
+  total_usd: number;
+  input_tokens: number;
+  output_tokens: number;
+}
+
+export interface ModelResult {
+  identifier: string;
+  metrics: {
+    accuracy?: AccuracyMetrics;
+    latency: LatencyMetrics;
+    cost: CostMetrics;
+  };
+  status: 'completed' | 'failed';
+  error_count?: number;
+}
+
+export interface Recommendation {
+  model_identifier: string;
+  weighted_score: number;
+  reasoning: string;
+}
+
+export interface EvaluationResultsData {
+  evaluation_id: string;
+  dataset_id: string;
+  models: ModelResult[];
+  recommendation: Recommendation;
+  weights: WeightConfig;
+  completed_at: string;
 }
