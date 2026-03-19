@@ -7,7 +7,7 @@ export type JsonlParser = {
   parse(content: string): Dataset;
 };
 
-class JsonlParserImpl implements JsonlParser {
+export class JsonlParserImpl implements JsonlParser {
   parse(content: string): Dataset {
     const lines = content.trim().split('\n');
 

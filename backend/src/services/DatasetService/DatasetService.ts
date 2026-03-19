@@ -15,7 +15,7 @@ export const tokenS3Client = createInjectionToken<S3Client>('S3Client', {
   useClass: S3Client,
 });
 
-class DatasetServiceImpl implements DatasetService {
+export class DatasetServiceImpl implements DatasetService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
   private readonly s3Client = inject(tokenS3Client);
 

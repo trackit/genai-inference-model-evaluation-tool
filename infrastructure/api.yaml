@@ -1,0 +1,280 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: API substack — HttpApi and Lambda handlers
+
+Parameters:
+  LogRetentionInDays:
+    Type: Number
+    Default: 14
+  Owner:
+    Type: String
+  Project:
+    Type: String
+    Default: genai-inference-evaluation-tool
+  DatasetBucketName:
+    Type: String
+  EvaluationJobsTableName:
+    Type: String
+  EvaluationClusterName:
+    Type: String
+  EvaluationTaskDefinitionArn:
+    Type: String
+  PublicSubnetId:
+    Type: String
+  FargateSecurityGroupId:
+    Type: String
+  FargateExecutionRoleArn:
+    Type: String
+  FargateTaskRoleArn:
+    Type: String
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    CodeUri: ../backend/
+    Tags:
+      Owner: !Ref Owner
+      Project: !Ref Project
+    Architectures:
+      - x86_64
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins:
+        - '*'
+      AllowMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      AllowHeaders:
+        - '*'
+
+Resources:
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      Tags:
+        Project: !Ref Project
+        Owner: !Ref Owner
+        Name: !Sub '${AWS::StackName}-api'
+
+  HealthFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${HealthFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  DatasetUploadFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${DatasetUploadFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  EvaluationLaunchFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${EvaluationLaunchFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  EvaluationStatusFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${EvaluationStatusFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  EvaluationResultsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${EvaluationResultsFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: health.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-health-function'
+      Events:
+        HealthApi:
+          Type: HttpApi
+          Properties:
+            Path: /health
+            Method: GET
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/health.ts
+
+  DatasetUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: DatasetUpload.handler
+      Timeout: 60
+      MemorySize: 512
+      Tags:
+        Name: !Sub '${AWS::StackName}-dataset-upload-function'
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucketName
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DatasetBucketName
+      Events:
+        UploadApi:
+          Type: HttpApi
+          Properties:
+            Path: /datasets
+            Method: POST
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/DatasetUpload/DatasetUpload.ts
+
+  EvaluationLaunchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: EvaluationLaunch.handler
+      Timeout: 60
+      Tags:
+        Name: !Sub '${AWS::StackName}-evaluation-launch-function'
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref EvaluationJobsTableName
+          ECS_CLUSTER: !Ref EvaluationClusterName
+          TASK_DEFINITION: !Ref EvaluationTaskDefinitionArn
+          DATASET_BUCKET: !Ref DatasetBucketName
+          SUBNET_ID: !Ref PublicSubnetId
+          SECURITY_GROUP_ID: !Ref FargateSecurityGroupId
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EvaluationJobsTableName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ecs:RunTask
+              Resource: !Ref EvaluationTaskDefinitionArn
+            - Effect: Allow
+              Action:
+                - iam:PassRole
+              Resource:
+                - !Ref FargateExecutionRoleArn
+                - !Ref FargateTaskRoleArn
+      Events:
+        LaunchApi:
+          Type: HttpApi
+          Properties:
+            Path: /evaluations
+            Method: POST
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/EvaluationLaunch/EvaluationLaunch.ts
+
+  EvaluationStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: EvaluationStatus.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-evaluation-status-function'
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref EvaluationJobsTableName
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref EvaluationJobsTableName
+      Events:
+        StatusApi:
+          Type: HttpApi
+          Properties:
+            Path: /evaluations/{id}
+            Method: GET
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/EvaluationStatus/EvaluationStatus.ts
+
+  EvaluationResultsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: EvaluationResults.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-evaluation-results-function'
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref EvaluationJobsTableName
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref EvaluationJobsTableName
+      Events:
+        ResultsApi:
+          Type: HttpApi
+          Properties:
+            Path: /evaluations/{id}/results
+            Method: GET
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/EvaluationResults/EvaluationResults.ts
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com'

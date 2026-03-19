@@ -1,2 +1,1 @@
-sam build --cached
-
+sam build --cached --exclude EvalFunction

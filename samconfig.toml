@@ -12,7 +12,7 @@ stack_name = "genai-inference-model-evaluation-tool-ahmed"
 s3_prefix = "genai-inference-model-evaluation-tool-ahmed"
 resolve_s3 = true
 region = "us-west-2"
-capabilities = "CAPABILITY_IAM"
+capabilities = ["CAPABILITY_IAM", "CAPABILITY_AUTO_EXPAND", "CAPABILITY_NAMED_IAM"]
 confirm_changeset = true
 tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"ahmed\""
 image_repository = "576872909007.dkr.ecr.us-west-2.amazonaws.com/genai-evaluation"
@@ -22,7 +22,7 @@ stack_name = "genai-inference-model-evaluation-tool-lucas"
 s3_prefix = "genai-inference-model-evaluation-tool-lucas"
 resolve_s3 = true
 region = "us-west-2"
-capabilities = "CAPABILITY_IAM"
+capabilities = ["CAPABILITY_IAM", "CAPABILITY_AUTO_EXPAND", "CAPABILITY_NAMED_IAM"]
 confirm_changeset = true
 tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"lucas\""
 image_repository = "576872909007.dkr.ecr.us-west-2.amazonaws.com/genai-evaluation"

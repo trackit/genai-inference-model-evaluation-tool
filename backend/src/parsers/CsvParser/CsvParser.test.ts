@@ -1,77 +1,77 @@
 import { describe, expect, it } from 'vitest';
-import { CsvParser } from './CsvParser';
+import { CsvParserImpl } from './CsvParser';
 
 describe('CsvParser', () => {
-  const parser = new CsvParser();
+  const parser = new CsvParserImpl();
 
   describe('valid CSV parsing', () => {
     it('should parse CSV with all fields', () => {
-      const csv = `prompt,context,reference_output
-"What is AI?","AI context","Artificial Intelligence"
-"Explain ML","Machine learning context","Machine Learning explanation"`;
+      const csv = `document,summary,class
+"What is AI?","Artificial Intelligence","tech"
+"Explain ML","Machine Learning explanation","tech"`;
 
       const result = parser.parse(csv);
 
       expect(result.samples).toHaveLength(2);
       expect(result.samples[0]).toEqual({
-        prompt: 'What is AI?',
-        context: 'AI context',
-        reference_output: 'Artificial Intelligence',
+        document: 'What is AI?',
+        summary: 'Artificial Intelligence',
+        class_label: 'tech',
       });
       expect(result.samples[1]).toEqual({
-        prompt: 'Explain ML',
-        context: 'Machine learning context',
-        reference_output: 'Machine Learning explanation',
+        document: 'Explain ML',
+        summary: 'Machine Learning explanation',
+        class_label: 'tech',
       });
     });
 
-    it('should parse CSV with only prompt column', () => {
-      const csv = `prompt
+    it('should parse CSV with only document column', () => {
+      const csv = `document
 "What is AI?"
 "Explain ML"`;
 
       const result = parser.parse(csv);
 
       expect(result.samples).toHaveLength(2);
-      expect(result.samples[0]).toEqual({ prompt: 'What is AI?' });
-      expect(result.samples[1]).toEqual({ prompt: 'Explain ML' });
+      expect(result.samples[0]).toEqual({ document: 'What is AI?' });
+      expect(result.samples[1]).toEqual({ document: 'Explain ML' });
     });
 
     it('should handle empty optional fields', () => {
-      const csv = `prompt,context,reference_output
+      const csv = `document,summary,class
 "What is AI?","",""
 "Explain ML","",""`;
 
       const result = parser.parse(csv);
 
       expect(result.samples).toHaveLength(2);
-      expect(result.samples[0]).toEqual({ prompt: 'What is AI?' });
-      expect(result.samples[1]).toEqual({ prompt: 'Explain ML' });
+      expect(result.samples[0]).toEqual({ document: 'What is AI?' });
+      expect(result.samples[1]).toEqual({ document: 'Explain ML' });
     });
 
     it('should handle quoted fields with commas', () => {
-      const csv = `prompt,context
+      const csv = `document,summary
 "What is AI, ML, and DL?","AI, ML, and DL are related"`;
 
       const result = parser.parse(csv);
 
       expect(result.samples).toHaveLength(1);
-      expect(result.samples[0].prompt).toBe('What is AI, ML, and DL?');
-      expect(result.samples[0].context).toBe('AI, ML, and DL are related');
+      expect(result.samples[0].document).toBe('What is AI, ML, and DL?');
+      expect(result.samples[0].summary).toBe('AI, ML, and DL are related');
     });
 
     it('should handle escaped quotes', () => {
-      const csv = `prompt
+      const csv = `document
 "She said ""Hello"""`;
 
       const result = parser.parse(csv);
 
       expect(result.samples).toHaveLength(1);
-      expect(result.samples[0].prompt).toBe('She said "Hello"');
+      expect(result.samples[0].document).toBe('She said "Hello"');
     });
 
     it('should skip empty lines', () => {
-      const csv = `prompt
+      const csv = `document
 "What is AI?"
 
 "Explain ML"`;
@@ -83,44 +83,40 @@ describe('CsvParser', () => {
   });
 
   describe('error handling', () => {
-    it('should throw error when prompt column is missing', () => {
+    it('should throw error when document column is missing', () => {
       const csv = `question,answer
 "What is AI?","Artificial Intelligence"`;
 
       expect(() => parser.parse(csv)).toThrow(
-        'CSV file must contain a "prompt" column',
+        'CSV file must contain a "document" column',
       );
     });
 
     it('should throw error for malformed CSV with column count mismatch', () => {
-      const csv = `prompt,context,reference_output
-"What is AI?","context"`;
+      const csv = `document,summary
+"What is AI?"`;
 
-      expect(() => parser.parse(csv)).toThrow('Error parsing row 2');
+      expect(() => parser.parse(csv)).toThrow('Expected 2 columns but found 1');
     });
 
     it('should throw error for empty CSV', () => {
-      const csv = '';
-
-      expect(() => parser.parse(csv)).toThrow(
+      expect(() => parser.parse('')).toThrow(
         'CSV file must contain a header row and at least one data row',
       );
     });
 
     it('should throw error for CSV with only header', () => {
-      const csv = 'prompt,context';
-
-      expect(() => parser.parse(csv)).toThrow(
+      expect(() => parser.parse('document,summary')).toThrow(
         'CSV file must contain a header row and at least one data row',
       );
     });
 
     it('should include row number in error message', () => {
-      const csv = `prompt,context
-"Valid prompt","Valid context"
+      const csv = `document,summary
+"Valid document","Valid summary"
 "Invalid"`;
 
-      expect(() => parser.parse(csv)).toThrow('Error parsing row 3');
+      expect(() => parser.parse(csv)).toThrow('Expected 2 columns but found 1');
     });
   });
 });

@@ -21,7 +21,7 @@ Globals:
       Owner: !Ref Owner
       Project: !Ref Project
     Architectures:
-      - arm64
+      - x86_64
   HttpApi:
     CorsConfiguration:
       AllowOrigins:
@@ -43,241 +43,37 @@ Resources:
       Parameters:
         ProjectName: !Ref AWS::StackName
 
-  Api:
-    Type: AWS::Serverless::HttpApi
+  ApiStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      [
+        DatasetBucket,
+        EvaluationJobsTable,
+        EvaluationCluster,
+        EvaluationTaskDefinition,
+        FargateExecutionRole,
+        FargateTaskRole,
+      ]
     Properties:
-      StageName: $default
-      Tags:
-        Project: !Ref Project
+      TemplateURL: infrastructure/api.yaml
+      Parameters:
+        LogRetentionInDays: !Ref LogRetentionInDays
         Owner: !Ref Owner
-        Name: !Sub '${AWS::StackName}-api'
-
-  # CloudWatch Log Groups
-  HealthFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/lambda/${HealthFunction}'
-      RetentionInDays: !Ref LogRetentionInDays
-
-  DatasetUploadFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/lambda/${DatasetUploadFunction}'
-      RetentionInDays: !Ref LogRetentionInDays
-
-  EvaluationLaunchFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/lambda/${EvaluationLaunchFunction}'
-      RetentionInDays: !Ref LogRetentionInDays
-
-  EvaluationStatusFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/lambda/${EvaluationStatusFunction}'
-      RetentionInDays: !Ref LogRetentionInDays
-
-  EvaluationResultsFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/lambda/${EvaluationResultsFunction}'
-      RetentionInDays: !Ref LogRetentionInDays
-
-  EvalFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/lambda/${EvalFunction}'
-      RetentionInDays: !Ref LogRetentionInDays
+        Project: !Ref Project
+        DatasetBucketName: !Ref DatasetBucket
+        EvaluationJobsTableName: !Ref EvaluationJobsTable
+        EvaluationClusterName: !Ref EvaluationCluster
+        EvaluationTaskDefinitionArn: !Ref EvaluationTaskDefinition
+        PublicSubnetId: !GetAtt NetworkStack.Outputs.PublicSubnetId
+        FargateSecurityGroupId: !GetAtt NetworkStack.Outputs.FargateSecurityGroupId
+        FargateExecutionRoleArn: !GetAtt FargateExecutionRole.Arn
+        FargateTaskRoleArn: !GetAtt FargateTaskRole.Arn
 
   EvaluationEngineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/ecs/${AWS::StackName}-evaluation-engine'
       RetentionInDays: !Ref LogRetentionInDays
-
-  # Lambda Functions
-  HealthFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Runtime: nodejs20.x
-      Handler: index.handler
-      Tags:
-        Name: !Sub '${AWS::StackName}-health-function'
-      Events:
-        HealthApi:
-          Type: HttpApi
-          Properties:
-            Path: /health
-            Method: GET
-            ApiId: !Ref Api
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: esm
-        External:
-          - '@aws-sdk'
-        Minify: true
-        Target: es2023
-        Sourcemap: false
-        OutExtension:
-          - .js=.mjs
-        EntryPoints:
-          - src/handlers/health.ts
-
-  DatasetUploadFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Runtime: nodejs20.x
-      Handler: index.handler
-      Timeout: 60
-      MemorySize: 512
-      Tags:
-        Name: !Sub '${AWS::StackName}-dataset-upload-function'
-      Environment:
-        Variables:
-          DATASET_BUCKET: !Ref DatasetBucket
-      Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref DatasetBucket
-      Events:
-        UploadApi:
-          Type: HttpApi
-          Properties:
-            Path: /datasets
-            Method: POST
-            ApiId: !Ref Api
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: esm
-        External:
-          - '@aws-sdk'
-        Minify: true
-        Target: es2023
-        Sourcemap: false
-        OutExtension:
-          - .js=.mjs
-        EntryPoints:
-          - src/handlers/DatasetUpload/DatasetUpload.ts
-
-  EvaluationLaunchFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Runtime: nodejs20.x
-      Handler: index.handler
-      Timeout: 60
-      Tags:
-        Name: !Sub '${AWS::StackName}-evaluation-launch-function'
-      Environment:
-        Variables:
-          DYNAMODB_TABLE: !Ref EvaluationJobsTable
-          ECS_CLUSTER: !Ref EvaluationCluster
-          TASK_DEFINITION: !Ref EvaluationTaskDefinition
-          DATASET_BUCKET: !Ref DatasetBucket
-          SUBNET_ID: !GetAtt NetworkStack.Outputs.PublicSubnetId
-          SECURITY_GROUP_ID: !GetAtt NetworkStack.Outputs.FargateSecurityGroupId
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref EvaluationJobsTable
-        - Statement:
-            - Effect: Allow
-              Action:
-                - ecs:RunTask
-              Resource: !Ref EvaluationTaskDefinition
-            - Effect: Allow
-              Action:
-                - iam:PassRole
-              Resource:
-                - !GetAtt FargateExecutionRole.Arn
-                - !GetAtt FargateTaskRole.Arn
-      Events:
-        LaunchApi:
-          Type: HttpApi
-          Properties:
-            Path: /evaluations
-            Method: POST
-            ApiId: !Ref Api
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: esm
-        External:
-          - '@aws-sdk'
-        Minify: true
-        Target: es2023
-        Sourcemap: false
-        OutExtension:
-          - .js=.mjs
-        EntryPoints:
-          - src/handlers/EvaluationLaunch/EvaluationLaunch.ts
-
-  EvaluationStatusFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Runtime: nodejs20.x
-      Handler: index.handler
-      Tags:
-        Name: !Sub '${AWS::StackName}-evaluation-status-function'
-      Environment:
-        Variables:
-          DYNAMODB_TABLE: !Ref EvaluationJobsTable
-      Policies:
-        - DynamoDBReadPolicy:
-            TableName: !Ref EvaluationJobsTable
-      Events:
-        StatusApi:
-          Type: HttpApi
-          Properties:
-            Path: /evaluations/{id}
-            Method: GET
-            ApiId: !Ref Api
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: esm
-        External:
-          - '@aws-sdk'
-        Minify: true
-        Target: es2023
-        Sourcemap: false
-        OutExtension:
-          - .js=.mjs
-        EntryPoints:
-          - src/handlers/EvaluationStatus/EvaluationStatus.ts
-
-  EvaluationResultsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Runtime: nodejs20.x
-      Handler: index.handler
-      Tags:
-        Name: !Sub '${AWS::StackName}-evaluation-results-function'
-      Environment:
-        Variables:
-          DYNAMODB_TABLE: !Ref EvaluationJobsTable
-      Policies:
-        - DynamoDBReadPolicy:
-            TableName: !Ref EvaluationJobsTable
-      Events:
-        ResultsApi:
-          Type: HttpApi
-          Properties:
-            Path: /evaluations/{id}/results
-            Method: GET
-            ApiId: !Ref Api
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: esm
-        External:
-          - '@aws-sdk'
-        Minify: true
-        Target: es2023
-        Sourcemap: false
-        OutExtension:
-          - .js=.mjs
-        EntryPoints:
-          - src/handlers/EvaluationResults/EvaluationResults.ts
 
   EvalFunction:
     Type: AWS::Serverless::Function
@@ -289,7 +85,7 @@ Resources:
         Name: !Sub '${AWS::StackName}-eval-function'
     Metadata:
       Dockerfile: Dockerfile
-      DockerContext: backend/python/
+      DockerContext: backend/python-eval-function/
       DockerTag: latest
 
   # S3 Buckets
@@ -304,10 +100,6 @@ Resources:
           Value: !Ref Owner
         - Key: Name
           Value: !Sub '${AWS::StackName}-dataset-bucket'
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

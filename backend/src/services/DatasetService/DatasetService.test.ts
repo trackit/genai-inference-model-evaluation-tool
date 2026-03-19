@@ -1,26 +1,32 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { register, reset } from '@trackit.io/di-container';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Dataset } from '../../models/Dataset';
-import { DatasetServiceImpl } from './DatasetService';
-
-vi.mock('@aws-sdk/client-s3');
+import { DatasetServiceImpl, tokenS3Client } from './DatasetService';
 
 describe('DatasetService', () => {
   let service: DatasetServiceImpl;
   let mockS3Send: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    reset();
     vi.clearAllMocks();
+
     mockS3Send = vi.fn().mockResolvedValue({});
-    vi.spyOn(S3Client.prototype, 'send').mockImplementation(mockS3Send);
-    service = new DatasetServiceImpl('test-bucket', 'us-east-1');
+    const mockS3Client = { send: mockS3Send } as unknown as S3Client;
+    register(tokenS3Client, { useValue: mockS3Client });
+
+    process.env.DATASET_BUCKET = 'test-bucket';
+    process.env.AWS_REGION = 'us-east-1';
+
+    service = new DatasetServiceImpl();
   });
 
   describe('uploadDataset', () => {
     it('should upload CSV dataset to S3 with encryption', async () => {
-      const content = 'prompt\n"What is AI?"';
+      const content = 'document\n"What is AI?"';
       const dataset: Dataset = {
-        samples: [{ prompt: 'What is AI?' }],
+        samples: [{ document: 'What is AI?' }],
       };
 
       const result = await service.uploadDataset(content, 'csv', dataset);
@@ -37,9 +43,9 @@ describe('DatasetService', () => {
     });
 
     it('should upload JSONL dataset to S3', async () => {
-      const content = '{"prompt":"What is AI?"}';
+      const content = '{"document":"What is AI?"}';
       const dataset: Dataset = {
-        samples: [{ prompt: 'What is AI?' }],
+        samples: [{ document: 'What is AI?' }],
       };
 
       const result = await service.uploadDataset(content, 'jsonl', dataset);
@@ -49,9 +55,9 @@ describe('DatasetService', () => {
     });
 
     it('should detect has_summary correctly', async () => {
-      const content = 'prompt,summary\n"What is AI?","AI explanation"';
+      const content = 'document,summary\n"What is AI?","AI explanation"';
       const dataset: Dataset = {
-        samples: [{ prompt: 'What is AI?', summary: 'AI explanation' }],
+        samples: [{ document: 'What is AI?', summary: 'AI explanation' }],
       };
 
       const result = await service.uploadDataset(content, 'csv', dataset);
@@ -60,9 +66,9 @@ describe('DatasetService', () => {
     });
 
     it('should detect has_class correctly', async () => {
-      const content = 'prompt,class\n"What is AI?","technology"';
+      const content = 'document,class\n"What is AI?","technology"';
       const dataset: Dataset = {
-        samples: [{ prompt: 'What is AI?', class_label: 'technology' }],
+        samples: [{ document: 'What is AI?', class_label: 'technology' }],
       };
 
       const result = await service.uploadDataset(content, 'csv', dataset);
@@ -73,9 +79,9 @@ describe('DatasetService', () => {
     it('should handle dataset with multiple samples', async () => {
       const dataset: Dataset = {
         samples: [
-          { prompt: 'Question 1' },
-          { prompt: 'Question 2', summary: 'Answer 2' },
-          { prompt: 'Question 3', class_label: 'category' },
+          { document: 'Question 1' },
+          { document: 'Question 2', summary: 'Answer 2' },
+          { document: 'Question 3', class_label: 'category' },
         ],
       };
 
@@ -88,7 +94,7 @@ describe('DatasetService', () => {
 
     it('should generate unique dataset IDs', async () => {
       const dataset: Dataset = {
-        samples: [{ prompt: 'Test' }],
+        samples: [{ document: 'Test' }],
       };
 
       const result1 = await service.uploadDataset('content', 'csv', dataset);

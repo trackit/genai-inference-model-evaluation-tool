@@ -29,7 +29,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - `DatasetService` handles S3 upload with SSE-AES256 encryption
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7_
 
-  - [-] 2.2 Write property test for document column validation
+  - [x] 2.2 Write property test for document column validation
     - **Property 1: CSV Validation**
     - **Validates: Requirements 1.1**
     - Note: test exists at `CsvParser.property.test.ts` but references `prompt` column — needs updating to match actual `document` column implementation
@@ -105,7 +105,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - Unhandled errors → 500
     - _Requirements: 11.1, 11.7_
 
-  - [-] 2.16 Fix handler test type mismatch
+  - [x] 2.16 Fix handler test type mismatch
     - `DatasetUpload.test.ts` uses `APIGatewayProxyEvent` (V1) but handler expects `APIGatewayProxyEventV2`
     - Update test to use V2 event shape
     - _Requirements: 11.1, 11.7_
@@ -233,7 +233,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - **Property 30: Non-Existent Job Error**
     - **Validates: Requirements 7.7**
 
-  - [ ] 4.8 Implement results response formatting
+  - [x] 4.8 Implement results response formatting
     - Return all model metrics (accuracy, latency, cost)
     - Include recommendation with model_identifier, weighted_score, reasoning
     - Include configured weights
@@ -245,15 +245,13 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - Test non-existent job returns 404
     - _Requirements: 7.1, 7.2, 7.7_
 
-  - [ ] 4.10 Implement error handling for both handlers
+  - [x] 4.10 Implement error handling for both handlers
     - `BasicError(NOT_FOUND)` → 404 via `handleHttpRequest`
     - DynamoDB failures → 500
     - _Requirements: 7.7, 11.7_
 
 
-- [ ] 5. Checkpoint - Backend API handlers complete
-  - Fix property test field name mismatch (task 2.2): `prompt` → `document`
-  - Fix handler test type mismatch (task 2.16): V1 → V2 event shape
+- [x] 5. Checkpoint - Backend API handlers complete
   - Ensure all Lambda handler tests pass
   - Verify API Gateway integration with handlers
   - Ask the user if questions arise

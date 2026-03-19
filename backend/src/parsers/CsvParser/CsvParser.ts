@@ -7,7 +7,7 @@ export type CsvParser = {
   parse(content: string): Dataset;
 };
 
-class CsvParserImpl implements CsvParser {
+export class CsvParserImpl implements CsvParser {
   parse(content: string): Dataset {
     const lines = content.trim().split('\n');
 

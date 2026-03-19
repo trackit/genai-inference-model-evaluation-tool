@@ -11,6 +11,8 @@ import {
   EvaluationJob,
   JobStatus,
   ModelConfig,
+  ModelResult,
+  Recommendation,
   WeightConfig,
 } from '../../models/Evaluation';
 
@@ -188,6 +190,13 @@ class EvaluationJobsRepositoryImpl implements EvaluationJobsRepository {
       error_message: item['error_message']?.S,
       created_at: item['created_at'].S!,
       updated_at: item['updated_at'].S!,
+      completed_at: item['completed_at']?.S,
+      model_results: item['model_results']?.S
+        ? (JSON.parse(item['model_results'].S) as ModelResult[])
+        : undefined,
+      recommendation: item['recommendation']?.S
+        ? (JSON.parse(item['recommendation'].S) as Recommendation)
+        : undefined,
     };
   }
 }
