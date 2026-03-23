@@ -1,20 +1,19 @@
-FROM --platform=linux/amd64 python:3.11 AS builder
+FROM python:3.12-slim
 
-# RUN microdnf install -y gcc g++ make git && \
-#     microdnf clean all
+WORKDIR /src
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip
 
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install \
-    -r requirements.txt \
-    -t /install \
-    --no-cache-dir
+COPY src/ .
 
-FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.11
+ENV PYTHONUNBUFFERED=1
 
-COPY --from=builder /install ${LAMBDA_TASK_ROOT}
-COPY src/ ${LAMBDA_TASK_ROOT}/
-
-CMD ["handler.handler"]
+CMD ["python", "main.py"]
