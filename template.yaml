@@ -256,14 +256,11 @@ Resources:
         - FARGATE
       Cpu: '2048'
       Memory: '4096'
-      RuntimePlatform:
-        CpuArchitecture: ARM64
-        OperatingSystemFamily: LINUX
       ExecutionRoleArn: !GetAtt FargateExecutionRole.Arn
       TaskRoleArn: !GetAtt FargateTaskRole.Arn
       ContainerDefinitions:
         - Name: evaluation-engine
-          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${AWS::StackName}-evaluation-engine:latest'
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/genai-evaluation:latest'
           Essential: true
           LogConfiguration:
             LogDriver: awslogs

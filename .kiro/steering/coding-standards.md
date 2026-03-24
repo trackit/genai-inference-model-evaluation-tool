@@ -59,26 +59,77 @@ backend/src/
 
 ## Code Style
 
-### Minimal Comments
-- Code should be self-documenting through clear naming
-- Only add comments for complex business logic or non-obvious decisions
-- Avoid redundant comments that repeat what the code does
+### No Extensive Comments - Only When Truly Needed
+- **Default: Write NO comments** - Code should be self-documenting through clear naming
+- Only add comments when the "why" is truly non-obvious and cannot be expressed through code
+- NEVER add comments that describe "what" the code does - that should be obvious from reading it
+- Avoid redundant comments, docstrings, or explanatory text that repeats what the code already says
 
-**Bad:**
+**When to add a comment (rare cases only):**
+- Complex mathematical formulas or algorithms where the logic isn't immediately clear
+- Business rules that come from external requirements and aren't obvious from code alone
+- Workarounds for bugs in third-party libraries
+- Performance optimizations that look unusual but are intentional
+
+**Bad (unnecessary comments):**
 ```typescript
 // Get the dataset from S3
 const dataset = await s3.getObject(params);
+
+// Loop through all items
+for (const item of items) {
+  // Process the item
+  processItem(item);
+}
+
+// Return the result
+return result;
 ```
 
-**Good:**
+**Good (no comments, clear code):**
 ```typescript
 const dataset = await s3.getObject(params);
+
+for (const item of items) {
+  processItem(item);
+}
+
+return result;
 ```
 
-**Acceptable (non-obvious logic):**
+**Acceptable (truly non-obvious logic):**
 ```typescript
 // Normalize weights to sum to 1.0 for weighted score calculation
 const normalizedWeights = weights.map(w => w / totalWeight);
+
+// Use inverse normalization for cost/latency: lower values = better scores
+const normalizedCost = 1 - (cost - minCost) / (maxCost - minCost);
+```
+
+**Python docstrings:**
+- Avoid extensive docstrings that repeat parameter names and types (use type hints instead)
+- Only add docstrings for public APIs or when the function's purpose isn't clear from its name
+
+**Bad (redundant docstring):**
+```python
+def calculate_progress(completed: int, total: int) -> float:
+    """
+    Calculate progress percentage.
+    
+    Args:
+        completed: Number of completed items
+        total: Total number of items
+        
+    Returns:
+        Progress as a percentage (0-100)
+    """
+    return (completed / total) * 100
+```
+
+**Good (clear code, minimal docstring):**
+```python
+def calculate_progress(completed: int, total: int) -> float:
+    return (completed / total) * 100
 ```
 
 ### Immutability

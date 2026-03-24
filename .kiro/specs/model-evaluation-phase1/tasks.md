@@ -257,17 +257,20 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
   - Ask the user if questions arise
 
 - [ ] 6. Implement Python evaluation engine core
-  - [ ] 6.1 Create evaluation engine entry point
-    - Write main.py with entry point that reads evaluation_id from environment
-    - Load job configuration from DynamoDB
+  - [x] 6.1 Create evaluation engine entry point
+    - Write main.py with entry point that orchestrates all other python functions 
+    - main will read evaluation_id from environment
+    - Load job configuration from DynamoDB via evaluation_loader
+    - Create evaluation_loader.py that will handle dynamodb service
     - Orchestrate dataset loading, model evaluation, and results storage
     - Handle timeout (30 minutes) with graceful termination
     - _Requirements: 3.2, 3.9_
 
-  - [ ] 6.2 Implement dataset loader
-    - Load dataset from S3 using dataset_id from job configuration
+  - [x] 6.2 Implement dataset loader
+    - Load dataset from S3 using dataset_id from job configuration via dataset_loader
     - Parse CSV or JSONL format based on file extension
     - Return dataset structure with documents, summaries, class_labels
+    - Call dataset_loader in main
     - _Requirements: 3.3_
 
   - [ ]* 6.3 Write property test for dataset loading
@@ -280,8 +283,9 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - Test S3 read failures
     - _Requirements: 3.3_
 
-  - [ ] 6.5 Implement progress tracker
-    - Update DynamoDB with current status, progress percentage, current_model
+  - [x] 6.5 Implement progress tracker
+    - Update DynamoDB with current status, progress percentage, current_model using evaluation_loader
+    - Rename evaluation loader to be dynamodb_service or evaluation_repository it will be more accurate
     - Calculate progress as (completed_invocations / total_invocations) × 100
     - Update samples_processed count
     - _Requirements: 6.3_
@@ -295,7 +299,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - Test DynamoDB update operations
     - _Requirements: 6.3_
 
-  - [ ] 6.8 Implement status transition logic
+  - [x] 6.8 Implement status transition logic
     - Transition from "pending" to "running" on start
     - Transition to "completed" on successful completion
     - Transition to "failed" on unrecoverable errors
