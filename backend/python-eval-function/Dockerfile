@@ -16,6 +16,7 @@ RUN python -m nltk.downloader wordnet punkt_tab
 
 
 COPY src/ .
+COPY config/ ../config/
 
 ENV PYTHONUNBUFFERED=1
 

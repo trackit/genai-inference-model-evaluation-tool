@@ -125,6 +125,9 @@ information while summarizing. Output ONLY the summary, nothing else."""
         
         logger.info(f"Accuracy evaluation complete for {len(accuracy_results)} models")
         
+        from cost_calculator import CostCalculator
+        cost_calculator = CostCalculator()
+        
         model_results = []
         for model_id, invocation_results in results_by_model.items():
             successful = [r for r in invocation_results if r.error is None]
@@ -135,6 +138,8 @@ information while summarizing. Output ONLY the summary, nothing else."""
             total_input = sum(r.input_tokens for r in successful)
             total_output = sum(r.output_tokens for r in successful)
             tokens_per_sec = (total_output / (avg_latency / 1000)) if avg_latency > 0 else 0
+            
+            cost_data = cost_calculator.calculate_total_cost(model_id, total_input, total_output)
             
             acc = accuracy_results.get(model_id)
             accuracy_dict = None
@@ -158,22 +163,18 @@ information while summarizing. Output ONLY the summary, nothing else."""
                         "time_to_first_token_ms": round(avg_ttft, 2),
                         "total_latency_ms": round(avg_latency, 2),
                     },
-                    "cost": {
-                        "total_usd": 0,
-                        "input_tokens": total_input,
-                        "output_tokens": total_output,
-                    },
+                    "cost": cost_data,
                 },
             })
         
-        best = max(model_results, key=lambda m: (
-            (m["metrics"]["accuracy"] or {}).get("bertscore") or 0
-        )) if model_results else None
+        from model_recommender import ModelRecommender
+        recommender = ModelRecommender()
+        recommendation_obj = recommender.recommend(model_results, weights)
         
         recommendation = {
-            "model_identifier": best["identifier"] if best else "",
-            "weighted_score": round((best["metrics"]["accuracy"] or {}).get("bertscore", 0), 4) if best else 0,
-            "reasoning": f"Highest BERTScore among evaluated models" if best else "",
+            "model_identifier": recommendation_obj.model_identifier,
+            "weighted_score": recommendation_obj.weighted_score,
+            "reasoning": recommendation_obj.reasoning,
         }
         
         logger.info(f"Recommendation: {recommendation}")

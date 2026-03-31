@@ -1,0 +1,22 @@
+{
+  "anthropic.claude-3-sonnet-20240229-v1:0": {
+    "input_per_1k": 0.003,
+    "output_per_1k": 0.015
+  },
+  "anthropic.claude-3-opus-20240229-v1:0": {
+    "input_per_1k": 0.015,
+    "output_per_1k": 0.075
+  },
+  "us.amazon.nova-pro-v1:0": {
+    "input_per_1k": 0.0008,
+    "output_per_1k": 0.0032
+  },
+  "us.amazon.nova-lite-v1:0": {
+    "input_per_1k": 0.00006,
+    "output_per_1k": 0.00024
+  },
+  "us.amazon.nova-micro-v1:0": {
+    "input_per_1k": 0.000035,
+    "output_per_1k": 0.00014
+  }
+}

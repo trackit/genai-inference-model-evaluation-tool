@@ -27,7 +27,11 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
 
     const job = await this.evaluationJobsRepository.createEvaluation(
       request.dataset_id,
-      request.models,
+      [
+        { type: 'default', identifier: 'amazon-nova-lite' },
+        { type: 'default', identifier: 'amazon-nova-micro' },
+        { type: 'default', identifier: 'amazon-nova' },
+      ],
       normalizedWeights,
     );
 
@@ -48,8 +52,8 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
     for (const model of models) {
       if (model.type === 'default') {
         const validDefaultIdentifiers = [
-          'claude-sonnet',
-          'claude-opus',
+          'amazon-nova-lite',
+          'amazon-nova-micro',
           'amazon-nova',
         ];
         if (!validDefaultIdentifiers.includes(model.identifier)) {
@@ -71,9 +75,9 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
 
   private normalizeWeights(weights?: Partial<WeightConfig>): WeightConfig {
     const defaultWeights: WeightConfig = {
-      accuracy: 0.33,
-      latency: 0.33,
-      cost: 0.34,
+      accuracy: 0.4,
+      latency: 0.3,
+      cost: 0.3,
     };
 
     if (!weights) {
@@ -99,9 +103,9 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
     }
 
     return {
-      accuracy: accuracy / sum,
-      latency: latency / sum,
-      cost: cost / sum,
+      accuracy: Math.round((accuracy / sum) * 100) / 100,
+      latency: Math.round((latency / sum) * 100) / 100,
+      cost: Math.round((cost / sum) * 100) / 100,
     };
   }
 }

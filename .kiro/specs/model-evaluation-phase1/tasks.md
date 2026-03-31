@@ -454,8 +454,8 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - **Validates: Requirements 4.11**
 
 
-- [ ] 10. Implement metric calculator for latency and cost metrics
-  - [ ] 10.1 Implement tokens per second calculation
+- [x] 10. Implement metric calculator for latency and cost metrics
+  - [x] 10.1 Implement tokens per second calculation
     - TPS = output_tokens / generation_time_seconds, mean across all invocations
     - _Requirements: 5.1, 5.2_
 
@@ -470,21 +470,21 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
   - [ ]* 10.4 Write unit tests for TPS calculation
     - _Requirements: 5.1, 5.2_
 
-  - [ ] 10.5 Implement time to first token calculation
+  - [x] 10.5 Implement time to first token calculation
     - Extract TTFT from each invocation, calculate mean
     - _Requirements: 5.3, 5.4_
 
   - [ ]* 10.6 Write unit tests for TTFT calculation
     - _Requirements: 5.3, 5.4_
 
-  - [ ] 10.7 Implement total latency calculation
+  - [x] 10.7 Implement total latency calculation
     - Extract total latency from each invocation, calculate mean
     - _Requirements: 5.5, 5.6_
 
   - [ ]* 10.8 Write unit tests for total latency calculation
     - _Requirements: 5.5, 5.6_
 
-  - [ ] 10.9 Implement cost calculation with Bedrock pricing
+  - [x] 10.9 Implement cost calculation with Bedrock pricing
     - Pricing table for Claude Sonnet, Opus, Nova
     - cost = (input_tokens × input_price / 1000) + (output_tokens × output_price / 1000)
     - Total cost across all invocations per model
@@ -501,7 +501,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
   - [ ]* 10.12 Write unit tests for cost calculation
     - _Requirements: 5.7, 5.8, 5.9_
 
-  - [ ] 10.13 Implement complete metrics aggregation
+  - [x] 10.13 Implement complete metrics aggregation
     - Combine accuracy, latency, cost metrics per model into ModelResults
     - Include model status (completed/failed) and error_count
     - _Requirements: 3.7_
@@ -514,8 +514,8 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - _Requirements: 3.7, 4.10_
 
 
-- [ ] 11. Implement model recommender
-  - [ ] 11.1 Implement metric normalization
+- [x] 11. Implement model recommender
+  - [x] 11.1 Implement metric normalization
     - Normalize all metrics to 0-1 scale
     - Accuracy and TPS: higher is better (direct normalization)
     - Latency and cost: lower is better (inverse normalization)
@@ -533,7 +533,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
   - [ ]* 11.4 Write unit tests for normalization
     - _Requirements: 8.4, 8.5_
 
-  - [ ] 11.5 Implement weighted score calculation
+  - [x] 11.5 Implement weighted score calculation
     - weighted_score = (norm_accuracy × w_accuracy) + (norm_latency × w_latency) + (norm_cost × w_cost)
     - Exclude dimensions with zero weight
     - _Requirements: 8.1, 8.2, 12.4_
@@ -553,7 +553,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
   - [ ]* 11.9 Write unit tests for weighted score calculation
     - _Requirements: 8.1, 8.2, 12.4_
 
-  - [ ] 11.10 Implement recommendation selection
+  - [x] 11.10 Implement recommendation selection
     - Select model with highest weighted score
     - Generate reasoning text explaining the recommendation
     - Return Recommendation with model_identifier, weighted_score, reasoning
