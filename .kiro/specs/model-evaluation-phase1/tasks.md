@@ -431,21 +431,21 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
 
 
 - [ ] 9. Implement LLM-as-judge accuracy metrics (G-eval)
-  - [ ] 9.1 Set up DeepEval dependency
-    - Install DeepEval library, configure Claude Opus as judge model
+  - [x] 9.1 Set up DeepEval dependency
+    - Install DeepEval library, configure Nova Pro as judge model (configurable via GEVAL_JUDGE_MODEL env var)
     - _Requirements: 4.8, 4.9_
 
-  - [ ] 9.2 Implement G-eval metrics with Claude Opus judge
+  - [x] 9.2 Implement G-eval metrics with Bedrock judge
     - Calculate G-eval reasoning and faithfulness scores using DeepEval
     - Return mean scores across all samples
     - _Requirements: 4.8, 4.9, 4.10_
 
   - [ ]* 9.3 Write unit tests for G-eval metrics
-    - Test reasoning and faithfulness calculation, verify Claude Opus is judge
+    - Test reasoning and faithfulness calculation, verify judge model is used
     - _Requirements: 4.8, 4.9, 4.10_
 
-  - [ ] 9.4 Integrate G-eval with conditional accuracy calculation
-    - Skip G-eval if no reference outputs in dataset
+  - [x] 9.4 Integrate G-eval with conditional accuracy calculation
+    - Skip G-eval if no predictions available
     - Combine with deterministic/semantic metrics in ModelResults
     - _Requirements: 4.11_
 
@@ -567,8 +567,8 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - _Requirements: 8.6_
 
 
-- [ ] 12. Implement results storage and engine orchestration
-  - [ ] 12.1 Implement results writer for DynamoDB
+- [x] 12. Implement results storage and engine orchestration
+  - [x] 12.1 Implement results writer for DynamoDB
     - Store model_results and recommendation in evaluation job record
     - Update completed_at timestamp and status to "completed"
     - _Requirements: 3.8, 6.4_
@@ -580,7 +580,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
   - [ ]* 12.3 Write integration tests for results storage
     - _Requirements: 3.8_
 
-  - [ ] 12.4 Wire evaluation engine components together
+  - [x] 12.4 Wire evaluation engine components together
     - Orchestrate: load dataset → evaluate models → calculate metrics → generate recommendation → store results
     - Update progress throughout, handle errors at each stage gracefully
     - _Requirements: 3.2, 3.3, 3.4, 3.7, 3.8_
@@ -588,7 +588,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
   - [ ]* 12.5 Write integration tests for complete evaluation flow
     - _Requirements: 3.2, 3.3, 3.4, 3.7, 3.8, 3.9_
 
-  - [ ] 12.6 Implement timeout handling
+  - [x] 12.6 Implement timeout handling
     - Monitor elapsed time, terminate gracefully at 30 minutes
     - Store partial results with "timeout" status
     - _Requirements: 3.9_

@@ -126,6 +126,31 @@ information while summarizing. Output ONLY the summary, nothing else."""
         
         logger.info(f"Accuracy evaluation complete for {len(accuracy_results)} models")
         
+        from geval_evaluator import GEvalEvaluator
+        geval_evaluator = GEvalEvaluator()
+        
+        for model_id, invocation_results in results_by_model.items():
+            successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
+            predictions = [invocation_results[i].response_text for i in successful_indices]
+            inputs = [dataset.documents[i] for i in successful_indices]
+            references = [all_references[i] for i in successful_indices] if all_references else None
+            
+            logger.info(f"Running G-Eval for model {model_id} on {len(predictions)} samples")
+            geval_metrics = geval_evaluator.evaluate(inputs, predictions, references)
+            
+            acc = accuracy_results.get(model_id)
+            if acc is None:
+                from accuracy_evaluator import AccuracyMetrics
+                acc = AccuracyMetrics()
+                accuracy_results[model_id] = acc
+            
+            acc.geval_reasoning = geval_metrics.reasoning
+            acc.geval_faithfulness = geval_metrics.faithfulness
+            
+            logger.info(f"G-Eval complete for {model_id}")
+        
+        logger.info(f"G-Eval evaluation complete for all models")
+        
         from cost_calculator import CostCalculator
         cost_calculator = CostCalculator()
         
@@ -151,6 +176,8 @@ information while summarizing. Output ONLY the summary, nothing else."""
                     "meteor": acc.meteor,
                     "levenshtein": acc.levenshtein,
                     "bertscore": acc.bertscore,
+                    "geval_reasoning": acc.geval_reasoning,
+                    "geval_faithfulness": acc.geval_faithfulness,
                 }
             
             model_results.append({

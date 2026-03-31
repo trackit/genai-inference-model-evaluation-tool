@@ -80,17 +80,30 @@ class ModelRecommender:
         latency_scores = []
         cost_scores = []
         
+        ACCURACY_WEIGHTS = {
+            "geval_reasoning":    0.25,
+            "geval_faithfulness": 0.25,
+            "bertscore":          0.30,
+            "bleu":               0.05,
+            "rouge":              0.05,
+            "meteor":             0.05,
+            "levenshtein":        0.05,
+        }
+
         for model in model_results:
             metrics = model['metrics']
             
             acc = None
             if metrics.get('accuracy'):
                 acc_dict = metrics['accuracy']
-                if acc_dict.get('bertscore') is not None:
-                    acc = acc_dict['bertscore']
-                else:
-                    available = [v for v in acc_dict.values() if v is not None]
-                    acc = sum(available) / len(available) if available else None
+                weighted_sum = 0.0
+                weight_sum = 0.0
+                for metric_name, weight in ACCURACY_WEIGHTS.items():
+                    val = acc_dict.get(metric_name)
+                    if val is not None:
+                        weighted_sum += val * weight
+                        weight_sum += weight
+                acc = (weighted_sum / weight_sum) if weight_sum > 0 else None
             
             accuracy_scores.append(acc)
             

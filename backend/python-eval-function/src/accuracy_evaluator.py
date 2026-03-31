@@ -12,6 +12,8 @@ class AccuracyMetrics:
     meteor: Optional[float] = None
     levenshtein: Optional[float] = None
     bertscore: Optional[float] = None
+    geval_reasoning: Optional[float] = None
+    geval_faithfulness: Optional[float] = None
 
 
 class AccuracyEvaluator:
