@@ -74,7 +74,6 @@ Resources:
     Properties:
       LogGroupName: !Sub '/ecs/${AWS::StackName}-evaluation-engine'
       RetentionInDays: !Ref LogRetentionInDays
-
   # S3 Buckets
   DatasetBucket:
     Type: AWS::S3::Bucket
