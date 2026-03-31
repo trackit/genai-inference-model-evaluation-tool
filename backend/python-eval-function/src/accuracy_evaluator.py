@@ -17,7 +17,7 @@ class AccuracyMetrics:
 class AccuracyEvaluator:
     
     def __init__(self):
-        logger.info("Initialized AccuracyEvaluator")
+        pass
     
     def calculate_accuracy_metrics(
         self,

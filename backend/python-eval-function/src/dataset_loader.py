@@ -48,8 +48,7 @@ class DatasetLoader:
             raise ValueError("DATASET_BUCKET environment variable is required")
         
         self.s3_client = boto3.client('s3')
-        logger.info(f"Initialized DatasetLoader with bucket: {self.bucket_name}")
-    
+        
     def load_dataset(self, dataset_id: str) -> Dataset:
         try:
             logger.info(f"Loading dataset: {dataset_id}")
@@ -80,7 +79,6 @@ class DatasetLoader:
         for extension, file_format in [('.csv', 'csv'), ('.jsonl', 'jsonl')]:
             s3_key = f"datasets/{dataset_id}{extension}"
             try:
-                logger.info(f"Attempting to load from S3: {s3_key}")
                 response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
                 content = response['Body'].read().decode('utf-8')
                 logger.info(f"Successfully loaded {file_format} file from S3")

@@ -54,6 +54,7 @@ def main():
     evaluation_id = None
     db_service = None
     start_time = datetime.now(UTC)
+    partial_results = None
     
     try:
         evaluation_id = get_evaluation_id()
@@ -167,6 +168,11 @@ information while summarizing. Output ONLY the summary, nothing else."""
                 },
             })
         
+        partial_results = {
+            'model_results': model_results,
+            'weights': weights
+        }
+        
         from model_recommender import ModelRecommender
         recommender = ModelRecommender()
         recommendation_obj = recommender.recommend(model_results, weights)
@@ -198,12 +204,43 @@ information while summarizing. Output ONLY the summary, nothing else."""
         logger.error(f"Evaluation {evaluation_id} timed out: {e}")
         if evaluation_id and db_service:
             try:
-                db_service.update_progress(
-                    evaluation_id=evaluation_id,
-                    status="timeout",
-                    progress=0.0,
-                    error_message="Evaluation exceeded 30-minute timeout"
-                )
+                if partial_results and partial_results.get('model_results'):
+                    logger.info(f"Storing partial results for {len(partial_results['model_results'])} models")
+                    try:
+                        from model_recommender import ModelRecommender
+                        recommender = ModelRecommender()
+                        recommendation_obj = recommender.recommend(
+                            partial_results['model_results'],
+                            partial_results['weights']
+                        )
+                        recommendation = {
+                            "model_identifier": recommendation_obj.model_identifier,
+                            "weighted_score": recommendation_obj.weighted_score,
+                            "reasoning": f"{recommendation_obj.reasoning} (partial results due to timeout)",
+                        }
+                    except Exception as rec_error:
+                        logger.error(f"Failed to generate recommendation from partial results: {rec_error}")
+                        recommendation = {
+                            "model_identifier": "",
+                            "weighted_score": 0.0,
+                            "reasoning": "Timeout occurred before recommendation could be generated",
+                        }
+                    
+                    db_service.update_progress(
+                        evaluation_id=evaluation_id,
+                        status="timeout",
+                        progress=0.0,
+                        error_message="Evaluation exceeded 30-minute timeout. Partial results stored.",
+                        model_results=partial_results['model_results'],
+                        recommendation=recommendation
+                    )
+                else:
+                    db_service.update_progress(
+                        evaluation_id=evaluation_id,
+                        status="timeout",
+                        progress=0.0,
+                        error_message="Evaluation exceeded 30-minute timeout"
+                    )
             except Exception as update_error:
                 logger.error(f"Failed to update timeout status: {update_error}")
         return 1

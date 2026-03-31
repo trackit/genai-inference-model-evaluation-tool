@@ -32,7 +32,6 @@ class BedrockClient:
     
     def __init__(self):
         self.client = boto3.client('bedrock-runtime')
-        logger.info("Initialized BedrockClient")
     
     def resolve_model_id(self, identifier: str) -> str:
         return MODEL_ID_MAP.get(identifier, identifier)
@@ -50,7 +49,6 @@ class BedrockClient:
                 modelId=model_id,
                 body=json.dumps(request_body)
             )
-            logger.info(f"Response: {response}")
             response_text = ""
             input_tokens = 0
             output_tokens = 0
@@ -212,10 +210,10 @@ class BedrockClient:
             results_by_model[model_id] = model_results
             
             logger.info(
-                f"Completed evaluation for model {model_id}: "
+                f"Completed invocations for model {model_id}: "
                 f"{len(model_results)} invocations, "
                 f"{sum(1 for r in model_results if r.error is None)} successful"
             )
         
-        logger.info(f"All model evaluations complete: {completed_invocations} total invocations")
+        logger.info(f"All model invocations complete: {completed_invocations} total invocations")
         return results_by_model

@@ -47,7 +47,6 @@ class ModelRecommender:
                 reasoning="Only model evaluated"
             )
         
-        logger.info(f"Generating recommendation for {len(model_results)} models with weights: {weights}")
         
         normalized = self.normalize_metrics(model_results)
         

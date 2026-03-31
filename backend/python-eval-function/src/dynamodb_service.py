@@ -16,11 +16,9 @@ class DynamoDBService:
         self.table_name = table_name or os.environ.get('DYNAMODB_TABLE', 'evaluation-jobs')
         self.dynamodb = boto3.resource('dynamodb')
         self.table = self.dynamodb.Table(self.table_name)
-        logger.info(f"Initialized DynamoDBService with table: {self.table_name}")
-
+        
     def load_job(self, evaluation_id: str) -> Dict[str, Any]:
         try:
-            logger.info(f"Loading evaluation job: {evaluation_id}")
             
             response = self.table.get_item(Key={'evaluation_id': evaluation_id})
             
@@ -100,6 +98,17 @@ class DynamoDBService:
                 }
                 update_expression += ", completed_at = :completed_at, model_results = :model_results, recommendation = :recommendation"
                 expression_attribute_values[":completed_at"] = ca
+                expression_attribute_values[":model_results"] = json.dumps(mr)
+                expression_attribute_values[":recommendation"] = json.dumps(rec)
+
+            if status == "timeout" and model_results is not None:
+                mr = model_results
+                rec = recommendation if recommendation is not None else {
+                    "model_identifier": "",
+                    "weighted_score": 0,
+                    "reasoning": "Timeout occurred before recommendation could be generated",
+                }
+                update_expression += ", model_results = :model_results, recommendation = :recommendation"
                 expression_attribute_values[":model_results"] = json.dumps(mr)
                 expression_attribute_values[":recommendation"] = json.dumps(rec)
 

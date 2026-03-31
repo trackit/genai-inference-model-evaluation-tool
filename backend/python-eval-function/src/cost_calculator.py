@@ -20,7 +20,6 @@ class CostCalculator:
         try:
             with open(pricing_file, 'r') as f:
                 self.pricing = json.load(f)
-            logger.info(f"Loaded pricing data from {pricing_file}")
         except Exception as e:
             logger.error(f"Failed to load pricing file {pricing_file}: {e}")
             self.pricing = {}
@@ -36,14 +35,7 @@ class CostCalculator:
         output_cost = (output_tokens * pricing["output_per_1k"]) / 1000
         
         total_cost = input_cost + output_cost
-        
-        logger.debug(
-            f"Cost for {model_id}: "
-            f"input={input_tokens} tokens (${input_cost:.6f}), "
-            f"output={output_tokens} tokens (${output_cost:.6f}), "
-            f"total=${total_cost:.6f}"
-        )
-        
+            
         return total_cost
     
     def calculate_total_cost(self, model_id: str, total_input_tokens: int, total_output_tokens: int) -> Dict[str, float]:
