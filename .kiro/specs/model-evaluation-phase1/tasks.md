@@ -321,7 +321,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
 
 
 - [ ] 7. Implement Bedrock client for model invocations
-  - [ ] 7.1 Create Bedrock client with invocation tracking
+  - [x] 7.1 Create Bedrock client with invocation tracking
     - Initialize boto3 Bedrock Runtime client
     - Implement invoke_model method that accepts model_id, document
     - Record input_tokens, output_tokens, time_to_first_token, total_latency for each invocation
@@ -336,7 +336,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - **Property 12: Invocation Metrics Capture**
     - **Validates: Requirements 3.5, 5.3, 5.5**
 
-  - [ ] 7.4 Implement error handling for model invocations
+  - [x] 7.4 Implement error handling for model invocations
     - Catch and log Bedrock API errors with model_id, document_id, error details
     - Return error indicator in InvocationResult
     - Continue processing on individual failures
@@ -357,7 +357,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - Mock Bedrock API responses
     - _Requirements: 3.4, 3.5, 3.6_
 
-  - [ ] 7.8 Implement model evaluation loop
+  - [x] 7.8 Implement model evaluation loop
     - For each document in dataset, invoke each selected model
     - Track completed invocations for progress updates
     - Update progress after each model completes all documents
@@ -370,7 +370,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - Test partial failure scenarios
     - _Requirements: 3.4, 6.3_
 
-  - [ ] 7.10 Implement model failure threshold check
+  - [ ]* 7.10 Implement model failure threshold check
     - Count failed invocations per model
     - If >50% of invocations fail for a model, mark model evaluation as failed
     - Continue with other models
@@ -382,11 +382,11 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
 
 
 - [ ] 8. Implement deterministic and semantic accuracy metrics
-  - [ ] 8.1 Set up fmeval dependency
+  - [x] 8.1 Set up fmeval dependency
     - Install fmeval library for BLEU, ROUGE, METEOR, BERTScore
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [ ] 8.2 Implement deterministic accuracy metrics
+  - [x] 8.2 Implement deterministic accuracy metrics
     - Calculate BLEU, ROUGE, METEOR, Levenshtein scores using fmeval
     - Return mean score across all samples for each metric
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6_
@@ -400,7 +400,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - Test mean aggregation
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6_
 
-  - [ ] 8.5 Implement semantic accuracy metrics
+  - [x] 8.5 Implement semantic accuracy metrics
     - Calculate BERTScore using fmeval
     - Return mean score across all samples
     - _Requirements: 4.5, 4.6_
@@ -408,7 +408,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
   - [ ]* 8.6 Write unit tests for semantic metrics
     - _Requirements: 4.5, 4.6_
 
-  - [ ] 8.7 Implement conditional accuracy calculation
+  - [x] 8.7 Implement conditional accuracy calculation
     - Skip all accuracy metrics if dataset has no summary or class_label fields
     - Return None for accuracy metrics when skipped
     - _Requirements: 4.7_
@@ -421,7 +421,7 @@ Each Lambda follows a three-layer pattern: **Handler → Adapter → Use Case**.
     - **Property 16: Accuracy Metrics Completeness**
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5**
 
-  - [ ] 8.10 Implement error handling for metric calculation
+  - [ ]* 8.10 Implement error handling for metric calculation
     - Log errors, store partial results with failure indicator, continue with remaining metrics
     - _Requirements: 11.5_
 

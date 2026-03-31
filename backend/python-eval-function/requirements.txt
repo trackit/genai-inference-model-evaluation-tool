@@ -1,3 +1,7 @@
 boto3
-fmeval
 python-dateutil
+rouge-score
+nltk
+python-Levenshtein
+bert-score
+transformers>=4.38,<4.46

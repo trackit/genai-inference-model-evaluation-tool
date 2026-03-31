@@ -2,6 +2,7 @@ import logging
 import json
 import os
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Dict, Any, Optional, List
 import boto3
 from botocore.exceptions import ClientError
@@ -69,7 +70,7 @@ class DynamoDBService:
             now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             expression_attribute_values: Dict[str, Any] = {
                 ":status": status,
-                ":progress": progress,
+                ":progress": Decimal(str(round(progress, 2))),
                 ":updated_at": now_iso,
             }
 

@@ -31,7 +31,7 @@ class Dataset:
     @property
     def class_labels(self) -> Optional[List[str]]:
         """Extract all class labels if present, otherwise None."""
-        if not self.samples or 'class_label' not in self.samples:
+        if not self.samples or 'class_label' not in self.samples[0]:
             return None
         return [sample.get('class_label', '') for sample in self.samples]
     

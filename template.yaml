@@ -244,6 +244,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
                 Resource: '*'
 
   # Fargate Task Definition
@@ -275,6 +276,8 @@ Resources:
               Value: !Ref EvaluationJobsTable
             - Name: EVALUATION_TIMEOUT_MINUTES
               Value: '30'
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
 
   # CloudFront
   CloudFrontOAC:

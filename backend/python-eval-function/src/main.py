@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 import signal
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional
 
 logging.basicConfig(
@@ -29,12 +29,6 @@ def get_evaluation_id() -> str:
 
 
 def get_timeout_minutes() -> int:
-    """
-    Get timeout duration from environment variable.
-    
-    Returns:
-        int: Timeout in minutes (default: 30)
-    """
     timeout_str = os.environ.get('EVALUATION_TIMEOUT_MINUTES', '30')
     try:
         return int(timeout_str)
@@ -58,7 +52,8 @@ def main():
     Handles timeout gracefully by storing partial results.
     """
     evaluation_id = None
-    start_time = datetime.utcnow()
+    db_service = None
+    start_time = datetime.now(UTC)
     
     try:
         evaluation_id = get_evaluation_id()
@@ -94,14 +89,105 @@ def main():
             total_samples=len(dataset)
         )
         logger.info(f"Status updated to 'running' with {len(dataset)} total samples")
+        
+        from bedrock_client import BedrockClient
+        bedrock_client = BedrockClient()
+        
+        has_summaries = dataset.summaries is not None
+        if has_summaries:
+            task_instruction = """You are a content summarization expert, understand the given content ,
+summarize it meaningfully without hallucination and should not miss any important
+information while summarizing. Output ONLY the summary, nothing else."""
+        else:
+            task_instruction = ""
+        
+        results_by_model = bedrock_client.evaluate_models(dataset, models, db_service, evaluation_id, task_instruction)
+        logger.info(f"Model evaluation complete: {len(results_by_model)} models evaluated")
+        
+        from accuracy_evaluator import AccuracyEvaluator
+        accuracy_evaluator = AccuracyEvaluator()
+        
+        accuracy_results = {}
+        all_references = dataset.summaries if dataset.summaries else dataset.class_labels
+
+        for model_id, invocation_results in results_by_model.items():
+            successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
+            predictions = [invocation_results[i].response_text for i in successful_indices]
+            references = [all_references[i] for i in successful_indices] if all_references else None
+            
+            accuracy_metrics = accuracy_evaluator.calculate_accuracy_metrics(predictions, references)
+            accuracy_results[model_id] = accuracy_metrics
+            
+            if accuracy_metrics:
+                logger.info(f"Accuracy metrics calculated for {model_id}")
+            else:
+                logger.info(f"No accuracy metrics for {model_id} (no reference outputs)")
+        
+        logger.info(f"Accuracy evaluation complete for {len(accuracy_results)} models")
+        
+        model_results = []
+        for model_id, invocation_results in results_by_model.items():
+            successful = [r for r in invocation_results if r.error is None]
+            error_count = len(invocation_results) - len(successful)
+            
+            avg_latency = sum(r.total_latency_ms for r in successful) / len(successful) if successful else 0
+            avg_ttft = sum(r.time_to_first_token_ms for r in successful) / len(successful) if successful else 0
+            total_input = sum(r.input_tokens for r in successful)
+            total_output = sum(r.output_tokens for r in successful)
+            tokens_per_sec = (total_output / (avg_latency / 1000)) if avg_latency > 0 else 0
+            
+            acc = accuracy_results.get(model_id)
+            accuracy_dict = None
+            if acc:
+                accuracy_dict = {
+                    "bleu": acc.bleu,
+                    "rouge": acc.rouge,
+                    "meteor": acc.meteor,
+                    "levenshtein": acc.levenshtein,
+                    "bertscore": acc.bertscore,
+                }
+            
+            model_results.append({
+                "identifier": model_id,
+                "status": "completed" if successful else "failed",
+                "error_count": error_count,
+                "metrics": {
+                    "accuracy": accuracy_dict,
+                    "latency": {
+                        "tokens_per_second": round(tokens_per_sec, 2),
+                        "time_to_first_token_ms": round(avg_ttft, 2),
+                        "total_latency_ms": round(avg_latency, 2),
+                    },
+                    "cost": {
+                        "total_usd": 0,
+                        "input_tokens": total_input,
+                        "output_tokens": total_output,
+                    },
+                },
+            })
+        
+        best = max(model_results, key=lambda m: (
+            (m["metrics"]["accuracy"] or {}).get("bertscore") or 0
+        )) if model_results else None
+        
+        recommendation = {
+            "model_identifier": best["identifier"] if best else "",
+            "weighted_score": round((best["metrics"]["accuracy"] or {}).get("bertscore", 0), 4) if best else 0,
+            "reasoning": f"Highest BERTScore among evaluated models" if best else "",
+        }
+        
+        logger.info(f"Recommendation: {recommendation}")
+        
         db_service.update_progress(
             evaluation_id=evaluation_id,
             status="completed",
-            progress=100.0
+            progress=100.0,
+            model_results=model_results,
+            recommendation=recommendation,
         )
         
         logger.info(f"Evaluation {evaluation_id} completed successfully")
-        elapsed = (datetime.utcnow() - start_time).total_seconds()
+        elapsed = (datetime.now(UTC) - start_time).total_seconds()
         logger.info(f"Total execution time: {elapsed:.2f} seconds")
         
         signal.alarm(0)
@@ -109,38 +195,30 @@ def main():
         
     except TimeoutException as e:
         logger.error(f"Evaluation {evaluation_id} timed out: {e}")
-        # Store partial results with timeout status
-        if evaluation_id:
+        if evaluation_id and db_service:
             try:
-                from dynamodb_service import DynamoDBService
-                db_service = DynamoDBService()
                 db_service.update_progress(
                     evaluation_id=evaluation_id,
                     status="timeout",
-                    progress=0.0, 
+                    progress=0.0,
                     error_message="Evaluation exceeded 30-minute timeout"
                 )
             except Exception as update_error:
                 logger.error(f"Failed to update timeout status: {update_error}")
-        
         return 1
         
     except Exception as e:
         logger.error(f"Evaluation {evaluation_id} failed: {e}", exc_info=True)
-        # Update status to failed with error message
-        if evaluation_id:
+        if evaluation_id and db_service:
             try:
-                from dynamodb_service import DynamoDBService
-                db_service = DynamoDBService()
                 db_service.update_progress(
                     evaluation_id=evaluation_id,
                     status="failed",
-                    progress=0.0,  
+                    progress=0.0,
                     error_message=str(e)
                 )
             except Exception as update_error:
                 logger.error(f"Failed to update failed status: {update_error}")
-        
         return 1
 
 
