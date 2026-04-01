@@ -75,19 +75,6 @@ Resources:
       LogGroupName: !Sub '/ecs/${AWS::StackName}-evaluation-engine'
       RetentionInDays: !Ref LogRetentionInDays
 
-  EvalFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      PackageType: Image
-      Timeout: 900
-      MemorySize: 5120
-      Tags:
-        Name: !Sub '${AWS::StackName}-eval-function'
-    Metadata:
-      Dockerfile: Dockerfile
-      DockerContext: backend/python-eval-function/
-      DockerTag: latest
-
   # S3 Buckets
   DatasetBucket:
     Type: AWS::S3::Bucket
@@ -322,7 +309,7 @@ Resources:
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
-    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com'
+    Value: !GetAtt ApiStack.Outputs.ApiUrl
   CloudFrontUrl:
     Description: CloudFront distribution URL
     Value: !Sub 'https://${CloudFrontDistribution.DomainName}'
