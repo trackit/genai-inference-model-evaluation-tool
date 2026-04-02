@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import type {
   EvaluationResultsData,
-  MetricsWeights,
   ModelEvaluationResult,
 } from '@/types/evaluation';
 import { AVAILABLE_MODELS } from '@/types/evaluation';
@@ -60,69 +59,8 @@ function computeWeightedAccuracy(model: ModelEvaluationResult): number | null {
   return weightSum > 0 ? weightedSum / weightSum : null;
 }
 
-function normalizeValues(
-  values: (number | null)[],
-  inverse = false,
-): (number | null)[] {
-  const validValues = values.filter((v): v is number => v !== null);
-  if (validValues.length === 0) return values.map(() => null);
-
-  const min = Math.min(...validValues);
-  const max = Math.max(...validValues);
-
-  if (min === max) return values.map((v) => (v !== null ? 1 : null));
-
-  return values.map((v) => {
-    if (v === null) return null;
-    if (inverse) {
-      return (max - v) / (max - min);
-    }
-    return (v - min) / (max - min);
-  });
-}
-
-function computeWeightedScores(
-  models: ModelEvaluationResult[],
-  weights: MetricsWeights,
-): Map<string, number> {
-  const accuracyScores = models.map((m) => computeWeightedAccuracy(m));
-  const latencyScores = models.map((m) => m.metrics.latency.tokens_per_second);
-  const costScores = models.map((m) => m.metrics.cost.total_usd);
-
-  const normAccuracy = normalizeValues(accuracyScores);
-  const normLatency = normalizeValues(latencyScores);
-  const normCost = normalizeValues(costScores, true);
-
-  const scores = new Map<string, number>();
-
-  models.forEach((model, i) => {
-    let score = 0;
-    let totalWeight = 0;
-
-    if (weights.accuracy > 0 && normAccuracy[i] !== null) {
-      score += normAccuracy[i]! * weights.accuracy;
-      totalWeight += weights.accuracy;
-    }
-
-    if (weights.latency > 0 && normLatency[i] !== null) {
-      score += normLatency[i]! * weights.latency;
-      totalWeight += weights.latency;
-    }
-
-    if (weights.cost > 0 && normCost[i] !== null) {
-      score += normCost[i]! * weights.cost;
-      totalWeight += weights.cost;
-    }
-
-    scores.set(model.identifier, totalWeight > 0 ? score / totalWeight : 0);
-  });
-
-  return scores;
-}
-
 export function ResultsView({ data, onReset }: ResultsViewProps) {
   const models = data.models;
-  const weightedScores = computeWeightedScores(models, data.weights);
 
   const maxCost = Math.max(
     ...models.map((m) => m.metrics.cost.total_usd),
@@ -161,11 +99,6 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
     'Tokens/Second': m.metrics.latency.tokens_per_second,
   }));
 
-  const accuracyBarData = models.map((m) => ({
-    name: getDisplayName(m.identifier),
-    'Weighted Score': Math.round((weightedScores.get(m.identifier) ?? 0) * 100),
-  }));
-
   const recommendedModel = models.find(
     (m) => m.identifier === data.recommendation.model_identifier,
   );
@@ -195,11 +128,7 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
         <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
           {data.recommendation.reasoning}
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-          <Stat
-            label="Weighted Score"
-            value={`${Math.round(data.recommendation.weighted_score * 100)}%`}
-          />
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
           <Stat
             label="Accuracy"
             value={
@@ -228,31 +157,6 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
             value={`${recommendedModel?.metrics.cost.input_tokens ?? 0} / ${recommendedModel?.metrics.cost.output_tokens ?? 0}`}
           />
         </div>
-      </div>
-
-      {/* Weighted Score Comparison */}
-      <div className="rounded-xl bg-surface shadow-card p-5">
-        <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
-          Weighted Score Comparison
-        </h3>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={accuracyBarData} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
-            <YAxis
-              type="category"
-              dataKey="name"
-              tick={{ fontSize: 11 }}
-              width={120}
-            />
-            <Tooltip formatter={(value: number) => `${value}%`} />
-            <Bar
-              dataKey="Weighted Score"
-              fill="hsl(262, 83%, 58%)"
-              radius={[0, 4, 4, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
       </div>
 
       {/* Charts Row 1 */}
@@ -485,9 +389,6 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
                   Model
                 </th>
                 <th className="px-4 py-2 text-right font-medium text-muted-foreground">
-                  Weighted Score
-                </th>
-                <th className="px-4 py-2 text-right font-medium text-muted-foreground">
                   Accuracy
                 </th>
                 <th className="px-4 py-2 text-right font-medium text-muted-foreground">
@@ -509,8 +410,8 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
                 .slice()
                 .sort(
                   (a, b) =>
-                    (weightedScores.get(b.identifier) ?? 0) -
-                    (weightedScores.get(a.identifier) ?? 0),
+                    (computeWeightedAccuracy(b) ?? 0) -
+                    (computeWeightedAccuracy(a) ?? 0),
                 )
                 .map((m, i) => {
                   const accuracy = computeWeightedAccuracy(m);
@@ -529,12 +430,6 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
                         {isRecommended && (
                           <Trophy className="inline-block ml-2 h-3 w-3 text-primary" />
                         )}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-right">
-                        {Math.round(
-                          (weightedScores.get(m.identifier) ?? 0) * 100,
-                        )}
-                        %
                       </td>
                       <td className="px-4 py-3 font-mono text-right">
                         {accuracy !== null
