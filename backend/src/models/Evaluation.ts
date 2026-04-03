@@ -103,6 +103,7 @@ export interface ModelResult {
     latency: LatencyMetrics;
     cost: CostMetrics;
   };
+  weighted_score?: number;
   status: 'completed' | 'failed';
   error_count?: number;
 }

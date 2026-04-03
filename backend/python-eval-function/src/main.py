@@ -202,7 +202,10 @@ information while summarizing. Output ONLY the summary, nothing else."""
         
         from model_recommender import ModelRecommender
         recommender = ModelRecommender()
-        recommendation_obj = recommender.recommend(model_results, weights)
+        recommendation_obj, scores_by_model = recommender.recommend(model_results, weights)
+        
+        for model_result in model_results:
+            model_result["weighted_score"] = scores_by_model.get(model_result["identifier"], 0.0)
         
         recommendation = {
             "model_identifier": recommendation_obj.model_identifier,
@@ -236,10 +239,13 @@ information while summarizing. Output ONLY the summary, nothing else."""
                     try:
                         from model_recommender import ModelRecommender
                         recommender = ModelRecommender()
-                        recommendation_obj = recommender.recommend(
+                        recommendation_obj, scores_by_model = recommender.recommend(
                             partial_results['model_results'],
                             partial_results['weights']
                         )
+                        for model_result in partial_results['model_results']:
+                            model_result["weighted_score"] = scores_by_model.get(model_result["identifier"], 0.0)
+                        
                         recommendation = {
                             "model_identifier": recommendation_obj.model_identifier,
                             "weighted_score": recommendation_obj.weighted_score,

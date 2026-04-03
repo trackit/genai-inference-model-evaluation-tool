@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -28,15 +28,20 @@ class ModelRecommender:
         self,
         model_results: List[Dict],
         weights: Dict[str, float]
-    ) -> Recommendation:
-        
+    ) -> Tuple[Recommendation, Dict[str, float]]:
+        """Return the best-model recommendation and per-model weighted scores.
+
+        Normalization and scoring are performed once and shared between both outputs.
+        """
+        empty_scores = {m['identifier']: 0.0 for m in model_results}
+
         if not model_results:
             logger.warning("No model results provided, returning empty recommendation")
             return Recommendation(
                 model_identifier="",
                 weighted_score=0.0,
                 reasoning="No models were evaluated"
-            )
+            ), {}
         
         if len(model_results) == 1:
             model = model_results[0]
@@ -45,8 +50,7 @@ class ModelRecommender:
                 model_identifier=model['identifier'],
                 weighted_score=1.0,
                 reasoning="Only model evaluated"
-            )
-        
+            ), {model['identifier']: 1.0}
         
         normalized = self.normalize_metrics(model_results)
         
@@ -55,6 +59,8 @@ class ModelRecommender:
             score = self.calculate_weighted_score(normalized[i], weights)
             weighted_scores.append((model['identifier'], score, normalized[i]))
             logger.debug(f"Model {model['identifier']}: weighted_score={score:.4f}")
+        
+        scores_by_model = {mid: round(s, 4) for mid, s, _ in weighted_scores}
         
         best_model_id, best_score, best_normalized = max(weighted_scores, key=lambda x: x[1])
         
@@ -71,8 +77,8 @@ class ModelRecommender:
             model_identifier=best_model_id,
             weighted_score=round(best_score, 4),
             reasoning=reasoning
-        )
-    
+        ), scores_by_model
+
     def normalize_metrics(self, model_results: List[Dict]) -> List[NormalizedMetrics]:
         logger.info(f"Normalizing metrics for {len(model_results)} models")
         
