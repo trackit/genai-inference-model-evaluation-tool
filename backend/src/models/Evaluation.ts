@@ -82,6 +82,11 @@ export interface AccuracyMetrics {
   bertscore?: number;
   geval_reasoning?: number;
   geval_faithfulness?: number;
+  classification_accuracy?: number;
+  precision_macro?: number;
+  recall_macro?: number;
+  f1_macro?: number;
+  f1_weighted?: number;
 }
 
 export interface LatencyMetrics {

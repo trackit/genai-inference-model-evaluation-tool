@@ -87,13 +87,18 @@ class ModelRecommender:
         cost_scores = []
         
         ACCURACY_WEIGHTS = {
-            "geval_reasoning":    0.25,
-            "geval_faithfulness": 0.25,
-            "bertscore":          0.30,
-            "bleu":               0.05,
-            "rouge":              0.05,
-            "meteor":             0.05,
-            "levenshtein":        0.05,
+            "geval_reasoning":          0.25,
+            "geval_faithfulness":       0.25,
+            "bertscore":                0.30,
+            "bleu":                     0.05,
+            "rouge":                    0.05,
+            "meteor":                   0.05,
+            "levenshtein":              0.05,
+            "f1_weighted":              0.25,
+            "classification_accuracy":  0.10,
+            "precision_macro":          0.05,
+            "recall_macro":             0.05,
+            "f1_macro":                 0.05,
         }
 
         for model in model_results:
@@ -140,38 +145,23 @@ class ModelRecommender:
         if not valid_values:
             return [None] * len(values)
         
-        min_val = min(valid_values)
         max_val = max(valid_values)
         
-        if min_val == max_val:
+        if max_val == 0:
             return [1.0 if v is not None else None for v in values]
         
-        normalized = []
-        for v in values:
-            if v is None:
-                normalized.append(None)
-            else:
-                norm = (v - min_val) / (max_val - min_val)
-                normalized.append(norm)
-        
-        return normalized
+        return [round(v / max_val, 4) if v is not None else None for v in values]
     
     def _normalize_inverse(self, values: List[float]) -> List[float]:
         if not values:
             return []
         
         min_val = min(values)
-        max_val = max(values)
         
-        if min_val == max_val:
-            return [1.0] * len(values)
+        if min_val == 0:
+            return [1.0 if v == 0 else round(min_val / v, 4) for v in values]
         
-        normalized = []
-        for v in values:
-            norm = (max_val - v) / (max_val - min_val)
-            normalized.append(norm)
-        
-        return normalized
+        return [round(min_val / v, 4) for v in values]
     
     def calculate_weighted_score(
         self,

@@ -28,19 +28,30 @@ class GEvalEvaluator:
             region=self.region,
         )
 
-    def _build_reasoning_metric(self, model):
+    def _build_reasoning_metric(self, model, task_type: str = "summarization"):
         from deepeval.metrics import GEval
         from deepeval.test_case import LLMTestCaseParams
 
-        return GEval(
-            name="Reasoning",
-            evaluation_steps=[
+        if task_type == "classification":
+            steps = [
+                "Assess whether the predicted class label is a valid category for the input text.",
+                "Evaluate if the classification decision logically follows from the content of the input.",
+                "Check if the chosen category captures the primary topic or intent of the document.",
+                "Penalize classifications that are clearly unrelated or tangential to the input.",
+                "Award higher scores when the classification is precise and well-justified by the content.",
+            ]
+        else:
+            steps = [
                 "Assess whether the actual output is logically structured and coherent.",
                 "Check if the actual output follows a clear reasoning flow from the input.",
                 "Evaluate whether the actual output draws correct conclusions from the source material.",
                 "Penalize outputs that contain logical contradictions or non-sequiturs.",
                 "Award higher scores to outputs that demonstrate clear, step-by-step reasoning.",
-            ],
+            ]
+
+        return GEval(
+            name="Reasoning",
+            evaluation_steps=steps,
             evaluation_params=[
                 LLMTestCaseParams.INPUT,
                 LLMTestCaseParams.ACTUAL_OUTPUT,
@@ -50,19 +61,29 @@ class GEvalEvaluator:
             async_mode=False,
         )
 
-    def _build_faithfulness_metric(self, model):
+    def _build_faithfulness_metric(self, model, task_type: str = "summarization"):
         from deepeval.metrics import GEval
         from deepeval.test_case import LLMTestCaseParams
 
-        return GEval(
-            name="Faithfulness",
-            evaluation_steps=[
+        if task_type == "classification":
+            steps = [
+                "Check whether the predicted class label is grounded in the actual content of the input.",
+                "Verify that the classification does not rely on information absent from the document.",
+                "Penalize predictions that seem arbitrary or disconnected from the input text.",
+                "Award higher scores when the classification directly reflects themes present in the input.",
+            ]
+        else:
+            steps = [
                 "Compare the actual output against the input source document.",
                 "Identify any claims in the actual output that are not supported by the input.",
                 "Check for hallucinated facts, statistics, or details not present in the source.",
                 "Heavily penalize any fabricated information or unsupported extrapolation.",
                 "Award higher scores when every claim in the output is directly traceable to the input.",
-            ],
+            ]
+
+        return GEval(
+            name="Faithfulness",
+            evaluation_steps=steps,
             evaluation_params=[
                 LLMTestCaseParams.INPUT,
                 LLMTestCaseParams.ACTUAL_OUTPUT,
@@ -77,6 +98,7 @@ class GEvalEvaluator:
         inputs: List[str],
         predictions: List[str],
         references: Optional[List[str]] = None,
+        task_type: str = "summarization",
     ) -> GEvalMetrics:
         if not inputs or not predictions:
             logger.warning("Empty inputs or predictions, skipping G-Eval")
@@ -88,8 +110,8 @@ class GEvalEvaluator:
 
         try:
             model = self._build_judge_model()
-            reasoning_metric = self._build_reasoning_metric(model)
-            faithfulness_metric = self._build_faithfulness_metric(model)
+            reasoning_metric = self._build_reasoning_metric(model, task_type)
+            faithfulness_metric = self._build_faithfulness_metric(model, task_type)
         except Exception as e:
             logger.error(f"Failed to initialize G-Eval components: {e}", exc_info=True)
             return GEvalMetrics()

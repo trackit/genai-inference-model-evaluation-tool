@@ -95,37 +95,74 @@ def main():
         bedrock_client = BedrockClient()
         
         has_summaries = dataset.summaries is not None
+        has_classes = dataset.class_labels is not None
+
         if has_summaries:
-            task_instruction = """You are a content summarization expert, understand the given content ,
-summarize it meaningfully without hallucination and should not miss any important
-information while summarizing. Output ONLY the summary, nothing else."""
+            task_type = "summarization"
+            task_instruction = (
+                "You are a content summarization expert, understand the given content, "
+                "summarize it meaningfully without hallucination and should not miss any important "
+                "information while summarizing. Output ONLY the summary, nothing else."
+            )
+        elif has_classes:
+            unique_classes = list(set(dataset.class_labels))
+            task_type = "classification"
+            task_instruction = (
+                f"Classify the following text into exactly one of these categories: "
+                f"{', '.join(unique_classes)}. "
+                f"Output ONLY the category name, nothing else."
+            )
         else:
+            task_type = "open"
             task_instruction = ""
+
+        logger.info(f"Task type: {task_type}")
         
         results_by_model = bedrock_client.evaluate_models(dataset, models, db_service, evaluation_id, task_instruction)
         logger.info(f"Model evaluation complete: {len(results_by_model)} models evaluated")
         
-        from accuracy_evaluator import AccuracyEvaluator
-        accuracy_evaluator = AccuracyEvaluator()
-        
+        from accuracy_evaluator import AccuracyMetrics
         accuracy_results = {}
-        all_references = dataset.summaries if dataset.summaries else dataset.class_labels
+        all_references = dataset.summaries if has_summaries else dataset.class_labels
 
-        for model_id, invocation_results in results_by_model.items():
-            successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
-            predictions = [invocation_results[i].response_text for i in successful_indices]
-            references = [all_references[i] for i in successful_indices] if all_references else None
-            
-            accuracy_metrics = accuracy_evaluator.calculate_accuracy_metrics(predictions, references)
-            accuracy_results[model_id] = accuracy_metrics
-            
-            if accuracy_metrics:
-                logger.info(f"Accuracy metrics calculated for {model_id}")
-            else:
-                logger.info(f"No accuracy metrics for {model_id} (no reference outputs)")
-        
-        logger.info(f"Accuracy evaluation complete for {len(accuracy_results)} models")
-        
+        if task_type == "summarization":
+            from accuracy_evaluator import AccuracyEvaluator
+            accuracy_evaluator = AccuracyEvaluator()
+
+            for model_id, invocation_results in results_by_model.items():
+                successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
+                predictions = [invocation_results[i].response_text for i in successful_indices]
+                references = [all_references[i] for i in successful_indices] if all_references else None
+
+                accuracy_metrics = accuracy_evaluator.calculate_accuracy_metrics(predictions, references)
+                accuracy_results[model_id] = accuracy_metrics or AccuracyMetrics()
+
+            logger.info(f"Summarization accuracy complete for {len(accuracy_results)} models")
+
+        elif task_type == "classification":
+            from classification_evaluator import ClassificationEvaluator
+            classification_evaluator = ClassificationEvaluator()
+
+            for model_id, invocation_results in results_by_model.items():
+                successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
+                predictions = [invocation_results[i].response_text for i in successful_indices]
+                references = [all_references[i] for i in successful_indices] if all_references else None
+
+                cls_metrics = classification_evaluator.calculate_classification_metrics(
+                    predictions, references, valid_classes=unique_classes
+                )
+
+                acc = AccuracyMetrics()
+                if cls_metrics:
+                    acc.classification_accuracy = cls_metrics.accuracy
+                    acc.precision_macro = cls_metrics.precision_macro
+                    acc.recall_macro = cls_metrics.recall_macro
+                    acc.f1_macro = cls_metrics.f1_macro
+                    acc.f1_weighted = cls_metrics.f1_weighted
+                accuracy_results[model_id] = acc
+
+            logger.info(f"Classification accuracy complete for {len(accuracy_results)} models")
+
         from geval_evaluator import GEvalEvaluator
         geval_evaluator = GEvalEvaluator()
         
@@ -133,14 +170,12 @@ information while summarizing. Output ONLY the summary, nothing else."""
             successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
             predictions = [invocation_results[i].response_text for i in successful_indices]
             inputs = [dataset.documents[i] for i in successful_indices]
-            references = [all_references[i] for i in successful_indices] if all_references else None
             
             logger.info(f"Running G-Eval for model {model_id} on {len(predictions)} samples")
-            geval_metrics = geval_evaluator.evaluate(inputs, predictions, references)
+            geval_metrics = geval_evaluator.evaluate(inputs, predictions, task_type=task_type)
             
             acc = accuracy_results.get(model_id)
             if acc is None:
-                from accuracy_evaluator import AccuracyMetrics
                 acc = AccuracyMetrics()
                 accuracy_results[model_id] = acc
             
@@ -178,6 +213,11 @@ information while summarizing. Output ONLY the summary, nothing else."""
                     "bertscore": acc.bertscore,
                     "geval_reasoning": acc.geval_reasoning,
                     "geval_faithfulness": acc.geval_faithfulness,
+                    "classification_accuracy": acc.classification_accuracy,
+                    "precision_macro": acc.precision_macro,
+                    "recall_macro": acc.recall_macro,
+                    "f1_macro": acc.f1_macro,
+                    "f1_weighted": acc.f1_weighted,
                 }
             
             model_results.append({

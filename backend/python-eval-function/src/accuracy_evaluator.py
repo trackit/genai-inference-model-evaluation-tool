@@ -14,6 +14,11 @@ class AccuracyMetrics:
     bertscore: Optional[float] = None
     geval_reasoning: Optional[float] = None
     geval_faithfulness: Optional[float] = None
+    classification_accuracy: Optional[float] = None
+    precision_macro: Optional[float] = None
+    recall_macro: Optional[float] = None
+    f1_macro: Optional[float] = None
+    f1_weighted: Optional[float] = None
 
 
 class AccuracyEvaluator:
