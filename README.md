@@ -30,11 +30,15 @@ flowchart TD
     Browser -->|API calls| APIGW["API Gateway<br/>HTTP API"]
 
     APIGW --> LambdaA["Lambda · Node.js<br/>/health<br/>/datasets — upload"]
-    APIGW --> LambdaB["Lambda · Node.js<br/>/evaluations — launch<br/>/evaluations/:id/status<br/>/evaluations/:id/results"]
+    APIGW --> LambdaB["Lambda · Node.js<br/>POST /evaluations — launch"]
+    APIGW --> LambdaC["Lambda · Node.js<br/>GET /evaluations/:id — status"]
+    APIGW --> LambdaD["Lambda · Node.js<br/>GET /evaluations/:id/results — results"]
 
     LambdaA --> S3_data["S3<br/>dataset storage"]
 
     LambdaB --> DDB["DynamoDB<br/>job state"]
+    LambdaC --> DDB
+    LambdaD --> DDB
 
     DDB <-->|read state / write results| Fargate["ECS Fargate · Python<br/>evaluation engine"]
 
