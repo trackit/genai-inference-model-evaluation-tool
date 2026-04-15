@@ -1,13 +1,13 @@
 # GenAI Inference Model Evaluation Tool
 
-A serverless tool for benchmarking and comparing Amazon Bedrock models (Amazon Nova family) against custom datasets. It measures accuracy, latency, and cost, then produces a weighted recommendation for the best model for your use case.
+A serverless tool for benchmarking and comparing Amazon Bedrock models against custom datasets. It measures accuracy, latency, and cost, then produces a weighted recommendation for the best model for your use case.
 
 ## Overview
 
 The tool guides users through a four-step workflow:
 
 1. **Set metric weights** — tune how much accuracy, latency, and cost matter for your workload
-2. **Select models** — choose which Amazon Nova models to evaluate (Nova Micro, Nova Lite, Nova standard)
+2. **Select models** — choose which Amazon Bedrock models to evaluate
 3. **Upload a dataset** — CSV or JSONL file containing documents and optional reference outputs (summaries or class labels)
 4. **Run evaluation and review results** — track progress in real time and get a ranked recommendation with per-model metrics
 
@@ -17,29 +17,29 @@ The tool guides users through a four-step workflow:
 |------|---------------|-----------------|
 | Summarization | `document` + `summary` columns | BLEU, ROUGE, METEOR, Levenshtein, BERTScore, G-Eval |
 | Classification | `document` + `label` columns | Accuracy, Precision, Recall, F1 (macro & weighted), G-Eval |
-| Open-ended generation | `document` column only | Latency, cost, G-Eval reasoning & faithfulness |
 
 ### Architecture
 
-```
-Browser (React + Vite)
-      │
-      ▼
-CloudFront → S3 (static assets)
+```mermaid
+flowchart TD
+    Browser["Browser<br/>React + Vite"]
 
-Browser → API Gateway (HTTP API)
-               │
-       ┌───────┴───────────────────┐
-       │                           │
-   Lambda (Node.js)           Lambda (Node.js)
-   ├─ /health                 ├─ /evaluations (launch)
-   ├─ /datasets (upload)      ├─ /evaluations/:id/status
-   └─ S3 (dataset storage)    └─ /evaluations/:id/results
-                                       │
-                                  DynamoDB (job state)
-                                       │
-                                  ECS Fargate (Python)
-                                  └─ Bedrock (Nova models)
+    Browser -->|static assets| CF["CloudFront"]
+    CF --> S3_static["S3<br/>static assets"]
+
+    Browser -->|API calls| APIGW["API Gateway<br/>HTTP API"]
+
+    APIGW --> LambdaA["Lambda · Node.js<br/>/health<br/>/datasets — upload"]
+    APIGW --> LambdaB["Lambda · Node.js<br/>/evaluations — launch<br/>/evaluations/:id/status<br/>/evaluations/:id/results"]
+
+    LambdaA --> S3_data["S3<br/>dataset storage"]
+
+    LambdaB --> DDB["DynamoDB<br/>job state"]
+
+    DDB <-->|read state / write results| Fargate["ECS Fargate · Python<br/>evaluation engine"]
+
+    Fargate -->|load dataset| S3_data
+    Fargate -->|inference| Bedrock["Amazon Bedrock<br/>available models"]
 ```
 
 The Python evaluation engine runs as a Docker container on ECS Fargate. It loads the dataset from S3, calls Bedrock for each model, computes all metrics, and writes results back to DynamoDB. Evaluation jobs time out after 30 minutes; partial results are stored if a timeout occurs.
@@ -55,7 +55,7 @@ The Python evaluation engine runs as a Docker container on ECS Fargate. It loads
 | Docker | latest | Build the Fargate image |
 | AWS CLI | v2 | Credentials and ECR login |
 
-Your AWS credentials must have access to Bedrock (Amazon Nova models), ECR, ECS, S3, DynamoDB, Lambda, API Gateway, CloudFront, and VPC.
+Your AWS credentials must have access to Bedrock, ECR, ECS, S3, DynamoDB, Lambda, API Gateway, CloudFront, and VPC.
 
 ## Local stack deployment
 
