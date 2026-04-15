@@ -2,7 +2,14 @@ import { Button } from '@/components/ui/button';
 import { useUploadDataset } from '@/hooks/useEvaluation';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { AlertCircle, FileCheck, Upload } from 'lucide-react';
+import {
+  AlertCircle,
+  FileCheck,
+  FileText,
+  Sparkles,
+  Tag,
+  Upload,
+} from 'lucide-react';
 import { useState } from 'react';
 
 interface DatasetUploadProps {
@@ -12,6 +19,52 @@ interface DatasetUploadProps {
   onUploadSuccess: (data: { dataset_id: string; sample_count: number }) => void;
 }
 
+type TaskType = 'summarization' | 'classification';
+
+const TASK_TYPES: {
+  id: TaskType;
+  label: string;
+  icon: React.ElementType;
+  description: string;
+  autoDetect: string;
+  requiredColumns: string[];
+  optionalColumns: string[];
+  metrics: string[];
+  csvExample: string;
+  jsonlExample: string;
+}[] = [
+  {
+    id: 'summarization',
+    label: 'Summarization',
+    icon: FileText,
+    description: 'Evaluate how well models summarize documents against reference summaries.',
+    autoDetect: 'Auto-detected when a "summary" column is present.',
+    requiredColumns: ['document'],
+    optionalColumns: ['summary'],
+    metrics: ['BLEU', 'ROUGE', 'METEOR', 'BERTScore', 'G-Eval'],
+    csvExample:
+      'document,summary\n"The European Space Agency announced...","ESA announced a new Mars mission."\n"Scientists have discovered...","A new exoplanet was found."',
+    jsonlExample:
+      '{"document": "The European Space Agency announced...", "summary": "ESA announced a new Mars mission."}\n{"document": "Scientists have discovered...", "summary": "A new exoplanet was found."}',
+  },
+  {
+    id: 'classification',
+    label: 'Classification',
+    icon: Tag,
+    description: 'Evaluate text classification accuracy against ground-truth labels.',
+    autoDetect: 'Auto-detected when a "class" column is present.',
+    requiredColumns: ['document'],
+    optionalColumns: ['class'],
+    metrics: ['Accuracy', 'Precision (macro)', 'Recall (macro)', 'F1 (macro & weighted)'],
+    csvExample:
+      'document,class\n"I absolutely loved this product!","positive"\n"Terrible experience, never again.","negative"\n"It was okay, nothing special.","neutral"',
+    jsonlExample:
+      '{"document": "I absolutely loved this product!", "class": "positive"}\n{"document": "Terrible experience, never again.", "class": "negative"}\n{"document": "It was okay, nothing special.", "class": "neutral"}',
+  },
+];
+
+type FormatTab = 'csv' | 'jsonl';
+
 export function DatasetUpload({
   file,
   onChange,
@@ -19,6 +72,8 @@ export function DatasetUpload({
   onUploadSuccess,
 }: DatasetUploadProps) {
   const [dragOver, setDragOver] = useState(false);
+  const [activeTask, setActiveTask] = useState<TaskType>('summarization');
+  const [formatTab, setFormatTab] = useState<FormatTab>('csv');
   const uploadMutation = useUploadDataset();
 
   const handleFile = (f: File) => {
@@ -41,6 +96,9 @@ export function DatasetUpload({
     if (f) handleFile(f);
   };
 
+  const task = TASK_TYPES.find((t) => t.id === activeTask)!;
+  const TaskIcon = task.icon;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -48,10 +106,152 @@ export function DatasetUpload({
       transition={{ duration: 0.25 }}
     >
       <h1 className="text-2xl font-semibold tracking-tight">Upload Dataset</h1>
-      <p className="text-sm text-muted-foreground mt-1 mb-8">
-        Upload a CSV or JSONL file with your evaluation dataset.
+      <p className="text-sm text-muted-foreground mt-1 mb-6">
+        Upload a CSV or JSONL file for summarization or classification. The task type is auto-detected from your column names.
       </p>
 
+      {/* ── Task type tabs ── */}
+      <div className="mb-4">
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
+          Dataset type
+        </p>
+        <div className="flex gap-2">
+          {TASK_TYPES.map((t) => {
+            const Icon = t.icon;
+            const isActive = t.id === activeTask;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTask(t.id)}
+                className={cn(
+                  'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+                  isActive
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-border bg-surface text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Task description card ── */}
+      <motion.div
+        key={activeTask}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18 }}
+        className="rounded-xl border border-border bg-surface p-4 mb-6 space-y-4"
+      >
+        {/* Header */}
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-2">
+            <TaskIcon className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">{task.label}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{task.description}</p>
+          </div>
+        </div>
+
+        {/* Columns */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Required columns</p>
+            <div className="flex flex-wrap gap-1.5">
+              {task.requiredColumns.map((col) => (
+                <span
+                  key={col}
+                  className="inline-flex items-center rounded-md border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-mono font-medium text-primary"
+                >
+                  {col}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Optional columns</p>
+            <div className="flex flex-wrap gap-1.5">
+              {task.optionalColumns.length > 0 ? (
+                task.optionalColumns.map((col) => (
+                  <span
+                    key={col}
+                    className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-0.5 text-xs font-mono font-medium text-foreground/70"
+                  >
+                    {col}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-muted-foreground italic">None</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Metrics */}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1.5">Evaluation metrics</p>
+          <div className="flex flex-wrap gap-1.5">
+            {task.metrics.map((m) => (
+              <span
+                key={m}
+                className="inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5 text-xs text-foreground/70"
+              >
+                <Sparkles className="mr-1 h-2.5 w-2.5 text-muted-foreground" />
+                {m}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Auto-detection note */}
+        <div className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Auto-detection: </span>
+            {task.autoDetect}
+          </p>
+        </div>
+
+        {/* Format example */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-muted-foreground">Format example</p>
+            <div className="flex rounded-md border border-border overflow-hidden text-xs">
+              <button
+                onClick={() => setFormatTab('csv')}
+                className={cn(
+                  'px-2.5 py-1 font-mono transition-colors',
+                  formatTab === 'csv'
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'bg-surface text-muted-foreground hover:text-foreground',
+                )}
+              >
+                CSV
+              </button>
+              <button
+                onClick={() => setFormatTab('jsonl')}
+                className={cn(
+                  'px-2.5 py-1 font-mono transition-colors border-l border-border',
+                  formatTab === 'jsonl'
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'bg-surface text-muted-foreground hover:text-foreground',
+                )}
+              >
+                JSONL
+              </button>
+            </div>
+          </div>
+          <pre className="rounded-lg bg-muted/50 border border-border px-3 py-2.5 text-xs font-mono text-foreground/80 overflow-x-auto whitespace-pre leading-relaxed">
+            {formatTab === 'csv' ? task.csvExample : task.jsonlExample}
+          </pre>
+        </div>
+      </motion.div>
+
+      {/* ── Upload zone ── */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -75,14 +275,11 @@ export function DatasetUpload({
           }}
         />
         <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
-        <p className="text-sm font-medium">
-          Drop your file here or click to browse
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          CSV or JSONL, up to 50MB
-        </p>
+        <p className="text-sm font-medium">Drop your file here or click to browse</p>
+        <p className="text-xs text-muted-foreground mt-1">CSV or JSONL · up to 50 MB · min 10 rows</p>
       </div>
 
+      {/* ── Upload status ── */}
       {file && (
         <div
           className={cn(
@@ -106,7 +303,12 @@ export function DatasetUpload({
               <div>
                 <span className="text-sm font-medium">{file.name}</span>
                 <span className="text-xs text-muted-foreground ml-2">
-                  {uploadMutation.data.sample_count} samples — Ready
+                  {uploadMutation.data.sample_count} samples —{' '}
+                  {uploadMutation.data.has_summary
+                    ? 'Summarization'
+                    : uploadMutation.data.has_class
+                      ? 'Classification'
+                      : 'Ready'}
                 </span>
               </div>
             </>
