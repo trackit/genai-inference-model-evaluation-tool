@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EvaluationRequest } from '../../models/Evaluation.js';
+import { FakeBedrockModelValidationService } from '../../services/BedrockModelValidationService/BedrockModelValidationService.js';
 import { FakeEvaluationLaunchUseCase } from './FakeEvaluationLaunchUseCase';
 
 // Mock dependencies
@@ -17,10 +18,10 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Create instance with mocked dependencies
     useCase = new FakeEvaluationLaunchUseCase({
       evaluationJobsRepository: mockEvaluationJobsRepository,
       fargateService: mockFargateService,
+      bedrockModelValidation: new FakeBedrockModelValidationService(),
     });
 
     // Setup default mock behavior
@@ -40,51 +41,62 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
   describe('Default weights when not provided', () => {
     it('should use default weights (0.33, 0.33, 0.34) when weights are not provided', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
         // No weights provided
       };
 
-      // Act
       await useCase.launchEvaluation(request);
 
-      // Assert
       expect(
         mockEvaluationJobsRepository.createEvaluation,
-      ).toHaveBeenCalledWith('test-dataset-id', request.models, {
-        accuracy: 0.33,
-        latency: 0.33,
-        cost: 0.34,
-      });
+      ).toHaveBeenCalledWith(
+        'test-dataset-id',
+        [
+          {
+            type: 'default',
+            identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+          },
+        ],
+        {
+          accuracy: 0.33,
+          latency: 0.33,
+          cost: 0.34,
+        },
+      );
     });
 
     it('should use default weights when weights object is empty', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
         weights: {}, // Empty weights object
       };
 
-      // Act
       await useCase.launchEvaluation(request);
 
-      // Assert
       expect(
         mockEvaluationJobsRepository.createEvaluation,
-      ).toHaveBeenCalledWith('test-dataset-id', request.models, {
-        accuracy: 0.33,
-        latency: 0.33,
-        cost: 0.34,
-      });
+      ).toHaveBeenCalledWith(
+        'test-dataset-id',
+        [
+          {
+            type: 'default',
+            identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+          },
+        ],
+        {
+          accuracy: 0.33,
+          latency: 0.33,
+          cost: 0.34,
+        },
+      );
     });
   });
 
   describe('Negative weight rejection', () => {
     it('should reject negative accuracy weight', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -95,14 +107,12 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act & Assert
       await expect(useCase.launchEvaluation(request)).rejects.toThrow(
         'Weight values must be non-negative numbers',
       );
     });
 
     it('should reject negative latency weight', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -113,14 +123,12 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act & Assert
       await expect(useCase.launchEvaluation(request)).rejects.toThrow(
         'Weight values must be non-negative numbers',
       );
     });
 
     it('should reject negative cost weight', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -131,14 +139,12 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act & Assert
       await expect(useCase.launchEvaluation(request)).rejects.toThrow(
         'Weight values must be non-negative numbers',
       );
     });
 
     it('should reject when all weights are negative', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -149,7 +155,6 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act & Assert
       await expect(useCase.launchEvaluation(request)).rejects.toThrow(
         'Weight values must be non-negative numbers',
       );
@@ -158,7 +163,6 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
   describe('Weight normalization', () => {
     it('should normalize weights to sum to 1.0', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -169,10 +173,8 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act
       await useCase.launchEvaluation(request);
 
-      // Assert
       const normalizedWeights =
         mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =
@@ -187,7 +189,6 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
 
     it('should handle zero sum by returning default weights', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -198,21 +199,27 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act
       await useCase.launchEvaluation(request);
 
-      // Assert
       expect(
         mockEvaluationJobsRepository.createEvaluation,
-      ).toHaveBeenCalledWith('test-dataset-id', request.models, {
-        accuracy: 0.33,
-        latency: 0.33,
-        cost: 0.34,
-      });
+      ).toHaveBeenCalledWith(
+        'test-dataset-id',
+        [
+          {
+            type: 'default',
+            identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+          },
+        ],
+        {
+          accuracy: 0.33,
+          latency: 0.33,
+          cost: 0.34,
+        },
+      );
     });
 
     it('should normalize partial weights and use defaults for missing values', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -223,10 +230,8 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act
       await useCase.launchEvaluation(request);
 
-      // Assert
       const normalizedWeights =
         mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =
@@ -243,7 +248,6 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
 
     it('should normalize weights with different proportions', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -254,10 +258,8 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act
       await useCase.launchEvaluation(request);
 
-      // Assert
       const normalizedWeights =
         mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =
@@ -273,7 +275,6 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
 
     it('should normalize weights that sum to more than 1.0', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -284,10 +285,8 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act
       await useCase.launchEvaluation(request);
 
-      // Assert
       const normalizedWeights =
         mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =
@@ -305,7 +304,6 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
   describe('Edge cases', () => {
     it('should handle weight with only one dimension provided', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -315,10 +313,8 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act
       await useCase.launchEvaluation(request);
 
-      // Assert
       const normalizedWeights =
         mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =
@@ -334,8 +330,82 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       expect(normalizedWeights.cost).toBeCloseTo(0.2906, 4);
     });
 
+    it('should accept custom Bedrock model IDs', async () => {
+      const request: EvaluationRequest = {
+        dataset_id: 'test-dataset-id',
+        models: [
+          {
+            type: 'custom',
+            identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+          },
+          {
+            type: 'custom',
+            identifier: 'us.amazon.nova-pro-v1:0',
+          },
+        ],
+      };
+
+      await useCase.launchEvaluation(request);
+
+      expect(
+        mockEvaluationJobsRepository.createEvaluation,
+      ).toHaveBeenCalledWith('test-dataset-id', request.models, {
+        accuracy: 0.33,
+        latency: 0.33,
+        cost: 0.34,
+      });
+    });
+
+    it('should accept a mix of default and custom models', async () => {
+      const request: EvaluationRequest = {
+        dataset_id: 'test-dataset-id',
+        models: [
+          { type: 'default', identifier: 'amazon-nova-lite' },
+          {
+            type: 'custom',
+            identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+          },
+        ],
+      };
+
+      await useCase.launchEvaluation(request);
+
+      expect(
+        mockEvaluationJobsRepository.createEvaluation,
+      ).toHaveBeenCalledWith(
+        'test-dataset-id',
+        [
+          { type: 'default', identifier: 'us.amazon.nova-lite-v1:0' },
+          {
+            type: 'custom',
+            identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+          },
+        ],
+        {
+          accuracy: 0.33,
+          latency: 0.33,
+          cost: 0.34,
+        },
+      );
+    });
+
+    it('should reject blank custom model identifier', async () => {
+      const request: EvaluationRequest = {
+        dataset_id: 'test-dataset-id',
+        models: [
+          {
+            type: 'custom',
+            identifier: '   ',
+          },
+        ],
+      };
+
+      await expect(useCase.launchEvaluation(request)).rejects.toThrow(
+        'Custom model identifier must be a non-empty Bedrock model ID',
+      );
+    });
+
     it('should accept zero as valid weight value', async () => {
-      // Arrange
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -346,10 +416,8 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
         },
       };
 
-      // Act
       await useCase.launchEvaluation(request);
 
-      // Assert
       const normalizedWeights =
         mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =

@@ -1,12 +1,15 @@
 import logging
 import time
-import json
 from dataclasses import dataclass
 from typing import Optional
 import boto3
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
+
+
+class ConverseStreamError(RuntimeError):
+    pass
 
 
 @dataclass
@@ -36,45 +39,49 @@ class BedrockClient:
     def resolve_model_id(self, identifier: str) -> str:
         return MODEL_ID_MAP.get(identifier, identifier)
     
-    def invoke_model(self, model_id: str, document: str, document_id: Optional[str] = None) -> InvocationResult:
+    def converse_stream(
+        self, model_id: str, document: str, document_id: Optional[str] = None
+    ) -> InvocationResult:
         start_time = time.time()
         time_to_first_token = None
         
         try:
-            logger.info(f"Invoking model {model_id} for document {document_id or 'unknown'}")
-            
-            request_body = self._build_request_body(model_id, document)
-            
-            response = self.client.invoke_model_with_response_stream(
-                modelId=model_id,
-                body=json.dumps(request_body)
+            logger.info(
+                f"converse_stream model={model_id} document={document_id or 'unknown'}"
             )
+
+            response = self.client.converse_stream(
+                modelId=model_id,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [{"text": document}]
+                    }
+                ],
+            )
+            
             response_text = ""
             input_tokens = 0
             output_tokens = 0
             first_chunk = True
             
-            for event in response['body']:
-                chunk = json.loads(event['chunk']['bytes'].decode())
-                text_piece = None
-                
-                # Claude format: {"delta": {"text": "..."}}
-                if 'delta' in chunk and 'text' in chunk['delta']:
-                    text_piece = chunk['delta']['text']
-                # Nova format: {"contentBlockDelta": {"delta": {"text": "..."}}}
-                elif 'contentBlockDelta' in chunk:
-                    text_piece = chunk['contentBlockDelta'].get('delta', {}).get('text', '')
-                
-                if text_piece:
-                    if first_chunk:
-                        time_to_first_token = (time.time() - start_time) * 1000
-                        first_chunk = False
-                    response_text += text_piece
-                
-                if 'amazon-bedrock-invocationMetrics' in chunk:
-                    metrics = chunk['amazon-bedrock-invocationMetrics']
-                    input_tokens = metrics.get('inputTokenCount', 0)
-                    output_tokens = metrics.get('outputTokenCount', 0)
+            stream = response.get('stream')
+            if stream:
+                for event in stream:
+                    if 'contentBlockDelta' in event:
+                        delta = event['contentBlockDelta'].get('delta', {})
+                        text_piece = delta.get('text', '')
+                        
+                        if text_piece:
+                            if first_chunk:
+                                time_to_first_token = (time.time() - start_time) * 1000
+                                first_chunk = False
+                            response_text += text_piece
+                    elif 'metadata' in event:
+                        metadata = event['metadata']
+                        usage = metadata.get('usage', {})
+                        input_tokens = usage.get('inputTokens', 0)
+                        output_tokens = usage.get('outputTokens', 0)
             
             total_latency = (time.time() - start_time) * 1000
             
@@ -93,77 +100,37 @@ class BedrockClient:
             )
             
             logger.info(
-                f"Model {model_id} invocation successful - "
-                f"input_tokens={input_tokens}, output_tokens={output_tokens}, "
-                f"ttft={time_to_first_token:.2f}ms, latency={total_latency:.2f}ms"
+                f"converse_stream ok model={model_id} "
+                f"input_tokens={input_tokens} output_tokens={output_tokens} "
+                f"ttft_ms={time_to_first_token:.2f} latency_ms={total_latency:.2f}"
             )
             
             return result
             
         except ClientError as e:
-            error_msg = f"Bedrock API error: {e.response['Error']['Code']} - {e.response['Error']['Message']}"
+            code = e.response.get("Error", {}).get("Code", "Unknown")
+            msg = e.response.get("Error", {}).get("Message", str(e))
+            error_msg = (
+                f"Bedrock converse_stream failed for model \"{model_id}\" "
+                f"(document {document_id or 'unknown'}): {code} — {msg}"
+            )
             logger.error(
-                f"Model invocation failed - model_id={model_id}, "
-                f"document_id={document_id or 'unknown'}, error={error_msg}"
+                f"converse_stream failed model_id={model_id} "
+                f"document_id={document_id or 'unknown'} error={error_msg}"
             )
-            
-            return InvocationResult(
-                response_text="",
-                input_tokens=0,
-                output_tokens=0,
-                time_to_first_token_ms=0.0,
-                total_latency_ms=(time.time() - start_time) * 1000,
-                model_id=model_id,
-                document_id=document_id,
-                error=error_msg
-            )
-            
-        except Exception as e:
-            error_msg = f"Unexpected error: {str(e)}"
-            logger.error(
-                f"Model invocation failed - model_id={model_id}, "
-                f"document_id={document_id or 'unknown'}, error={error_msg}",
-                exc_info=True
-            )
-            
-            return InvocationResult(
-                response_text="",
-                input_tokens=0,
-                output_tokens=0,
-                time_to_first_token_ms=0.0,
-                total_latency_ms=(time.time() - start_time) * 1000,
-                model_id=model_id,
-                document_id=document_id,
-                error=error_msg
-            )
-    
-    def _build_request_body(self, model_id: str, document: str) -> dict:
-        if 'anthropic.claude' in model_id:
-            return {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 4096,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": document
-                    }
-                ]
-            }
-        elif 'amazon.nova' in model_id:
-            return {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [{"text": document}]
-                    }
-                ],
-                "inferenceConfig": {
-                    "max_new_tokens": 4096
-                }
-            }
-        else:
-            raise ValueError(f"Unsupported model: {model_id}")
+            raise ConverseStreamError(error_msg) from e
 
+        except Exception as e:
+            error_msg = (
+                f"Bedrock converse_stream failed for model \"{model_id}\" "
+                f"(document {document_id or 'unknown'}): {e!s}"
+            )
+            logger.error(
+                f"converse_stream failed model_id={model_id} "
+                f"document_id={document_id or 'unknown'} error={error_msg}",
+                exc_info=True,
+            )
+            raise ConverseStreamError(error_msg) from e
 
     def evaluate_models(self, dataset, models: list, db_service, evaluation_id: str, task_instruction: str = "") -> dict:
         total_invocations = len(dataset) * len(models)
@@ -189,7 +156,7 @@ class BedrockClient:
                 document_id = f"doc_{idx}"
                 prompt = f"{task_instruction}\n\n{document}" if task_instruction else document
                 
-                result = self.invoke_model(
+                result = self.converse_stream(
                     model_id=model_id,
                     document=prompt,
                     document_id=document_id
