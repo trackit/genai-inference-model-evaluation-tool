@@ -32,6 +32,7 @@ function getDisplayName(identifier: string): string {
 }
 
 const ACCURACY_WEIGHTS: Record<string, number> = {
+  // Summarization metrics
   geval_reasoning: 0.25,
   geval_faithfulness: 0.25,
   bertscore: 0.3,
@@ -39,7 +40,56 @@ const ACCURACY_WEIGHTS: Record<string, number> = {
   rouge: 0.05,
   meteor: 0.05,
   levenshtein: 0.05,
+  // Classification metrics
+  f1_weighted: 0.25,
+  classification_accuracy: 0.1,
+  precision_macro: 0.05,
+  recall_macro: 0.05,
+  f1_macro: 0.05,
 };
+
+interface MetricColumn {
+  key: keyof NonNullable<ModelEvaluationResult['metrics']['accuracy']>;
+  label: string;
+  weight: string;
+}
+
+const SUMMARIZATION_COLUMNS: MetricColumn[] = [
+  { key: 'bertscore', label: 'BERTScore', weight: '30%' },
+  { key: 'geval_reasoning', label: 'G-Eval Reasoning', weight: '25%' },
+  { key: 'geval_faithfulness', label: 'G-Eval Faithfulness', weight: '25%' },
+  { key: 'bleu', label: 'BLEU', weight: '5%' },
+  { key: 'rouge', label: 'ROUGE', weight: '5%' },
+  { key: 'meteor', label: 'METEOR', weight: '5%' },
+  { key: 'levenshtein', label: 'Levenshtein', weight: '5%' },
+];
+
+const CLASSIFICATION_COLUMNS: MetricColumn[] = [
+  { key: 'classification_accuracy', label: 'Accuracy', weight: '10%' },
+  { key: 'f1_weighted', label: 'F1 Weighted', weight: '25%' },
+  { key: 'f1_macro', label: 'F1 Macro', weight: '5%' },
+  { key: 'precision_macro', label: 'Precision', weight: '5%' },
+  { key: 'recall_macro', label: 'Recall', weight: '5%' },
+  { key: 'geval_reasoning', label: 'G-Eval Reasoning', weight: '25%' },
+  { key: 'geval_faithfulness', label: 'G-Eval Faithfulness', weight: '25%' },
+];
+
+function detectTaskType(
+  models: ModelEvaluationResult[],
+): 'classification' | 'summarization' {
+  for (const m of models) {
+    const acc = m.metrics.accuracy;
+    if (!acc) continue;
+    if (
+      acc.classification_accuracy != null ||
+      acc.f1_macro != null ||
+      acc.f1_weighted != null
+    ) {
+      return 'classification';
+    }
+  }
+  return 'summarization';
+}
 
 function computeWeightedAccuracy(model: ModelEvaluationResult): number | null {
   const acc = model.metrics.accuracy;
@@ -61,6 +111,9 @@ function computeWeightedAccuracy(model: ModelEvaluationResult): number | null {
 
 export function ResultsView({ data, onReset }: ResultsViewProps) {
   const models = data.models;
+  const taskType = detectTaskType(models);
+  const accuracyColumns =
+    taskType === 'classification' ? CLASSIFICATION_COLUMNS : SUMMARIZATION_COLUMNS;
 
   const maxCost = Math.max(
     ...models.map((m) => m.metrics.cost.total_usd),
@@ -273,8 +326,9 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
             Accuracy Breakdown
           </h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Individual metric scores and their weights used to compute the final
-            weighted accuracy
+            {taskType === 'classification'
+              ? 'Classification metric scores and their weights used to compute the final weighted accuracy'
+              : 'Individual metric scores and their weights used to compute the final weighted accuracy'}
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -284,30 +338,15 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
                 <th className="px-4 py-2 text-left font-medium text-muted-foreground">
                   Model
                 </th>
-                <th className="px-4 py-2 text-right font-medium text-muted-foreground">
-                  <div>BERTScore</div>
-                  <div className="text-[10px] font-normal">(30%)</div>
-                </th>
-                <th className="px-4 py-2 text-right font-medium text-muted-foreground">
-                  <div>G-Eval Reasoning</div>
-                  <div className="text-[10px] font-normal">(25%)</div>
-                </th>
-                <th className="px-4 py-2 text-right font-medium text-muted-foreground">
-                  <div>G-Eval Faithfulness</div>
-                  <div className="text-[10px] font-normal">(25%)</div>
-                </th>
-                <th className="px-4 py-2 text-right font-medium text-muted-foreground">
-                  <div>BLEU</div>
-                  <div className="text-[10px] font-normal">(5%)</div>
-                </th>
-                <th className="px-4 py-2 text-right font-medium text-muted-foreground">
-                  <div>ROUGE</div>
-                  <div className="text-[10px] font-normal">(5%)</div>
-                </th>
-                <th className="px-4 py-2 text-right font-medium text-muted-foreground">
-                  <div>METEOR</div>
-                  <div className="text-[10px] font-normal">(5%)</div>
-                </th>
+                {accuracyColumns.map((col) => (
+                  <th
+                    key={col.key}
+                    className="px-4 py-2 text-right font-medium text-muted-foreground"
+                  >
+                    <div>{col.label}</div>
+                    <div className="text-[10px] font-normal">({col.weight})</div>
+                  </th>
+                ))}
                 <th className="px-4 py-2 text-right font-medium text-muted-foreground bg-muted/50">
                   <div>Weighted Accuracy</div>
                   <div className="text-[10px] font-normal">(Final)</div>
@@ -340,24 +379,14 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
                           <Trophy className="inline-block ml-2 h-3 w-3 text-primary" />
                         )}
                       </td>
-                      <td className="px-4 py-3 font-mono text-right">
-                        {formatScore(acc?.bertscore)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-right">
-                        {formatScore(acc?.geval_reasoning)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-right">
-                        {formatScore(acc?.geval_faithfulness)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-right">
-                        {formatScore(acc?.bleu)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-right">
-                        {formatScore(acc?.rouge)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-right">
-                        {formatScore(acc?.meteor)}
-                      </td>
+                      {accuracyColumns.map((col) => (
+                        <td
+                          key={col.key}
+                          className="px-4 py-3 font-mono text-right"
+                        >
+                          {formatScore(acc?.[col.key])}
+                        </td>
+                      ))}
                       <td className="px-4 py-3 font-mono text-right font-semibold bg-muted/30">
                         {weightedAcc !== null
                           ? `${Math.round(weightedAcc * 100)}%`
