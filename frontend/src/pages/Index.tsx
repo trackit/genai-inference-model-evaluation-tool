@@ -150,6 +150,7 @@ export default function Index() {
                   onChange={(f) => setConfig({ ...config, datasetFile: f })}
                   onStartEvaluation={handleStartEvaluation}
                   onUploadSuccess={handleUploadSuccess}
+                  isStarting={createEvaluationMutation.isPending}
                 />
               )}
 

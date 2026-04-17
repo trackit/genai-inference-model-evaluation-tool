@@ -6,6 +6,7 @@ import {
   AlertCircle,
   FileCheck,
   FileText,
+  Loader2,
   Sparkles,
   Tag,
   Upload,
@@ -17,6 +18,7 @@ interface DatasetUploadProps {
   onChange: (file: File | null) => void;
   onStartEvaluation: () => void;
   onUploadSuccess: (data: { dataset_id: string; sample_count: number }) => void;
+  isStarting?: boolean;
 }
 
 type TaskType = 'summarization' | 'classification';
@@ -70,6 +72,7 @@ export function DatasetUpload({
   onChange,
   onStartEvaluation,
   onUploadSuccess,
+  isStarting = false,
 }: DatasetUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [activeTask, setActiveTask] = useState<TaskType>('summarization');
@@ -325,8 +328,20 @@ export function DatasetUpload({
       )}
 
       {uploadMutation.isSuccess && (
-        <Button onClick={onStartEvaluation} className="mt-6 w-full" size="lg">
-          Start Evaluation
+        <Button
+          onClick={onStartEvaluation}
+          className="mt-6 w-full"
+          size="lg"
+          disabled={isStarting}
+        >
+          {isStarting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Starting…
+            </>
+          ) : (
+            'Start Evaluation'
+          )}
         </Button>
       )}
     </motion.div>
