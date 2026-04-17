@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-env": "dotenv -- bash scripts/generate-env-vars.sh",
+    "deploy:webui": "dotenv -- bash scripts/generate-env-vars.sh && pnpm run build && dotenv -- bash scripts/deploy.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",

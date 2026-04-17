@@ -312,6 +312,9 @@ Outputs:
   CloudFrontUrl:
     Description: CloudFront distribution URL
     Value: !Sub 'https://${CloudFrontDistribution.DomainName}'
+  CloudFrontDistributionId:
+    Description: CloudFront distribution ID
+    Value: !Ref CloudFrontDistribution
   FrontendBucketName:
     Description: S3 bucket for frontend assets
     Value: !Ref FrontendBucket

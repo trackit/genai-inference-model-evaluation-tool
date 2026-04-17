@@ -8,6 +8,8 @@
     "build": "pnpm --dir frontend build && sam build",
     "build:backend": "bash scripts/build.sh",
     "deploy:backend": "dotenv -- bash scripts/build.sh && dotenv -- bash scripts/deploy.sh",
+    "start:webui": "pnpm --dir frontend dev",
+    "deploy:webui": "pnpm --dir frontend deploy:webui",
     "test": "vitest run",
     "test:backend": "vitest run backend/",
     "test:handlers": "vitest run backend/src/handlers/",
