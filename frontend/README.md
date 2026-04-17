@@ -1,73 +1,121 @@
-# React + TypeScript + Vite
+# Frontend — GenAI Inference Model Evaluation Tool
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite + Tailwind application that drives the four-step model evaluation workflow.
 
-Currently, two official plugins are available:
+## Tech stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+| Layer | Library / Tool |
+|-------|---------------|
+| Framework | React 19 |
+| Build tool | Vite 7 |
+| Styling | Tailwind CSS 4 |
+| Component primitives | Radix UI, Base UI, shadcn |
+| Animations | Framer Motion |
+| Charts | Recharts |
+| Data fetching | TanStack Query v5 |
+| Routing | React Router v7 |
+| Testing | Vitest + Testing Library |
+| Language | TypeScript 5 |
 
-## React Compiler
+## Project structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── evaluator/          # Step components for the evaluation workflow
+│   │   │   ├── MetricsWeights.tsx    # Step 1 — tune accuracy / latency / cost weights
+│   │   │   ├── ModelSelection.tsx    # Step 2 — pick Bedrock models to evaluate
+│   │   │   ├── DatasetUpload.tsx     # Step 3 — upload CSV or JSONL dataset
+│   │   │   ├── ProgressView.tsx      # Step 4a — real-time job progress
+│   │   │   ├── ResultsView.tsx       # Step 4b — ranked results and recommendation
+│   │   │   └── StepIndicator.tsx     # Navigation breadcrumb for the stepper
+│   │   └── ui/                 # Reusable primitives (Button, Checkbox, Slider, Tooltip)
+│   ├── hooks/
+│   │   ├── useEvaluation.ts    # Core orchestration hook — manages stepper state and API calls
+│   │   └── use-mobile.tsx      # Responsive breakpoint hook
+│   ├── pages/
+│   │   ├── Index.tsx           # Main page — renders the evaluation stepper
+│   │   └── NotFound.tsx        # 404 fallback
+│   ├── services/
+│   │   ├── apiService.ts       # Typed API client (dataset upload, evaluation CRUD)
+│   │   └── apiService.test.ts  # API client contract tests
+│   ├── types/
+│   │   └── evaluation.ts       # Shared TypeScript interfaces and constants
+│   ├── lib/
+│   │   └── utils.ts            # Utility helpers (clsx/tailwind-merge)
+│   ├── App.tsx                 # Root component with router
+│   └── main.tsx                # Entry point
+├── scripts/
+│   ├── generate-env-vars.sh    # Injects SSM parameters into the build
+│   └── deploy.sh               # Syncs the built dist/ to S3 + invalidates CloudFront
+├── .env.example                # Environment variable template
+├── vite.config.ts
+└── package.json
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Getting started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x';
-import reactDom from 'eslint-plugin-react-dom';
+### Prerequisites
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+- Node.js 24+
+- pnpm 10+
+
+### Setup
+
+```bash
+# from the repo root
+pnpm install
+
+# copy the environment template
+cp frontend/.env.example frontend/.env
 ```
+
+Edit `frontend/.env` with the API Gateway URL printed at the end of the SAM deploy:
+
+```env
+VITE_API_URL=https://<api-id>.execute-api.us-west-2.amazonaws.com
+```
+
+### Run the dev server
+
+```bash
+cd frontend
+pnpm dev
+```
+
+The app is served at `http://localhost:5173`.
+
+## Available scripts
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| Dev server | `pnpm dev` | Start Vite with HMR at http://localhost:5173 |
+| Build | `pnpm build` | Type-check and bundle to `dist/` |
+| Preview | `pnpm preview` | Serve the production build locally |
+| Lint | `pnpm lint` | Run ESLint |
+| Test | `pnpm test` | Run Vitest in watch mode |
+| Deploy | `pnpm deploy:webui` | Generate env vars, build, and sync to S3 |
+
+## Testing
+
+Tests use **Vitest** and **Testing Library** and are colocated with their modules.
+
+```bash
+# from the frontend directory
+pnpm test
+
+# or from the repo root
+pnpm test:frontend
+```
+
+The main test file (`src/services/apiService.test.ts`) verifies the API client contract — request shapes, response parsing, and error handling — without hitting a real endpoint.
+
+## Environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_API_URL` | Yes | Base URL of the deployed API Gateway HTTP API |
+| `STAGE` | Deployment only | Deployment stage used by the deploy scripts |
+
+All variables are consumed at build time by Vite; only `VITE_`-prefixed variables are exposed to the browser bundle.
