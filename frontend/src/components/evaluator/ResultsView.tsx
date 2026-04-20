@@ -31,6 +31,9 @@ function getDisplayName(identifier: string): string {
   return AVAILABLE_MODELS.find((m) => m.id === identifier)?.name ?? identifier;
 }
 
+const MINIMUM_COST_VALUE_THRESHOLD = 0.00000001;
+const MINIMUM_LATENCY_VALUE_THRESHOLD = 0.0001;
+
 const ACCURACY_WEIGHTS: Record<string, number> = {
   // Summarization metrics
   geval_reasoning: 0.25,
@@ -115,23 +118,29 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
   const accuracyColumns =
     taskType === 'classification' ? CLASSIFICATION_COLUMNS : SUMMARIZATION_COLUMNS;
 
-  const maxCost = Math.max(
-    ...models.map((m) => m.metrics.cost.total_usd),
-    0.001,
+  const minCost = models.reduce(
+    (min, m) => Math.min(min, m.metrics.cost.total_usd),
+    Infinity,
   );
-  const maxLatency = Math.max(
-    ...models.map((m) => m.metrics.latency.total_latency_ms),
-    1,
+  const minLatency = models.reduce(
+    (min, m) => Math.min(min, m.metrics.latency.total_latency_ms),
+    Infinity,
   );
 
   const radarData = models.map((m) => {
     const accuracy = computeWeightedAccuracy(m);
+    const costBaseline = Math.max(minCost, MINIMUM_COST_VALUE_THRESHOLD);
+    const latencyBaseline = Math.max(minLatency, MINIMUM_LATENCY_VALUE_THRESHOLD);
     return {
       model: getDisplayName(m.identifier),
       Accuracy: accuracy !== null ? Math.round(accuracy * 100) : 0,
-      Cost: Math.round((1 - m.metrics.cost.total_usd / maxCost) * 100),
+      Cost: Math.round(
+        (costBaseline / Math.max(m.metrics.cost.total_usd, costBaseline)) * 100,
+      ),
       Latency: Math.round(
-        (1 - m.metrics.latency.total_latency_ms / maxLatency) * 100,
+        (latencyBaseline /
+          Math.max(m.metrics.latency.total_latency_ms, latencyBaseline)) *
+          100,
       ),
     };
   });
@@ -190,7 +199,7 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
                 : 'N/A'
             }
           />
-          <Stat label="Total Cost" value={`$${recommendedCost.toFixed(4)}`} />
+          <Stat label="Total Cost" value={`$${recommendedCost.toFixed(6)}`} />
           <Stat
             label="Total Latency"
             value={`${recommendedLatency?.total_latency_ms ?? 0}ms`}
@@ -466,7 +475,7 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
                           : 'N/A'}
                       </td>
                       <td className="px-4 py-3 font-mono text-right">
-                        ${m.metrics.cost.total_usd.toFixed(4)}
+                        ${m.metrics.cost.total_usd.toFixed(6)}
                       </td>
                       <td className="px-4 py-3 font-mono text-right">
                         {m.metrics.latency.total_latency_ms}ms
