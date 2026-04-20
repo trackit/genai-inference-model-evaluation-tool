@@ -145,6 +145,8 @@ pnpm dev
 
 The app is served at `http://localhost:5173`.
 
+See [frontend/README.md](frontend/README.md) for the full frontend setup, available scripts, and testing instructions.
+
 ### Running the API locally with SAM
 
 You can run the Lambda functions locally (they still call real AWS services):
@@ -216,11 +218,14 @@ Three sample files are included at the repo root for manual smoke-testing:
 │       │   └── model_recommender.py
 │       ├── Dockerfile
 │       └── requirements.txt
-├── frontend/                  # React 19 + Vite + Tailwind
+├── frontend/                  # React 19 + Vite + Tailwind (see frontend/README.md)
 │   └── src/
-│       ├── components/evaluator/
-│       ├── pages/
-│       └── services/
+│       ├── components/evaluator/  # Step components for the evaluation workflow
+│       ├── components/ui/         # Reusable UI primitives
+│       ├── hooks/                 # useEvaluation orchestration hook
+│       ├── pages/                 # Index (main stepper) and NotFound
+│       ├── services/              # Typed API client + contract tests
+│       └── types/                 # Shared TypeScript interfaces
 ├── infrastructure/
 │   ├── api.yaml               # Lambda functions + API Gateway
 │   └── network.yaml           # VPC, subnets, security groups
