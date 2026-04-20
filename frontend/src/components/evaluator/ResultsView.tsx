@@ -31,6 +31,9 @@ function getDisplayName(identifier: string): string {
   return AVAILABLE_MODELS.find((m) => m.id === identifier)?.name ?? identifier;
 }
 
+const MINIMUM_COST_VALUE_THRESHOLD = 0.00000001;
+const MINIMUM_LATENCY_VALUE_THRESHOLD = 0.0001;
+
 const ACCURACY_WEIGHTS: Record<string, number> = {
   // Summarization metrics
   geval_reasoning: 0.25,
@@ -126,8 +129,8 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
 
   const radarData = models.map((m) => {
     const accuracy = computeWeightedAccuracy(m);
-    const costBaseline = Math.max(minCost, 0.0000001);
-    const latencyBaseline = Math.max(minLatency, 0.001);
+    const costBaseline = Math.max(minCost, MINIMUM_COST_VALUE_THRESHOLD);
+    const latencyBaseline = Math.max(minLatency, MINIMUM_LATENCY_VALUE_THRESHOLD);
     return {
       model: getDisplayName(m.identifier),
       Accuracy: accuracy !== null ? Math.round(accuracy * 100) : 0,
