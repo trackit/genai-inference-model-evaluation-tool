@@ -4,10 +4,8 @@ import type {
   ModelConfig,
   WeightConfig,
 } from '../../models/Evaluation.js';
-import {
-  type BedrockModelValidationService,
-  FakeBedrockModelValidationService,
-} from '../../services/BedrockModelValidationService/BedrockModelValidationService.js';
+import { type BedrockModelValidationService } from '../../services/BedrockModelValidationService/BedrockModelValidationService.js';
+import { FakeBedrockModelValidationService } from '../../services/BedrockModelValidationService/FakeBedrockModelValidationService.js';
 import { EvaluationLaunchUseCase } from './EvaluationLaunchUseCase';
 
 export interface MockDependencies {
@@ -21,9 +19,9 @@ export interface MockDependencies {
 }
 
 export class FakeEvaluationLaunchUseCase implements EvaluationLaunchUseCase {
-  private evaluationJobsRepository: MockDependencies['evaluationJobsRepository'];
-  private fargateService: MockDependencies['fargateService'];
-  private bedrockModelValidation: BedrockModelValidationService;
+  private readonly evaluationJobsRepository: MockDependencies['evaluationJobsRepository'];
+  private readonly fargateService: MockDependencies['fargateService'];
+  private readonly bedrockModelValidation: BedrockModelValidationService;
 
   constructor(dependencies: MockDependencies) {
     this.evaluationJobsRepository = dependencies.evaluationJobsRepository;

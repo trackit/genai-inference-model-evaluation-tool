@@ -11,10 +11,6 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { BasicError, BasicErrorType } from '../../errors';
 import type { ModelConfig } from '../../models/Evaluation';
-import {
-  MOCK_FOUNDATION_SUMMARIES_FOR_TESTS,
-  MOCK_INFERENCE_PROFILES_FOR_TESTS,
-} from './mockFoundationSummariesForTests';
 
 export type BedrockModelValidationService = {
   resolveModelsForPersistence(models: ModelConfig[]): Promise<ModelConfig[]>;
@@ -83,7 +79,7 @@ function foundationModelIdForProfile(
   return null;
 }
 
-function mapToInferenceProfileIds(
+export function mapToInferenceProfileIds(
   models: ModelConfig[],
   profiles: InferenceProfileSummary[],
 ): ModelConfig[] {
@@ -153,7 +149,7 @@ function supportsConverseStreaming(s: FoundationModelSummary): boolean {
   return s.responseStreamingSupported === true;
 }
 
-function validateResolvedModelsAgainstFoundationCatalog(
+export function validateResolvedModelsAgainstFoundationCatalog(
   models: ModelConfig[],
   profiles: InferenceProfileSummary[],
   summaries: FoundationModelSummary[],
@@ -337,7 +333,7 @@ function resolveOneIdentifier(
   return pickSingleMatch(raw, matches).modelId as string;
 }
 
-function resolveModelsFromSummaries(
+export function resolveModelsFromSummaries(
   models: ModelConfig[],
   summaries: FoundationModelSummary[],
 ): ModelConfig[] {
@@ -414,27 +410,6 @@ export class BedrockModelValidationServiceImpl implements BedrockModelValidation
       }
       throw e;
     }
-  }
-}
-
-export class FakeBedrockModelValidationService implements BedrockModelValidationService {
-  async resolveModelsForPersistence(
-    models: ModelConfig[],
-  ): Promise<ModelConfig[]> {
-    const resolvedToFoundation = resolveModelsFromSummaries(
-      models,
-      MOCK_FOUNDATION_SUMMARIES_FOR_TESTS,
-    );
-    const mapped = mapToInferenceProfileIds(
-      resolvedToFoundation,
-      MOCK_INFERENCE_PROFILES_FOR_TESTS,
-    );
-    validateResolvedModelsAgainstFoundationCatalog(
-      mapped,
-      MOCK_INFERENCE_PROFILES_FOR_TESTS,
-      MOCK_FOUNDATION_SUMMARIES_FOR_TESTS,
-    );
-    return mapped;
   }
 }
 

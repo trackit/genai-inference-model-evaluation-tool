@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EvaluationRequest } from '../../models/Evaluation.js';
-import { FakeBedrockModelValidationService } from '../../services/BedrockModelValidationService/BedrockModelValidationService.js';
+import { FakeBedrockModelValidationService } from '../../services/BedrockModelValidationService/FakeBedrockModelValidationService.js';
 import { FakeEvaluationLaunchUseCase } from './FakeEvaluationLaunchUseCase';
 
 // Mock dependencies
