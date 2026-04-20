@@ -71,17 +71,17 @@ pnpm install
 cp frontend/.env.example frontend/.env
 ```
 
-Edit `frontend/.env` with the API Gateway URL printed at the end of the SAM deploy:
+Edit `frontend/.env` with the API Gateway URL printed at the end of the SAM deploy and the stage of deployment:
 
 ```env
 VITE_API_URL=https://<api-id>.execute-api.us-west-2.amazonaws.com
+STAGE=dev
 ```
 
 ### Run the dev server
 
 ```bash
-cd frontend
-pnpm dev
+pnpm start:webui
 ```
 
 The app is served at `http://localhost:5173`.
