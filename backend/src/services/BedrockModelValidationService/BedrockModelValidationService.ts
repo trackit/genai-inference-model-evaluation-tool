@@ -390,7 +390,14 @@ export class BedrockModelValidationServiceImpl implements BedrockModelValidation
       console.info(
         `[BedrockModelValidation] profiles=${inferenceProfiles.length} foundationSummaries=${summaries.length}`,
       );
-      const finalModels = mapToInferenceProfileIds(models, inferenceProfiles);
+      const resolvedToFoundation = resolveModelsFromSummaries(
+        models,
+        summaries,
+      );
+      const finalModels = mapToInferenceProfileIds(
+        resolvedToFoundation,
+        inferenceProfiles,
+      );
       validateResolvedModelsAgainstFoundationCatalog(
         finalModels,
         inferenceProfiles,

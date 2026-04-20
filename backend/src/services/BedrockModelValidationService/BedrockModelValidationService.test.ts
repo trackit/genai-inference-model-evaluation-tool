@@ -59,6 +59,16 @@ describe('BedrockModelValidationService', () => {
     });
   });
 
+  it('resolves default preset identifiers to foundation model ids before profile mapping', async () => {
+    const service = new BedrockModelValidationServiceImpl();
+    const result = await service.resolveModelsForPersistence([
+      { type: 'default', identifier: 'amazon-nova-lite' },
+    ]);
+    expect(result).toEqual([
+      { type: 'default', identifier: 'us.amazon.nova-pro-v1:0' },
+    ]);
+  });
+
   it('lists profiles and foundation models, maps to inference profile id, and validates TEXT + streaming', async () => {
     const service = new BedrockModelValidationServiceImpl();
     const result = await service.resolveModelsForPersistence([
