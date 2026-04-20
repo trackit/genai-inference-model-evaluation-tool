@@ -177,6 +177,12 @@ Resources:
         - Statement:
             - Effect: Allow
               Action:
+                - bedrock:ListFoundationModels
+                - bedrock:ListInferenceProfiles
+              Resource: '*'
+        - Statement:
+            - Effect: Allow
+              Action:
                 - ecs:RunTask
               Resource: !Ref EvaluationTaskDefinitionArn
             - Effect: Allow

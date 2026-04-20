@@ -4,9 +4,10 @@ import type {
   ModelConfig,
   WeightConfig,
 } from '../../models/Evaluation.js';
+import { type BedrockModelValidationService } from '../../services/BedrockModelValidationService/BedrockModelValidationService.js';
+import { FakeBedrockModelValidationService } from '../../services/BedrockModelValidationService/FakeBedrockModelValidationService.js';
 import { EvaluationLaunchUseCase } from './EvaluationLaunchUseCase';
 
-// Mock dependencies that can be injected
 export interface MockDependencies {
   evaluationJobsRepository: {
     createEvaluation: (...args: unknown[]) => Promise<EvaluationJob>;
@@ -14,26 +15,35 @@ export interface MockDependencies {
   fargateService: {
     launchTask: (...args: unknown[]) => Promise<void>;
   };
+  bedrockModelValidation?: BedrockModelValidationService;
 }
 
-// Create a fake implementation for testing
 export class FakeEvaluationLaunchUseCase implements EvaluationLaunchUseCase {
-  private evaluationJobsRepository: MockDependencies['evaluationJobsRepository'];
-  private fargateService: MockDependencies['fargateService'];
+  private readonly evaluationJobsRepository: MockDependencies['evaluationJobsRepository'];
+  private readonly fargateService: MockDependencies['fargateService'];
+  private readonly bedrockModelValidation: BedrockModelValidationService;
 
   constructor(dependencies: MockDependencies) {
     this.evaluationJobsRepository = dependencies.evaluationJobsRepository;
     this.fargateService = dependencies.fargateService;
+    this.bedrockModelValidation =
+      dependencies.bedrockModelValidation ??
+      new FakeBedrockModelValidationService();
   }
 
   async launchEvaluation(request: EvaluationRequest): Promise<EvaluationJob> {
     this.validateModels(request.models);
 
+    const modelsToPersist =
+      await this.bedrockModelValidation.resolveModelsForPersistence(
+        request.models,
+      );
+
     const normalizedWeights = this.normalizeWeights(request.weights);
 
     const job = await this.evaluationJobsRepository.createEvaluation(
       request.dataset_id,
-      request.models,
+      modelsToPersist,
       normalizedWeights,
     );
 
@@ -47,20 +57,33 @@ export class FakeEvaluationLaunchUseCase implements EvaluationLaunchUseCase {
       throw new Error('At least one model must be selected');
     }
 
+    const validDefaultIdentifiers = [
+      'claude-sonnet',
+      'claude-opus',
+      'amazon-nova',
+      'amazon-nova-lite',
+      'amazon-nova-micro',
+    ];
+
     for (const model of models) {
-      if (model.type === 'default') {
-        const validDefaultIdentifiers = [
-          'claude-sonnet',
-          'claude-opus',
-          'amazon-nova',
-        ];
-        if (!validDefaultIdentifiers.includes(model.identifier)) {
-          throw new Error(
-            `Invalid default model identifier: ${model.identifier}`,
-          );
+      switch (model.type) {
+        case 'default':
+          if (!validDefaultIdentifiers.includes(model.identifier)) {
+            throw new Error(
+              `Invalid default model identifier: ${model.identifier}`,
+            );
+          }
+          break;
+        case 'custom':
+          if (!model.identifier.trim()) {
+            throw new Error(
+              'Custom model identifier must be a non-empty Bedrock model ID',
+            );
+          }
+          break;
+        default: {
+          throw new Error(`Invalid model type: ${(model as ModelConfig).type}`);
         }
-      } else {
-        throw new Error(`Invalid model type: ${model.type}`);
       }
     }
   }

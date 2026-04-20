@@ -7,6 +7,7 @@ import {
   ModelConfig,
   WeightConfig,
 } from '../../models/Evaluation';
+import { tokenBedrockModelValidationService } from '../../services/BedrockModelValidationService/BedrockModelValidationService';
 import { tokenEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/EvaluationJobsRepository';
 import { tokenFargateService } from '../../services/FargateService/FargateService';
 
@@ -19,19 +20,23 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
     tokenEvaluationJobsRepository,
   );
   private readonly fargateService = inject(tokenFargateService);
+  private readonly bedrockModelValidation = inject(
+    tokenBedrockModelValidationService,
+  );
 
   async launchEvaluation(request: EvaluationRequest): Promise<EvaluationJob> {
     this.validateModels(request.models);
+
+    const modelsToPersist =
+      await this.bedrockModelValidation.resolveModelsForPersistence(
+        request.models,
+      );
 
     const normalizedWeights = this.normalizeWeights(request.weights);
 
     const job = await this.evaluationJobsRepository.createEvaluation(
       request.dataset_id,
-      [
-        { type: 'default', identifier: 'amazon-nova-lite' },
-        { type: 'default', identifier: 'amazon-nova-micro' },
-        { type: 'default', identifier: 'amazon-nova' },
-      ],
+      modelsToPersist,
       normalizedWeights,
     );
 
@@ -49,26 +54,38 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
       );
     }
 
+    const validDefaultIdentifiers = [
+      'claude-sonnet',
+      'claude-opus',
+      'amazon-nova',
+      'amazon-nova-lite',
+      'amazon-nova-micro',
+    ];
+
     for (const model of models) {
-      if (model.type === 'default') {
-        const validDefaultIdentifiers = [
-          'amazon-nova-lite',
-          'amazon-nova-micro',
-          'amazon-nova',
-        ];
-        if (!validDefaultIdentifiers.includes(model.identifier)) {
-          throw new BasicError(
-            BasicErrorType.BAD_REQUEST,
-            'INVALID_MODEL_IDENTIFIER',
-            `Invalid default model identifier: ${model.identifier}`,
-          );
+      switch (model.type) {
+        case 'default':
+          if (!validDefaultIdentifiers.includes(model.identifier)) {
+            throw new BasicError(
+              BasicErrorType.BAD_REQUEST,
+              'INVALID_MODEL_IDENTIFIER',
+              `Invalid default model identifier: ${model.identifier}`,
+            );
+          }
+          break;
+        case 'custom':
+          if (!model.identifier.trim()) {
+            throw new BasicError(
+              BasicErrorType.BAD_REQUEST,
+              'INVALID_MODEL_IDENTIFIER',
+              'Custom model identifier must be a non-empty Bedrock model ID',
+            );
+          }
+          break;
+        default: {
+          const _exhaustive: never = model;
+          return _exhaustive;
         }
-      } else {
-        throw new BasicError(
-          BasicErrorType.BAD_REQUEST,
-          'INVALID_MODEL_TYPE',
-          `Invalid model type: ${model.type}`,
-        );
       }
     }
   }
