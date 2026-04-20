@@ -48,12 +48,12 @@ export default function Index() {
     100
   )
     completedSteps.push(0);
-  if (config.selectedModels.length >= 2) completedSteps.push(1);
+  if (config.selectedModels.length >= 3) completedSteps.push(1);
   if (config.datasetFile) completedSteps.push(2);
 
   const canNext =
     step === 0 ||
-    (step === 1 && config.selectedModels.length >= 2) ||
+    (step === 1 && config.selectedModels.length >= 3) ||
     step === 2;
 
   const handleStartEvaluation = useCallback(() => {
@@ -64,7 +64,7 @@ export default function Index() {
       {
         dataset_id: datasetId,
         models: config.selectedModels.map((id) => ({
-          type: 'default' as const,
+          type: 'custom' as const,
           identifier: id,
         })),
         weights: {
