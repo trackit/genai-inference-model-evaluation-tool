@@ -42,22 +42,24 @@ export default function Index() {
     }
   }, [statusQuery.data?.status]);
 
+  const weightsSum =
+    config.weights.accuracy + config.weights.cost + config.weights.latency;
+  const weightsValid = weightsSum === 100;
+
   const completedSteps = [];
-  if (
-    config.weights.accuracy + config.weights.cost + config.weights.latency ===
-    100
-  )
-    completedSteps.push(0);
+  if (weightsValid) completedSteps.push(0);
   if (config.selectedModels.length >= 3) completedSteps.push(1);
   if (config.datasetFile) completedSteps.push(2);
 
   const canNext =
-    step === 0 ||
-    (step === 1 && config.selectedModels.length >= 3) ||
-    step === 2;
+    (step === 0 && weightsValid) ||
+    (step === 1 && config.selectedModels.length >= 3);
 
   const handleStartEvaluation = useCallback(() => {
     if (!datasetId) return;
+    const sum =
+      config.weights.accuracy + config.weights.cost + config.weights.latency;
+    if (sum !== 100) return;
 
     setError(null);
     createEvaluationMutation.mutate(

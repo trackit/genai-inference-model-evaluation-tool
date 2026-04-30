@@ -5,7 +5,7 @@ import type {
 } from '@/types/evaluation';
 import { AVAILABLE_MODELS } from '@/types/evaluation';
 import { motion } from 'framer-motion';
-import { RotateCcw, Trophy } from 'lucide-react';
+import { Info, RotateCcw, Trophy } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -116,7 +116,9 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
   const models = data.models;
   const taskType = detectTaskType(models);
   const accuracyColumns =
-    taskType === 'classification' ? CLASSIFICATION_COLUMNS : SUMMARIZATION_COLUMNS;
+    taskType === 'classification'
+      ? CLASSIFICATION_COLUMNS
+      : SUMMARIZATION_COLUMNS;
 
   const minCost = models.reduce(
     (min, m) => Math.min(min, m.metrics.cost.total_usd),
@@ -130,7 +132,10 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
   const radarData = models.map((m) => {
     const accuracy = computeWeightedAccuracy(m);
     const costBaseline = Math.max(minCost, MINIMUM_COST_VALUE_THRESHOLD);
-    const latencyBaseline = Math.max(minLatency, MINIMUM_LATENCY_VALUE_THRESHOLD);
+    const latencyBaseline = Math.max(
+      minLatency,
+      MINIMUM_LATENCY_VALUE_THRESHOLD,
+    );
     return {
       model: getDisplayName(m.identifier),
       Accuracy: accuracy !== null ? Math.round(accuracy * 100) : 0,
@@ -261,6 +266,18 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
               <Legend />
             </RadarChart>
           </ResponsiveContainer>
+          <div className="mt-3 flex gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
+            <Info
+              className="h-4 w-4 shrink-0 text-primary mt-0.5"
+              aria-hidden
+            />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-medium text-foreground">
+                Higher is better
+              </span>{' '}
+              : Accuracy = more accurate, Cost = cheaper, Latency = faster.
+            </p>
+          </div>
         </div>
         <div className="rounded-xl bg-surface shadow-card p-5">
           <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
@@ -317,7 +334,9 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(value: number) => `${value.toFixed(1)} t/s`} />
+              <Tooltip
+                formatter={(value: number) => `${value.toFixed(1)} t/s`}
+              />
               <Bar
                 dataKey="Tokens/Second"
                 fill="hsl(262, 83%, 58%)"
@@ -353,7 +372,9 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
                     className="px-4 py-2 text-right font-medium text-muted-foreground"
                   >
                     <div>{col.label}</div>
-                    <div className="text-[10px] font-normal">({col.weight})</div>
+                    <div className="text-[10px] font-normal">
+                      ({col.weight})
+                    </div>
                   </th>
                 ))}
                 <th className="px-4 py-2 text-right font-medium text-muted-foreground bg-muted/50">

@@ -39,10 +39,12 @@ const TASK_TYPES: {
     id: 'summarization',
     label: 'Summarization',
     icon: FileText,
-    description: 'Evaluate how well models summarize documents against reference summaries.',
-    autoDetect: 'Auto-detected when a "summary" column is present.',
-    requiredColumns: ['document'],
-    optionalColumns: ['summary'],
+    description:
+      'Evaluate how well models summarize documents against reference summaries.',
+    autoDetect:
+      'Summarization is detected when your file includes both "document" and "summary" columns.',
+    requiredColumns: ['document', 'summary'],
+    optionalColumns: [],
     metrics: ['BLEU', 'ROUGE', 'METEOR', 'BERTScore', 'G-Eval'],
     csvExample:
       'document,summary\n"The European Space Agency announced...","ESA announced a new Mars mission."\n"Scientists have discovered...","A new exoplanet was found."',
@@ -53,11 +55,18 @@ const TASK_TYPES: {
     id: 'classification',
     label: 'Classification',
     icon: Tag,
-    description: 'Evaluate text classification accuracy against ground-truth labels.',
-    autoDetect: 'Auto-detected when a "class" column is present.',
-    requiredColumns: ['document'],
-    optionalColumns: ['class'],
-    metrics: ['Accuracy', 'Precision (macro)', 'Recall (macro)', 'F1 (macro & weighted)'],
+    description:
+      'Evaluate text classification accuracy against ground-truth labels.',
+    autoDetect:
+      'Classification is detected when your file includes both "document" and "class" columns.',
+    requiredColumns: ['document', 'class'],
+    optionalColumns: [],
+    metrics: [
+      'Accuracy',
+      'Precision (macro)',
+      'Recall (macro)',
+      'F1 (macro & weighted)',
+    ],
     csvExample:
       'document,class\n"I absolutely loved this product!","positive"\n"Terrible experience, never again.","negative"\n"It was okay, nothing special.","neutral"',
     jsonlExample:
@@ -110,7 +119,13 @@ export function DatasetUpload({
     >
       <h1 className="text-2xl font-semibold tracking-tight">Upload Dataset</h1>
       <p className="text-sm text-muted-foreground mt-1 mb-6">
-        Upload a CSV or JSONL file for summarization or classification. The task type is auto-detected from your column names.
+        Upload a CSV or JSONL file. Summarization requires{' '}
+        <span className="font-mono text-foreground/80">document</span> and{' '}
+        <span className="font-mono text-foreground/80">summary</span>;
+        classification requires{' '}
+        <span className="font-mono text-foreground/80">document</span> and{' '}
+        <span className="font-mono text-foreground/80">class</span>. Task type
+        is inferred from your columns.
       </p>
 
       {/* ── Task type tabs ── */}
@@ -156,14 +171,18 @@ export function DatasetUpload({
           </div>
           <div>
             <p className="text-sm font-medium">{task.label}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{task.description}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {task.description}
+            </p>
           </div>
         </div>
 
         {/* Columns */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Required columns</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">
+              Required columns
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {task.requiredColumns.map((col) => (
                 <span
@@ -176,27 +195,17 @@ export function DatasetUpload({
             </div>
           </div>
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Optional columns</p>
-            <div className="flex flex-wrap gap-1.5">
-              {task.optionalColumns.length > 0 ? (
-                task.optionalColumns.map((col) => (
-                  <span
-                    key={col}
-                    className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-0.5 text-xs font-mono font-medium text-foreground/70"
-                  >
-                    {col}
-                  </span>
-                ))
-              ) : (
-                <span className="text-xs text-muted-foreground italic">None</span>
-              )}
-            </div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5"></p>
+
+            <span className="text-xs text-muted-foreground italic"></span>
           </div>
         </div>
 
         {/* Metrics */}
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1.5">Evaluation metrics</p>
+          <p className="text-xs font-medium text-muted-foreground mb-1.5">
+            Evaluation metrics
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {task.metrics.map((m) => (
               <span
@@ -214,7 +223,9 @@ export function DatasetUpload({
         <div className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
           <div className="h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
           <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Auto-detection: </span>
+            <span className="font-medium text-foreground">
+              Auto-detection:{' '}
+            </span>
             {task.autoDetect}
           </p>
         </div>
@@ -222,7 +233,9 @@ export function DatasetUpload({
         {/* Format example */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-muted-foreground">Format example</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              Format example
+            </p>
             <div className="flex rounded-md border border-border overflow-hidden text-xs">
               <button
                 onClick={() => setFormatTab('csv')}
@@ -278,8 +291,12 @@ export function DatasetUpload({
           }}
         />
         <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
-        <p className="text-sm font-medium">Drop your file here or click to browse</p>
-        <p className="text-xs text-muted-foreground mt-1">CSV or JSONL · up to 50 MB · min 10 rows</p>
+        <p className="text-sm font-medium">
+          Drop your file here or click to browse
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          CSV or JSONL · up to 50 MB · min 10 rows
+        </p>
       </div>
 
       {/* ── Upload status ── */}
