@@ -73,7 +73,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     costPer1kTokens: 0.003,
   },
   {
-    id: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+    id: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
     name: 'Claude Haiku 4.5',
     provider: 'Anthropic',
     contextWindow: '200K',
