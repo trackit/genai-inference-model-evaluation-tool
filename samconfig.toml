@@ -7,54 +7,22 @@ stack_name = "genai-inference-model-evaluation-tool"
 cached = true
 parallel = true
 
-[ahmed.deploy.parameters]
-stack_name = "genai-inference-model-evaluation-tool-ahmed"
-s3_prefix = "genai-inference-model-evaluation-tool-ahmed"
+[dev.deploy.parameters]
+stack_name = "genai-inference-model-evaluation-tool-dev"
+s3_prefix = "genai-inference-model-evaluation-tool-dev"
 resolve_s3 = true
-region = "us-west-2"
+region = "AWS_REGION"
 capabilities = ["CAPABILITY_IAM", "CAPABILITY_AUTO_EXPAND", "CAPABILITY_NAMED_IAM"]
 confirm_changeset = true
-tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"ahmed\""
-image_repository = "576872909007.dkr.ecr.us-west-2.amazonaws.com/genai-evaluation"
+tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"dev\""
+image_repository = "ACCOUNT_ID.dkr.ecr.AWS_REGION.amazonaws.com/genai-evaluation"
 
-[lucas.deploy.parameters]
-stack_name = "genai-inference-model-evaluation-tool-lucas"
-s3_prefix = "genai-inference-model-evaluation-tool-lucas"
+[prod.deploy.parameters]
+stack_name = "genai-inference-model-evaluation-tool-prod"
+s3_prefix = "genai-inference-model-evaluation-tool-prod"
 resolve_s3 = true
-region = "us-west-2"
+region = "AWS_REGION"
 capabilities = ["CAPABILITY_IAM", "CAPABILITY_AUTO_EXPAND", "CAPABILITY_NAMED_IAM"]
 confirm_changeset = true
-tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"lucas\""
-image_repository = "576872909007.dkr.ecr.us-west-2.amazonaws.com/genai-evaluation"
-
-[bastien-sandbox.deploy.parameters]
-stack_name = "genai-inference-model-evaluation-tool-bastien"
-s3_prefix = "genai-inference-model-evaluation-tool-bastien"
-resolve_s3 = true
-region = "us-west-2"
-capabilities = ["CAPABILITY_IAM", "CAPABILITY_AUTO_EXPAND", "CAPABILITY_NAMED_IAM"]
-confirm_changeset = true
-profile = "bboymond-sandbox"
-tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"bastien\""
-image_repository = "576872909007.dkr.ecr.us-west-2.amazonaws.com/genai-evaluation"
-
-[bastien-external.deploy.parameters]
-stack_name = "genai-inference-model-evaluation-tool-bastien"
-s3_prefix = "genai-inference-model-evaluation-tool-bastien"
-resolve_s3 = true
-region = "us-west-2"
-capabilities = ["CAPABILITY_IAM", "CAPABILITY_AUTO_EXPAND", "CAPABILITY_NAMED_IAM"]
-confirm_changeset = true
-profile = "trackit-bedrock"
-tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"bastien\""
-image_repository = "184670915146.dkr.ecr.us-west-2.amazonaws.com/genai-evaluation"
-
-[ahmed-external.deploy.parameters]
-stack_name = "genai-inference-model-evaluation-tool-ahmed"
-s3_prefix = "genai-inference-model-evaluation-tool-ahmed"
-resolve_s3 = true
-region = "us-west-2"
-capabilities = ["CAPABILITY_IAM", "CAPABILITY_AUTO_EXPAND", "CAPABILITY_NAMED_IAM"]
-confirm_changeset = true
-tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"ahmed\""
-image_repository = "184670915146.dkr.ecr.us-west-2.amazonaws.com/genai-evaluation"
+tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"prod\""
+image_repository = "ACCOUNT_ID.dkr.ecr.AWS_REGION.amazonaws.com/genai-evaluation"
