@@ -1,0 +1,332 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Bedrock Model Evaluation Tool
+
+Parameters:
+  LogRetentionInDays:
+    Type: Number
+    Default: 14
+  Owner:
+    Type: String
+  Project:
+    Type: String
+    Default: genai-inference-evaluation-tool
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    CodeUri: backend/
+    Tags:
+      Owner: !Ref Owner
+      Project: !Ref Project
+    Architectures:
+      - x86_64
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins:
+        - '*'
+      AllowMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      AllowHeaders:
+        - '*'
+
+Resources:
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: infrastructure/network.yaml
+      Parameters:
+        ProjectName: !Ref AWS::StackName
+
+  ApiStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      [
+        DatasetBucket,
+        EvaluationJobsTable,
+        EvaluationCluster,
+        EvaluationTaskDefinition,
+        FargateExecutionRole,
+        FargateTaskRole,
+      ]
+    Properties:
+      TemplateURL: infrastructure/api.yaml
+      Parameters:
+        LogRetentionInDays: !Ref LogRetentionInDays
+        Owner: !Ref Owner
+        Project: !Ref Project
+        DatasetBucketName: !Ref DatasetBucket
+        EvaluationJobsTableName: !Ref EvaluationJobsTable
+        EvaluationClusterName: !Ref EvaluationCluster
+        EvaluationTaskDefinitionArn: !Ref EvaluationTaskDefinition
+        PublicSubnetId: !GetAtt NetworkStack.Outputs.PublicSubnetId
+        FargateSecurityGroupId: !GetAtt NetworkStack.Outputs.FargateSecurityGroupId
+        FargateExecutionRoleArn: !GetAtt FargateExecutionRole.Arn
+        FargateTaskRoleArn: !GetAtt FargateTaskRole.Arn
+
+  EvaluationEngineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${AWS::StackName}-evaluation-engine'
+      RetentionInDays: !Ref LogRetentionInDays
+  # S3 Buckets
+  DatasetBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'bedrock-eval-datasets-${AWS::AccountId}-${AWS::Region}'
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-dataset-bucket'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3600
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-frontend-bucket'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${FrontendBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
+          - Effect: Deny
+            Action: 's3:*'
+            Principal: '*'
+            Resource:
+              - !GetAtt FrontendBucket.Arn
+              - !Sub '${FrontendBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+
+  # DynamoDB Table
+  EvaluationJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-evaluation-jobs'
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-evaluation-jobs-table'
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: evaluation_id
+          AttributeType: S
+        - AttributeName: dataset_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: evaluation_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: dataset_id-index
+          KeySchema:
+            - AttributeName: dataset_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ECS Cluster
+  EvaluationCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub '${AWS::StackName}-evaluation-cluster'
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-evaluation-cluster'
+
+  # IAM Roles
+  FargateExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  FargateTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EvaluationEnginePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub '${DatasetBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt EvaluationJobsTable.Arn
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: '*'
+
+  # Fargate Task Definition
+  EvaluationTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${AWS::StackName}-evaluation-engine'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: '2048'
+      Memory: '4096'
+      ExecutionRoleArn: !GetAtt FargateExecutionRole.Arn
+      TaskRoleArn: !GetAtt FargateTaskRole.Arn
+      ContainerDefinitions:
+        - Name: evaluation-engine
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/genai-evaluation:latest'
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref EvaluationEngineLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: evaluation-engine
+          Environment:
+            - Name: DATASET_BUCKET
+              Value: !Ref DatasetBucket
+            - Name: DYNAMODB_TABLE
+              Value: !Ref EvaluationJobsTable
+            - Name: EVALUATION_TIMEOUT_MINUTES
+              Value: '30'
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+
+  # CloudFront
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            OriginAccessControlId: !Ref CloudFrontOAC
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !GetAtt ApiStack.Outputs.ApiUrl
+  CloudFrontUrl:
+    Description: CloudFront distribution URL
+    Value: !Sub 'https://${CloudFrontDistribution.DomainName}'
+  CloudFrontDistributionId:
+    Description: CloudFront distribution ID
+    Value: !Ref CloudFrontDistribution
+  FrontendBucketName:
+    Description: S3 bucket for frontend assets
+    Value: !Ref FrontendBucket
+  DatasetBucketName:
+    Description: S3 bucket for dataset storage
+    Value: !Ref DatasetBucket
+  EvaluationJobsTableName:
+    Description: DynamoDB table for evaluation jobs
+    Value: !Ref EvaluationJobsTable
+  EvaluationClusterName:
+    Description: ECS cluster for evaluation tasks
+    Value: !Ref EvaluationCluster
+  EvaluationTaskDefinitionArn:
+    Description: Fargate task definition ARN
+    Value: !Ref EvaluationTaskDefinition
