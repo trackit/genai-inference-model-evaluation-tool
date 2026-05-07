@@ -40,7 +40,7 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
     >
       <h1 className="text-2xl font-semibold tracking-tight">Select Models</h1>
       <p className="text-sm text-muted-foreground mt-1 mb-6">
-        Choose 2 or more models to evaluate against your dataset.
+        Choose 3 or more models to evaluate against your dataset.
       </p>
 
       <div className="rounded-xl bg-surface shadow-card overflow-hidden">
@@ -95,7 +95,9 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
           />
           <button
             onClick={addCustom}
-            disabled={!customInput.trim() || selected.includes(customInput.trim())}
+            disabled={
+              !customInput.trim() || selected.includes(customInput.trim())
+            }
             className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
           >
             <Plus className="h-3.5 w-3.5" /> Add
@@ -110,7 +112,10 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
                 className="flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1 text-xs font-mono"
               >
                 {id}
-                <button onClick={() => toggle(id)} className="text-muted-foreground hover:text-foreground">
+                <button
+                  onClick={() => toggle(id)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   <X className="h-3 w-3" />
                 </button>
               </span>
