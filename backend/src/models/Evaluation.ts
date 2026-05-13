@@ -9,10 +9,78 @@ export interface WeightConfig {
   cost: number;
 }
 
+/**
+ * Canonical list of every metric the engine knows how to compute, in display
+ * order, grouped by semantic category.
+ *
+ * This is the SINGLE SOURCE OF TRUTH for metric keys in the backend. Adding a
+ * new metric is a one-line change here — the type alias, the default config
+ * and the Zod payload schema are all derived from this list.
+ *
+ * Keep this list in sync with the frontend `METRIC_KEYS` (and the Python
+ * `metrics.METRIC_KEYS`); a cross-language enum would be ideal, but absent
+ * that, mirror the additions manually.
+ */
+export const METRIC_KEYS = [
+  // Algorithmic — summarization
+  'bleu',
+  'rouge',
+  'meteor',
+  'levenshtein',
+  'bertscore',
+  // Algorithmic — classification
+  'classification_accuracy',
+  'precision_macro',
+  'recall_macro',
+  'f1_macro',
+  'f1_weighted',
+  // LLM-as-judge
+  'geval_reasoning',
+  'geval_faithfulness',
+] as const;
+
+export type MetricKey = (typeof METRIC_KEYS)[number];
+
+/**
+ * Per-metric opt-in flags.
+ *
+ * Latency and cost are always computed (they are free from inference data).
+ *
+ * - Algorithmic / programmatic metrics are deterministic and run locally.
+ *   They are mostly fast; only BERTScore has a meaningful loading cost.
+ * - LLM-as-judge metrics call an extra Bedrock model per sample — they are
+ *   the main lever for both speed and spend.
+ *
+ * Metrics that are not applicable to the uploaded dataset (e.g. classification
+ * metrics on a summarization run) are skipped automatically.
+ */
+export type MetricsConfig = Record<MetricKey, boolean>;
+
+export const DEFAULT_METRICS_CONFIG: MetricsConfig = Object.fromEntries(
+  METRIC_KEYS.map((k) => [k, true]),
+) as MetricsConfig;
+
+/**
+ * Merge a partial user-provided config with the defaults (all enabled).
+ * Unknown keys are ignored; missing keys fall back to the default value.
+ */
+export function resolveMetricsConfig(
+  metrics?: Partial<MetricsConfig>,
+): MetricsConfig {
+  const result = { ...DEFAULT_METRICS_CONFIG };
+  if (!metrics) return result;
+  for (const key of METRIC_KEYS) {
+    const provided = metrics[key];
+    if (provided !== undefined) result[key] = provided;
+  }
+  return result;
+}
+
 export interface EvaluationRequest {
   dataset_id: string;
   models: ModelConfig[];
   weights?: Partial<WeightConfig>;
+  metrics?: Partial<MetricsConfig>;
 }
 
 export interface EvaluationJob {
@@ -20,6 +88,7 @@ export interface EvaluationJob {
   dataset_id: string;
   models: ModelConfig[];
   weights: WeightConfig;
+  metrics: MetricsConfig;
   status: JobStatus;
   progress: number;
   current_model?: string;

@@ -8,8 +8,10 @@ import {
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { randomUUID } from 'crypto';
 import {
+  DEFAULT_METRICS_CONFIG,
   EvaluationJob,
   JobStatus,
+  MetricsConfig,
   ModelConfig,
   ModelResult,
   Recommendation,
@@ -21,6 +23,7 @@ export type EvaluationJobsRepository = {
     datasetId: string,
     models: ModelConfig[],
     weights: WeightConfig,
+    metrics: MetricsConfig,
   ): Promise<EvaluationJob>;
 
   updateEvaluation(
@@ -51,6 +54,7 @@ class EvaluationJobsRepositoryImpl implements EvaluationJobsRepository {
     datasetId: string,
     models: ModelConfig[],
     weights: WeightConfig,
+    metrics: MetricsConfig,
   ): Promise<EvaluationJob> {
     const evaluationId = randomUUID();
     const now = new Date().toISOString();
@@ -60,6 +64,7 @@ class EvaluationJobsRepositoryImpl implements EvaluationJobsRepository {
       dataset_id: datasetId,
       models,
       weights,
+      metrics,
       status: 'pending',
       progress: 0,
       created_at: now,
@@ -74,6 +79,7 @@ class EvaluationJobsRepositoryImpl implements EvaluationJobsRepository {
           dataset_id: { S: job.dataset_id },
           models: { S: JSON.stringify(job.models) },
           weights: { S: JSON.stringify(job.weights) },
+          metrics: { S: JSON.stringify(job.metrics) },
           status: { S: job.status },
           progress: { N: job.progress.toString() },
           created_at: { S: job.created_at },
@@ -176,6 +182,9 @@ class EvaluationJobsRepositoryImpl implements EvaluationJobsRepository {
       dataset_id: item['dataset_id'].S!,
       models: JSON.parse(item['models'].S!) as ModelConfig[],
       weights: JSON.parse(item['weights'].S!) as WeightConfig,
+      metrics: item['metrics']?.S
+        ? (JSON.parse(item['metrics'].S) as MetricsConfig)
+        : { ...DEFAULT_METRICS_CONFIG },
       status: item['status'].S! as JobStatus,
       progress: Number(item['progress'].N ?? '0'),
       current_model: item['current_model']?.S,

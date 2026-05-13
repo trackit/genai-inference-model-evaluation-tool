@@ -5,6 +5,7 @@ import {
   EvaluationJob,
   EvaluationRequest,
   ModelConfig,
+  resolveMetricsConfig,
   WeightConfig,
 } from '../../models/Evaluation';
 import { tokenBedrockModelValidationService } from '../../services/BedrockModelValidationService/BedrockModelValidationService';
@@ -33,11 +34,13 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
       );
 
     const normalizedWeights = this.normalizeWeights(request.weights);
+    const metrics = resolveMetricsConfig(request.metrics);
 
     const job = await this.evaluationJobsRepository.createEvaluation(
       request.dataset_id,
       modelsToPersist,
       normalizedWeights,
+      metrics,
     );
 
     await this.fargateService.launchTask(job.evaluation_id);

@@ -99,6 +99,8 @@ class GEvalEvaluator:
         predictions: List[str],
         references: Optional[List[str]] = None,
         task_type: str = "summarization",
+        compute_reasoning: bool = True,
+        compute_faithfulness: bool = True,
     ) -> GEvalMetrics:
         if not inputs or not predictions:
             logger.warning("Empty inputs or predictions, skipping G-Eval")
@@ -108,10 +110,22 @@ class GEvalEvaluator:
             logger.error("inputs and predictions length mismatch, skipping G-Eval")
             return GEvalMetrics()
 
+        if not compute_reasoning and not compute_faithfulness:
+            logger.info("Both G-Eval metrics disabled, skipping")
+            return GEvalMetrics()
+
         try:
             model = self._build_judge_model()
-            reasoning_metric = self._build_reasoning_metric(model, task_type)
-            faithfulness_metric = self._build_faithfulness_metric(model, task_type)
+            reasoning_metric = (
+                self._build_reasoning_metric(model, task_type)
+                if compute_reasoning
+                else None
+            )
+            faithfulness_metric = (
+                self._build_faithfulness_metric(model, task_type)
+                if compute_faithfulness
+                else None
+            )
         except Exception as e:
             logger.error(f"Failed to initialize G-Eval components: {e}", exc_info=True)
             return GEvalMetrics()
@@ -131,23 +145,25 @@ class GEvalEvaluator:
                 actual_output=pred,
             )
 
-            try:
-                reasoning_metric.measure(test_case)
-                reasoning_scores.append(reasoning_metric.score)
-                logger.debug(
-                    f"[{idx}] Reasoning score={reasoning_metric.score:.4f} reason={reasoning_metric.reason}"
-                )
-            except Exception as e:
-                logger.warning(f"[{idx}] Reasoning metric failed: {e}")
+            if reasoning_metric is not None:
+                try:
+                    reasoning_metric.measure(test_case)
+                    reasoning_scores.append(reasoning_metric.score)
+                    logger.debug(
+                        f"[{idx}] Reasoning score={reasoning_metric.score:.4f} reason={reasoning_metric.reason}"
+                    )
+                except Exception as e:
+                    logger.warning(f"[{idx}] Reasoning metric failed: {e}")
 
-            try:
-                faithfulness_metric.measure(test_case)
-                faithfulness_scores.append(faithfulness_metric.score)
-                logger.debug(
-                    f"[{idx}] Faithfulness score={faithfulness_metric.score:.4f} reason={faithfulness_metric.reason}"
-                )
-            except Exception as e:
-                logger.warning(f"[{idx}] Faithfulness metric failed: {e}")
+            if faithfulness_metric is not None:
+                try:
+                    faithfulness_metric.measure(test_case)
+                    faithfulness_scores.append(faithfulness_metric.score)
+                    logger.debug(
+                        f"[{idx}] Faithfulness score={faithfulness_metric.score:.4f} reason={faithfulness_metric.reason}"
+                    )
+                except Exception as e:
+                    logger.warning(f"[{idx}] Faithfulness metric failed: {e}")
 
         result = GEvalMetrics()
 

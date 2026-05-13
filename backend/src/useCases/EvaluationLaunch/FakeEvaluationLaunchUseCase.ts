@@ -1,8 +1,9 @@
-import type {
-  EvaluationJob,
-  EvaluationRequest,
-  ModelConfig,
-  WeightConfig,
+import {
+  resolveMetricsConfig,
+  type EvaluationJob,
+  type EvaluationRequest,
+  type ModelConfig,
+  type WeightConfig,
 } from '../../models/Evaluation.js';
 import { type BedrockModelValidationService } from '../../services/BedrockModelValidationService/BedrockModelValidationService.js';
 import { FakeBedrockModelValidationService } from '../../services/BedrockModelValidationService/FakeBedrockModelValidationService.js';
@@ -40,11 +41,13 @@ export class FakeEvaluationLaunchUseCase implements EvaluationLaunchUseCase {
       );
 
     const normalizedWeights = this.normalizeWeights(request.weights);
+    const metrics = resolveMetricsConfig(request.metrics);
 
     const job = await this.evaluationJobsRepository.createEvaluation(
       request.dataset_id,
       modelsToPersist,
       normalizedWeights,
+      metrics,
     );
 
     await this.fargateService.launchTask(job.evaluation_id);

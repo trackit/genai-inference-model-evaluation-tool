@@ -4,6 +4,47 @@ export interface MetricsWeights {
   latency: number;
 }
 
+/**
+ * Canonical list of every metric the engine knows how to compute, in display
+ * order. Keep in sync with the backend `METRIC_KEYS` in
+ * `backend/src/models/Evaluation.ts` and `backend/python-eval-function/src/metrics.py`.
+ */
+export const METRIC_KEYS = [
+  // Algorithmic — summarization
+  'bleu',
+  'rouge',
+  'meteor',
+  'levenshtein',
+  'bertscore',
+  // Algorithmic — classification
+  'classification_accuracy',
+  'precision_macro',
+  'recall_macro',
+  'f1_macro',
+  'f1_weighted',
+  // LLM-as-judge
+  'geval_reasoning',
+  'geval_faithfulness',
+] as const;
+
+export type MetricKey = (typeof METRIC_KEYS)[number];
+
+/**
+ * Per-metric opt-in flags.
+ *
+ * - Algorithmic / programmatic metrics are deterministic, fast, and run locally
+ *   (BERTScore is the only one with a meaningful load cost).
+ * - LLM-as-judge metrics call an extra Bedrock model per sample — the main
+ *   lever for speed and spend.
+ *
+ * Metrics that don't apply to the uploaded dataset are skipped automatically.
+ */
+export type MetricsToggles = Record<MetricKey, boolean>;
+
+export const DEFAULT_METRICS_TOGGLES: MetricsToggles = Object.fromEntries(
+  METRIC_KEYS.map((k) => [k, true]),
+) as MetricsToggles;
+
 export interface ModelOption {
   id: string;
   name: string;
@@ -14,6 +55,7 @@ export interface ModelOption {
 
 export interface EvaluationConfig {
   weights: MetricsWeights;
+  metrics: MetricsToggles;
   selectedModels: string[];
   datasetFile: File | null;
 }
@@ -37,21 +79,21 @@ export interface EvaluationResult {
 export const AVAILABLE_MODELS: ModelOption[] = [
   // Amazon Nova
   {
-    id: 'us.amazon.nova-pro-v1:0',
+    id: 'amazon.nova-pro-v1:0',
     name: 'Nova Pro',
     provider: 'Amazon',
     contextWindow: '300K',
     costPer1kTokens: 0.0008,
   },
   {
-    id: 'us.amazon.nova-lite-v1:0',
+    id: 'amazon.nova-lite-v1:0',
     name: 'Nova Lite',
     provider: 'Amazon',
     contextWindow: '300K',
     costPer1kTokens: 0.00006,
   },
   {
-    id: 'us.amazon.nova-micro-v1:0',
+    id: 'amazon.nova-micro-v1:0',
     name: 'Nova Micro',
     provider: 'Amazon',
     contextWindow: '128K',
@@ -59,21 +101,21 @@ export const AVAILABLE_MODELS: ModelOption[] = [
   },
   // Anthropic
   {
-    id: 'us.anthropic.claude-opus-4-6-v1',
+    id: 'anthropic.claude-opus-4-6-v1',
     name: 'Claude Opus 4.6',
     provider: 'Anthropic',
     contextWindow: '200K',
     costPer1kTokens: 0.005,
   },
   {
-    id: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+    id: 'anthropic.claude-sonnet-4-5-20250929-v1:0',
     name: 'Claude Sonnet 4.5',
     provider: 'Anthropic',
     contextWindow: '200K',
     costPer1kTokens: 0.003,
   },
   {
-    id: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
+    id: 'anthropic.claude-haiku-4-5-20251001-v1:0',
     name: 'Claude Haiku 4.5',
     provider: 'Anthropic',
     contextWindow: '200K',
@@ -85,6 +127,7 @@ export interface CreateEvaluationRequest {
   dataset_id: string;
   models: { type: 'default' | 'custom'; identifier: string }[];
   weights: { accuracy: number; latency: number; cost: number };
+  metrics?: MetricsToggles;
 }
 
 export interface DatasetUploadData {

@@ -1,6 +1,8 @@
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, List, Mapping
 from dataclasses import dataclass
+
+from metrics import is_metric_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,8 @@ class AccuracyEvaluator:
     def calculate_accuracy_metrics(
         self,
         predictions: List[str],
-        references: Optional[List[str]]
+        references: Optional[List[str]],
+        selected: Optional[Mapping[str, bool]] = None,
     ) -> Optional[AccuracyMetrics]:
         if references is None or len(references) == 0:
             logger.info("No reference outputs available, skipping accuracy metrics")
@@ -38,18 +41,26 @@ class AccuracyEvaluator:
         if all(ref is None or ref == "" for ref in references):
             logger.info("All reference outputs are empty, skipping accuracy metrics")
             return None
-        
-        logger.info(f"Calculating accuracy metrics for {len(predictions)} predictions")
-        
+
+        logger.info(
+            f"Calculating accuracy metrics for {len(predictions)} predictions "
+            f"(selected={dict(selected) if selected is not None else 'all'})"
+        )
+
         try:
             metrics = AccuracyMetrics()
-            
-            metrics.bleu = self._calculate_bleu(predictions, references)
-            metrics.rouge = self._calculate_rouge(predictions, references)
-            metrics.meteor = self._calculate_meteor(predictions, references)
-            metrics.levenshtein = self._calculate_levenshtein(predictions, references)
-            metrics.bertscore = self._calculate_bertscore(predictions, references)
-            
+
+            if is_metric_enabled(selected, 'bleu'):
+                metrics.bleu = self._calculate_bleu(predictions, references)
+            if is_metric_enabled(selected, 'rouge'):
+                metrics.rouge = self._calculate_rouge(predictions, references)
+            if is_metric_enabled(selected, 'meteor'):
+                metrics.meteor = self._calculate_meteor(predictions, references)
+            if is_metric_enabled(selected, 'levenshtein'):
+                metrics.levenshtein = self._calculate_levenshtein(predictions, references)
+            if is_metric_enabled(selected, 'bertscore'):
+                metrics.bertscore = self._calculate_bertscore(predictions, references)
+
             def fmt(v): return f"{v:.4f}" if v is not None else "N/A"
             logger.info(
                 f"Accuracy metrics calculated - "
@@ -57,9 +68,9 @@ class AccuracyEvaluator:
                 f"METEOR={fmt(metrics.meteor)}, Levenshtein={fmt(metrics.levenshtein)}, "
                 f"BERTScore={fmt(metrics.bertscore)}"
             )
-            
+
             return metrics
-            
+
         except Exception as e:
             logger.error(f"Error calculating accuracy metrics: {e}", exc_info=True)
             return None

@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EvaluationRequest } from '../../models/Evaluation.js';
+import {
+  DEFAULT_METRICS_CONFIG,
+  type EvaluationRequest,
+} from '../../models/Evaluation.js';
 import { FakeBedrockModelValidationService } from '../../services/BedrockModelValidationService/FakeBedrockModelValidationService.js';
 import { FakeEvaluationLaunchUseCase } from './FakeEvaluationLaunchUseCase';
+
+const ALL_METRICS_ENABLED = { ...DEFAULT_METRICS_CONFIG };
 
 // Mock dependencies
 const mockEvaluationJobsRepository = {
@@ -64,6 +69,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
           latency: 0.33,
           cost: 0.34,
         },
+        ALL_METRICS_ENABLED,
       );
     });
 
@@ -91,7 +97,78 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
           latency: 0.33,
           cost: 0.34,
         },
+        ALL_METRICS_ENABLED,
       );
+    });
+  });
+
+  describe('Metrics toggles', () => {
+    it('should default to all metrics enabled when metrics not provided', async () => {
+      const request: EvaluationRequest = {
+        dataset_id: 'test-dataset-id',
+        models: [{ type: 'default', identifier: 'claude-sonnet' }],
+      };
+
+      await useCase.launchEvaluation(request);
+
+      const metricsArg =
+        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][3];
+      expect(metricsArg).toEqual(ALL_METRICS_ENABLED);
+    });
+
+    it('should respect explicitly disabled metrics', async () => {
+      const request: EvaluationRequest = {
+        dataset_id: 'test-dataset-id',
+        models: [{ type: 'default', identifier: 'claude-sonnet' }],
+        metrics: {
+          bertscore: false,
+          geval_reasoning: false,
+          geval_faithfulness: false,
+        },
+      };
+
+      await useCase.launchEvaluation(request);
+
+      const metricsArg =
+        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][3];
+      expect(metricsArg).toEqual({
+        ...ALL_METRICS_ENABLED,
+        bertscore: false,
+        geval_reasoning: false,
+        geval_faithfulness: false,
+      });
+    });
+
+    it('should fill in defaults for partially provided metrics', async () => {
+      const request: EvaluationRequest = {
+        dataset_id: 'test-dataset-id',
+        models: [{ type: 'default', identifier: 'claude-sonnet' }],
+        metrics: { geval_reasoning: false, geval_faithfulness: false },
+      };
+
+      await useCase.launchEvaluation(request);
+
+      const metricsArg =
+        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][3];
+      expect(metricsArg).toEqual({
+        ...ALL_METRICS_ENABLED,
+        geval_reasoning: false,
+        geval_faithfulness: false,
+      });
+    });
+
+    it('should support disabling a single algorithmic metric', async () => {
+      const request: EvaluationRequest = {
+        dataset_id: 'test-dataset-id',
+        models: [{ type: 'default', identifier: 'claude-sonnet' }],
+        metrics: { bleu: false },
+      };
+
+      await useCase.launchEvaluation(request);
+
+      const metricsArg =
+        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][3];
+      expect(metricsArg).toEqual({ ...ALL_METRICS_ENABLED, bleu: false });
     });
   });
 
@@ -216,6 +293,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
           latency: 0.33,
           cost: 0.34,
         },
+        ALL_METRICS_ENABLED,
       );
     });
 
@@ -349,11 +427,16 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
       expect(
         mockEvaluationJobsRepository.createEvaluation,
-      ).toHaveBeenCalledWith('test-dataset-id', request.models, {
-        accuracy: 0.33,
-        latency: 0.33,
-        cost: 0.34,
-      });
+      ).toHaveBeenCalledWith(
+        'test-dataset-id',
+        request.models,
+        {
+          accuracy: 0.33,
+          latency: 0.33,
+          cost: 0.34,
+        },
+        ALL_METRICS_ENABLED,
+      );
     });
 
     it('should accept a mix of default and custom models', async () => {
@@ -386,6 +469,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
           latency: 0.33,
           cost: 0.34,
         },
+        ALL_METRICS_ENABLED,
       );
     });
 
