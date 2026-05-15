@@ -4,11 +4,6 @@ export interface MetricsWeights {
   latency: number;
 }
 
-/**
- * Canonical list of every metric the engine knows how to compute, in display
- * order. Keep in sync with the backend `METRIC_KEYS` in
- * `backend/src/models/Evaluation.ts` and `backend/python-eval-function/src/metrics.py`.
- */
 export const METRIC_KEYS = [
   // Algorithmic — summarization
   'bleu',
@@ -29,16 +24,6 @@ export const METRIC_KEYS = [
 
 export type MetricKey = (typeof METRIC_KEYS)[number];
 
-/**
- * Per-metric opt-in flags.
- *
- * - Algorithmic / programmatic metrics are deterministic, fast, and run locally
- *   (BERTScore is the only one with a meaningful load cost).
- * - LLM-as-judge metrics call an extra Bedrock model per sample — the main
- *   lever for speed and spend.
- *
- * Metrics that don't apply to the uploaded dataset are skipped automatically.
- */
 export type MetricsToggles = Record<MetricKey, boolean>;
 
 export const DEFAULT_METRICS_TOGGLES: MetricsToggles = Object.fromEntries(

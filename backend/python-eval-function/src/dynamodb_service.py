@@ -30,8 +30,6 @@ class DynamoDBService:
             item = response['Item']
             models = json.loads(item.get('models', '[]'))
             weights = json.loads(item.get('weights', '{}'))
-            # Older jobs may not have a `metrics` field; a malformed blob also
-            # falls back to all-enabled so a bad write can never wedge a job.
             raw_metrics = item.get('metrics')
             stored_metrics: Optional[Dict[str, Any]] = None
             if raw_metrics:

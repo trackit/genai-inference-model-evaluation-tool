@@ -15,9 +15,6 @@ class ClassificationMetrics:
     f1_macro: Optional[float] = None
     f1_weighted: Optional[float] = None
 
-
-# Maps the external (request-level) metric keys to the internal
-# ClassificationMetrics field names.
 _CLASSIFICATION_KEYS: tuple[str, ...] = (
     'classification_accuracy',
     'precision_macro',
@@ -61,8 +58,6 @@ class ClassificationEvaluator:
             logger.info("All references are empty, skipping classification metrics")
             return None
 
-        # If the user opted out of every classification metric, skip the
-        # sklearn computation entirely.
         if selected is not None and not any(
             is_metric_enabled(selected, k) for k in _CLASSIFICATION_KEYS
         ):

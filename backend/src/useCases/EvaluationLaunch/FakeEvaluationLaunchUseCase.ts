@@ -1,9 +1,9 @@
 import {
   resolveMetricsConfig,
-  type EvaluationJob,
-  type EvaluationRequest,
-  type ModelConfig,
-  type WeightConfig,
+  EvaluationJob,
+  EvaluationRequest,
+  ModelConfig,
+  WeightConfig,
 } from '../../models/Evaluation.js';
 import { type BedrockModelValidationService } from '../../services/BedrockModelValidationService/BedrockModelValidationService.js';
 import { FakeBedrockModelValidationService } from '../../services/BedrockModelValidationService/FakeBedrockModelValidationService.js';
