@@ -143,10 +143,6 @@ export default function Index() {
                 <MetricsWeights
                   value={config.weights}
                   onChange={(w) => setConfig({ ...config, weights: w })}
-                  metrics={config.metrics}
-                  onMetricsChange={(m) =>
-                    setConfig({ ...config, metrics: m })
-                  }
                 />
               )}
               {step === 1 && (
@@ -162,6 +158,10 @@ export default function Index() {
                   onStartEvaluation={handleStartEvaluation}
                   onUploadSuccess={handleUploadSuccess}
                   isStarting={createEvaluationMutation.isPending}
+                  metrics={config.metrics}
+                  onMetricsChange={(m) =>
+                    setConfig({ ...config, metrics: m })
+                  }
                 />
               )}
 

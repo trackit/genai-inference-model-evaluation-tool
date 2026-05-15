@@ -1,6 +1,11 @@
+import {
+  MetricsPicker,
+  type MetricsPickerTaskType,
+} from '@/components/evaluator/MetricsPicker';
 import { Button } from '@/components/ui/button';
 import { useUploadDataset } from '@/hooks/useEvaluation';
 import { cn } from '@/lib/utils';
+import type { MetricsToggles } from '@/types/evaluation';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -19,6 +24,8 @@ interface DatasetUploadProps {
   onStartEvaluation: () => void;
   onUploadSuccess: (data: { dataset_id: string; sample_count: number }) => void;
   isStarting?: boolean;
+  metrics: MetricsToggles;
+  onMetricsChange: (metrics: MetricsToggles) => void;
 }
 
 type TaskType = 'summarization' | 'classification';
@@ -76,12 +83,23 @@ const TASK_TYPES: {
 
 type FormatTab = 'csv' | 'jsonl';
 
+function resolveDetectedTask(data: {
+  has_summary: boolean;
+  has_class: boolean;
+}): MetricsPickerTaskType | undefined {
+  if (data.has_summary) return 'summarization';
+  if (data.has_class) return 'classification';
+  return undefined;
+}
+
 export function DatasetUpload({
   file,
   onChange,
   onStartEvaluation,
   onUploadSuccess,
   isStarting = false,
+  metrics,
+  onMetricsChange,
 }: DatasetUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [activeTask, setActiveTask] = useState<TaskType>('summarization');
@@ -341,6 +359,16 @@ export function DatasetUpload({
               </span>
             </>
           )}
+        </div>
+      )}
+
+      {uploadMutation.isSuccess && (
+        <div className="mt-6">
+          <MetricsPicker
+            metrics={metrics}
+            onChange={onMetricsChange}
+            taskType={resolveDetectedTask(uploadMutation.data)}
+          />
         </div>
       )}
 
