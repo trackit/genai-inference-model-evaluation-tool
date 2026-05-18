@@ -1,11 +1,8 @@
-import {
-  MetricsPicker,
-  type MetricsPickerTaskType,
-} from '@/components/evaluator/MetricsPicker';
+import { MetricsPicker } from '@/components/evaluator/MetricsPicker';
 import { Button } from '@/components/ui/button';
 import { useUploadDataset } from '@/hooks/useEvaluation';
 import { cn } from '@/lib/utils';
-import type { MetricsToggles } from '@/types/evaluation';
+import type { MetricsToggles, TaskType } from '@/types/evaluation';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -22,13 +19,15 @@ interface DatasetUploadProps {
   file: File | null;
   onChange: (file: File | null) => void;
   onStartEvaluation: () => void;
-  onUploadSuccess: (data: { dataset_id: string; sample_count: number }) => void;
+  onUploadSuccess: (data: {
+    dataset_id: string;
+    sample_count: number;
+    taskType: TaskType | undefined;
+  }) => void;
   isStarting?: boolean;
   metrics: MetricsToggles;
   onMetricsChange: (metrics: MetricsToggles) => void;
 }
-
-type TaskType = 'summarization' | 'classification';
 
 const TASK_TYPES: {
   id: TaskType;
@@ -86,7 +85,7 @@ type FormatTab = 'csv' | 'jsonl';
 function resolveDetectedTask(data: {
   has_summary: boolean;
   has_class: boolean;
-}): MetricsPickerTaskType | undefined {
+}): TaskType | undefined {
   if (data.has_summary) return 'summarization';
   if (data.has_class) return 'classification';
   return undefined;
@@ -114,6 +113,7 @@ export function DatasetUpload({
         onUploadSuccess({
           dataset_id: data.dataset_id,
           sample_count: data.sample_count,
+          taskType: resolveDetectedTask(data),
         });
       },
     });

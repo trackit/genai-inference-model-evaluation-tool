@@ -32,7 +32,7 @@ export type MetricKey = (typeof METRIC_KEYS)[number];
 export type MetricsConfig = Record<MetricKey, boolean>;
 
 export const DEFAULT_METRICS_CONFIG: MetricsConfig = Object.fromEntries(
-  METRIC_KEYS.map((k) => [k, true]),
+  METRIC_KEYS.map((k) => [k, false]),
 ) as MetricsConfig;
 
 export function resolveMetricsConfig(

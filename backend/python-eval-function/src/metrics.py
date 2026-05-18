@@ -24,12 +24,12 @@ def is_metric_enabled(
     key: str,
 ) -> bool:
     if selected is None:
-        return True
-    return bool(selected.get(key, True))
+        return False
+    return bool(selected.get(key, False))
 
 
 def normalize_metrics_config(
     stored: Optional[Mapping[str, object]],
 ) -> Dict[str, bool]:
     source: Mapping[str, object] = stored or {}
-    return {key: bool(source.get(key, True)) for key in METRIC_KEYS}
+    return {key: bool(source.get(key, False)) for key in METRIC_KEYS}

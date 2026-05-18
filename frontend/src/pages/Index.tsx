@@ -10,8 +10,9 @@ import {
   useEvaluationResults,
   useEvaluationStatus,
 } from '@/hooks/useEvaluation';
-import type { EvaluationConfig } from '@/types/evaluation';
+import type { EvaluationConfig, TaskType } from '@/types/evaluation';
 import { DEFAULT_METRICS_TOGGLES } from '@/types/evaluation';
+import { buildDefaultsForTask, pickEnabledMetrics } from '@/utils/metrics';
 import { AlertCircle, ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -76,7 +77,7 @@ export default function Index() {
           latency: config.weights.latency / 100,
           cost: config.weights.cost / 100,
         },
-        metrics: config.metrics,
+        metrics: pickEnabledMetrics(config.metrics),
       },
       {
         onSuccess: (data) => {
@@ -98,8 +99,16 @@ export default function Index() {
   ]);
 
   const handleUploadSuccess = useCallback(
-    (data: { dataset_id: string; sample_count: number }) => {
+    (data: {
+      dataset_id: string;
+      sample_count: number;
+      taskType: TaskType | undefined;
+    }) => {
       setDatasetId(data.dataset_id);
+      setConfig((prev) => ({
+        ...prev,
+        metrics: buildDefaultsForTask(data.taskType),
+      }));
     },
     [],
   );

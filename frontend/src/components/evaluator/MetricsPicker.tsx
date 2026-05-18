@@ -1,123 +1,7 @@
 import { cn } from '@/lib/utils';
-import type { MetricsToggles } from '@/types/evaluation';
+import type { MetricGroup, MetricsToggles, TaskType } from '@/types/evaluation';
+import { METRIC_GROUPS } from '@/types/evaluation';
 import { Zap } from 'lucide-react';
-
-export type MetricsPickerTaskType = 'summarization' | 'classification';
-
-interface ToggleableMetric {
-  key: keyof MetricsToggles;
-  label: string;
-  description: string;
-  task?: MetricsPickerTaskType;
-  taskBadge?: string;
-}
-
-interface MetricGroup {
-  id: string;
-  title: string;
-  subtitle: string;
-  metrics: ToggleableMetric[];
-}
-
-const METRIC_GROUPS: MetricGroup[] = [
-  {
-    id: 'programmatic',
-    title: 'Programmatic metrics',
-    subtitle:
-      'Deterministic scoring computed locally. Fast and cheap — only BERTScore has a noticeable load cost.',
-    metrics: [
-      {
-        key: 'bleu',
-        label: 'BLEU',
-        description: 'N-gram overlap with the reference.',
-        task: 'summarization',
-        taskBadge: 'Summarization',
-      },
-      {
-        key: 'rouge',
-        label: 'ROUGE',
-        description: 'Recall-oriented n-gram overlap.',
-        task: 'summarization',
-        taskBadge: 'Summarization',
-      },
-      {
-        key: 'meteor',
-        label: 'METEOR',
-        description: 'Stem-aware overlap, more lenient than BLEU.',
-        task: 'summarization',
-        taskBadge: 'Summarization',
-      },
-      {
-        key: 'levenshtein',
-        label: 'Levenshtein similarity',
-        description: 'Character-level edit-distance similarity.',
-        task: 'summarization',
-        taskBadge: 'Summarization',
-      },
-      {
-        key: 'bertscore',
-        label: 'BERTScore',
-        description:
-          'Embedding-based semantic similarity. Loads a transformer model once per run.',
-        task: 'summarization',
-        taskBadge: 'Summarization',
-      },
-      {
-        key: 'classification_accuracy',
-        label: 'Accuracy',
-        description: 'Fraction of predictions that match the reference label.',
-        task: 'classification',
-        taskBadge: 'Classification',
-      },
-      {
-        key: 'precision_macro',
-        label: 'Precision (macro)',
-        description: 'Per-class precision averaged across labels.',
-        task: 'classification',
-        taskBadge: 'Classification',
-      },
-      {
-        key: 'recall_macro',
-        label: 'Recall (macro)',
-        description: 'Per-class recall averaged across labels.',
-        task: 'classification',
-        taskBadge: 'Classification',
-      },
-      {
-        key: 'f1_macro',
-        label: 'F1 (macro)',
-        description: 'Harmonic mean of precision and recall, unweighted.',
-        task: 'classification',
-        taskBadge: 'Classification',
-      },
-      {
-        key: 'f1_weighted',
-        label: 'F1 (weighted)',
-        description: 'F1 weighted by class support.',
-        task: 'classification',
-        taskBadge: 'Classification',
-      },
-    ],
-  },
-  {
-    id: 'llm-judge',
-    title: 'LLM-as-judge metrics',
-    subtitle:
-      'Quality scores produced by an extra Bedrock model per sample. Most accurate, but the slowest and most expensive metrics.',
-    metrics: [
-      {
-        key: 'geval_reasoning',
-        label: 'G-Eval — Reasoning',
-        description: 'How coherent and well-justified the output is.',
-      },
-      {
-        key: 'geval_faithfulness',
-        label: 'G-Eval — Faithfulness',
-        description: 'Whether the output sticks to the input (no hallucination).',
-      },
-    ],
-  },
-];
 
 function setGroupSelection(
   current: MetricsToggles,
@@ -138,7 +22,7 @@ function countSelected(metrics: MetricsToggles, group: MetricGroup): number {
 interface MetricsPickerProps {
   metrics: MetricsToggles;
   onChange: (metrics: MetricsToggles) => void;
-  taskType?: MetricsPickerTaskType;
+  taskType?: TaskType;
 }
 
 export function MetricsPicker({
