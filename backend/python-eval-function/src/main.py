@@ -78,10 +78,6 @@ def main():
         # every key present, all bool.
         metrics_config = job_config.get('metrics') or {}
 
-        from metrics import is_metric_enabled
-        compute_geval_reasoning = is_metric_enabled(metrics_config, 'geval_reasoning')
-        compute_geval_faithfulness = is_metric_enabled(metrics_config, 'geval_faithfulness')
-
         logger.info(
             f"Job config loaded - dataset: {dataset_id}, models: {len(models)}, "
             f"metrics={metrics_config or 'all'}"
@@ -176,10 +172,10 @@ def main():
 
             logger.info(f"Classification accuracy complete for {len(accuracy_results)} models")
 
-        if compute_geval_reasoning or compute_geval_faithfulness:
-            from geval_evaluator import GEvalEvaluator
-            geval_evaluator = GEvalEvaluator()
+        from geval_evaluator import GEvalEvaluator
+        geval_evaluator = GEvalEvaluator(metrics_config=metrics_config)
 
+        if geval_evaluator.enabled:
             for model_id, invocation_results in results_by_model.items():
                 successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
                 predictions = [invocation_results[i].response_text for i in successful_indices]
@@ -187,12 +183,10 @@ def main():
 
                 logger.info(
                     f"Running G-Eval for model {model_id} on {len(predictions)} samples "
-                    f"(reasoning={compute_geval_reasoning}, faithfulness={compute_geval_faithfulness})"
+                    f"(reasoning={geval_evaluator.compute_reasoning}, faithfulness={geval_evaluator.compute_faithfulness})"
                 )
                 geval_metrics = geval_evaluator.evaluate(
                     inputs, predictions, task_type=task_type,
-                    compute_reasoning=compute_geval_reasoning,
-                    compute_faithfulness=compute_geval_faithfulness,
                 )
 
                 acc = accuracy_results.get(model_id)
@@ -200,9 +194,9 @@ def main():
                     acc = AccuracyMetrics()
                     accuracy_results[model_id] = acc
 
-                if compute_geval_reasoning:
+                if geval_evaluator.compute_reasoning:
                     acc.geval_reasoning = geval_metrics.reasoning
-                if compute_geval_faithfulness:
+                if geval_evaluator.compute_faithfulness:
                     acc.geval_faithfulness = geval_metrics.faithfulness
 
                 logger.info(f"G-Eval complete for {model_id}")

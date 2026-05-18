@@ -1,7 +1,9 @@
 import os
 import logging
-from typing import Optional, List
+from typing import Optional, List, Mapping
 from dataclasses import dataclass
+
+from metrics import is_metric_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +17,20 @@ class GEvalMetrics:
 
 
 class GEvalEvaluator:
-    def __init__(self, judge_model_id: Optional[str] = None, region: Optional[str] = None):
+    def __init__(
+        self,
+        metrics_config: Optional[Mapping[str, bool]] = None,
+        judge_model_id: Optional[str] = None,
+        region: Optional[str] = None,
+    ):
         self.judge_model_id = judge_model_id or os.environ.get("GEVAL_JUDGE_MODEL", JUDGE_MODEL_DEFAULT)
         self.region = region or os.environ.get("AWS_REGION", "us-west-2")
-        logger.info(f"GEvalEvaluator initialized with judge={self.judge_model_id}, region={self.region}")
+        self.compute_reasoning = is_metric_enabled(metrics_config, 'geval_reasoning')
+        self.compute_faithfulness = is_metric_enabled(metrics_config, 'geval_faithfulness')
+        logger.info(
+            f"GEvalEvaluator initialized with judge={self.judge_model_id}, region={self.region}, "
+            f"reasoning={self.compute_reasoning}, faithfulness={self.compute_faithfulness}"
+        )
 
     def _build_judge_model(self):
         from deepeval.models import AmazonBedrockModel
@@ -93,14 +105,16 @@ class GEvalEvaluator:
             async_mode=False,
         )
 
+    @property
+    def enabled(self) -> bool:
+        return self.compute_reasoning or self.compute_faithfulness
+
     def evaluate(
         self,
         inputs: List[str],
         predictions: List[str],
         references: Optional[List[str]] = None,
         task_type: str = "summarization",
-        compute_reasoning: bool = True,
-        compute_faithfulness: bool = True,
     ) -> GEvalMetrics:
         if not inputs or not predictions:
             logger.warning("Empty inputs or predictions, skipping G-Eval")
@@ -110,7 +124,7 @@ class GEvalEvaluator:
             logger.error("inputs and predictions length mismatch, skipping G-Eval")
             return GEvalMetrics()
 
-        if not compute_reasoning and not compute_faithfulness:
+        if not self.enabled:
             logger.info("Both G-Eval metrics disabled, skipping")
             return GEvalMetrics()
 
@@ -118,12 +132,12 @@ class GEvalEvaluator:
             model = self._build_judge_model()
             reasoning_metric = (
                 self._build_reasoning_metric(model, task_type)
-                if compute_reasoning
+                if self.compute_reasoning
                 else None
             )
             faithfulness_metric = (
                 self._build_faithfulness_metric(model, task_type)
-                if compute_faithfulness
+                if self.compute_faithfulness
                 else None
             )
         except Exception as e:
