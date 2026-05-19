@@ -294,6 +294,7 @@ function pickSingleMatch(
 function resolveOneIdentifier(
   model: ModelConfig,
   summaries: FoundationModelSummary[],
+  profiles: InferenceProfileSummary[],
 ): string {
   const raw = model.identifier.trim();
   summaries = filterEligibleSummaries(summaries);
@@ -302,6 +303,33 @@ function resolveOneIdentifier(
   const byId = new Map(active.map((s) => [s.modelId as string, s] as const));
 
   if (byId.has(raw)) {
+    return raw;
+  }
+
+  const profileById = new Map<string, InferenceProfileSummary>();
+  for (const p of profiles) {
+    if (p.inferenceProfileId) {
+      profileById.set(p.inferenceProfileId, p);
+    }
+  }
+
+  const profile = profileById.get(raw);
+  if (profile) {
+    const foundationId = foundationModelIdForProfile(profile, TARGET_REGION);
+    if (!foundationId) {
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'INVALID_BEDROCK_MODEL',
+        `Inference profile "${raw}" has no foundation model ARNs.`,
+      );
+    }
+    if (!byId.has(foundationId)) {
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'INVALID_BEDROCK_MODEL',
+        `Foundation model "${foundationId}" (from inference profile "${raw}") is not available in this Region.`,
+      );
+    }
     return raw;
   }
 
@@ -316,7 +344,7 @@ function resolveOneIdentifier(
     throw new BasicError(
       BasicErrorType.BAD_REQUEST,
       'INVALID_BEDROCK_MODEL',
-      `Unknown Bedrock foundation model id for this Region: ${raw}`,
+      `Unknown Bedrock foundation model id or inference profile for this Region: ${raw}`,
     );
   }
 
@@ -336,6 +364,7 @@ function resolveOneIdentifier(
 export function resolveModelsFromSummaries(
   models: ModelConfig[],
   summaries: FoundationModelSummary[],
+  profiles: InferenceProfileSummary[] = [],
 ): ModelConfig[] {
   const byId = new Map(
     (summaries ?? [])
@@ -343,9 +372,33 @@ export function resolveModelsFromSummaries(
       .map((s) => [s.modelId as string, s] as const),
   );
 
+  const profileById = new Map<string, InferenceProfileSummary>();
+  for (const p of profiles) {
+    if (p.inferenceProfileId) {
+      profileById.set(p.inferenceProfileId, p);
+    }
+  }
+
   const out: ModelConfig[] = [];
   for (const m of models) {
-    const resolvedId = resolveOneIdentifier(m, summaries);
+    const resolvedId = resolveOneIdentifier(m, summaries, profiles);
+    
+    const profile = profileById.get(resolvedId);
+    if (profile) {
+      const foundationId = foundationModelIdForProfile(profile, TARGET_REGION);
+      if (foundationId) {
+        const summary = byId.get(foundationId);
+        if (summary && !supportsTextInput(summary)) {
+          console.warn(
+            `[BedrockModelValidation] Ignoring "${resolvedId}" (requested as "${m.identifier.trim()}"): underlying foundation model "${foundationId}" has no TEXT in inputModalities ${JSON.stringify(summary.inputModalities)}.`,
+          );
+          continue;
+        }
+      }
+      out.push({ type: m.type, identifier: resolvedId });
+      continue;
+    }
+
     const summary = byId.get(resolvedId);
     if (!summary) {
       throw new BasicError(
@@ -390,12 +443,13 @@ export class BedrockModelValidationServiceImpl implements BedrockModelValidation
       console.info(
         `[BedrockModelValidation] profiles=${inferenceProfiles.length} foundationSummaries=${summaries.length}`,
       );
-      const resolvedToFoundation = resolveModelsFromSummaries(
+      const resolvedModels = resolveModelsFromSummaries(
         models,
         summaries,
+        inferenceProfiles,
       );
       const finalModels = mapToInferenceProfileIds(
-        resolvedToFoundation,
+        resolvedModels,
         inferenceProfiles,
       );
       validateResolvedModelsAgainstFoundationCatalog(
