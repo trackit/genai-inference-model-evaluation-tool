@@ -26,6 +26,10 @@ export function buildDefaultsForTask(
   return base;
 }
 
+export function hasAtLeastOneMetric(toggles: MetricsToggles): boolean {
+  return Object.values(toggles).some(Boolean);
+}
+
 export function pickEnabledMetrics(
   toggles: MetricsToggles,
 ): Partial<Record<MetricKey, true>> {

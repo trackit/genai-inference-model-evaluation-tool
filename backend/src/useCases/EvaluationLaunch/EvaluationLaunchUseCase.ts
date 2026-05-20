@@ -36,6 +36,17 @@ class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
     const normalizedWeights = this.normalizeWeights(request.weights);
     const metrics = resolveMetricsConfig(request.metrics);
 
+    if (
+      request.metrics &&
+      !Object.values(request.metrics).some((v) => v === true)
+    ) {
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'NO_METRICS_SELECTED',
+        'At least one accuracy metric must be selected',
+      );
+    }
+
     const job = await this.evaluationJobsRepository.createEvaluation(
       request.dataset_id,
       modelsToPersist,

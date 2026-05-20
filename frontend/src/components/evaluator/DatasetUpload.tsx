@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useUploadDataset } from '@/hooks/useEvaluation';
 import { cn } from '@/lib/utils';
 import type { MetricsToggles, TaskType } from '@/types/evaluation';
+import { hasAtLeastOneMetric } from '@/utils/metrics';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -369,6 +370,11 @@ export function DatasetUpload({
             onChange={onMetricsChange}
             taskType={resolveDetectedTask(uploadMutation.data)}
           />
+          {!hasAtLeastOneMetric(metrics) && (
+            <p className="mt-2 text-xs text-destructive" role="alert">
+              Select at least one accuracy metric to continue.
+            </p>
+          )}
         </div>
       )}
 
@@ -377,7 +383,7 @@ export function DatasetUpload({
           onClick={onStartEvaluation}
           className="mt-6 w-full"
           size="lg"
-          disabled={isStarting}
+          disabled={isStarting || !hasAtLeastOneMetric(metrics)}
         >
           {isStarting ? (
             <>

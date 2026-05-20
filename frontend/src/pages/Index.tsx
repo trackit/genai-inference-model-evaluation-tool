@@ -12,7 +12,7 @@ import {
 } from '@/hooks/useEvaluation';
 import type { EvaluationConfig, TaskType } from '@/types/evaluation';
 import { DEFAULT_METRICS_TOGGLES } from '@/types/evaluation';
-import { buildDefaultsForTask, pickEnabledMetrics } from '@/utils/metrics';
+import { buildDefaultsForTask, hasAtLeastOneMetric, pickEnabledMetrics } from '@/utils/metrics';
 import { AlertCircle, ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -63,6 +63,11 @@ export default function Index() {
     const sum =
       config.weights.accuracy + config.weights.cost + config.weights.latency;
     if (sum !== 100) return;
+
+    if (!hasAtLeastOneMetric(config.metrics)) {
+      setError('At least one accuracy metric must be selected.');
+      return;
+    }
 
     setError(null);
     createEvaluationMutation.mutate(
