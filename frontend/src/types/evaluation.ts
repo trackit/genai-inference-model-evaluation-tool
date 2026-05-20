@@ -181,21 +181,21 @@ export interface EvaluationResult {
 export const AVAILABLE_MODELS: ModelOption[] = [
   // Amazon Nova
   {
-    id: 'amazon.nova-pro-v1:0',
+    id: 'us.amazon.nova-pro-v1:0',
     name: 'Nova Pro',
     provider: 'Amazon',
     contextWindow: '300K',
     costPer1kTokens: 0.0008,
   },
   {
-    id: 'amazon.nova-lite-v1:0',
+    id: 'us.amazon.nova-lite-v1:0',
     name: 'Nova Lite',
     provider: 'Amazon',
     contextWindow: '300K',
     costPer1kTokens: 0.00006,
   },
   {
-    id: 'amazon.nova-micro-v1:0',
+    id: 'us.amazon.nova-micro-v1:0',
     name: 'Nova Micro',
     provider: 'Amazon',
     contextWindow: '128K',
@@ -203,21 +203,21 @@ export const AVAILABLE_MODELS: ModelOption[] = [
   },
   // Anthropic
   {
-    id: 'anthropic.claude-opus-4-6-v1',
+    id: 'us.anthropic.claude-opus-4-6-v1',
     name: 'Claude Opus 4.6',
     provider: 'Anthropic',
     contextWindow: '200K',
     costPer1kTokens: 0.005,
   },
   {
-    id: 'anthropic.claude-sonnet-4-5-20250929-v1:0',
+    id: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
     name: 'Claude Sonnet 4.5',
     provider: 'Anthropic',
     contextWindow: '200K',
     costPer1kTokens: 0.003,
   },
   {
-    id: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+    id: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
     name: 'Claude Haiku 4.5',
     provider: 'Anthropic',
     contextWindow: '200K',
