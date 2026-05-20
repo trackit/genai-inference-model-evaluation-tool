@@ -60,9 +60,45 @@ describe('BedrockModelValidationService', () => {
   });
 
   it('resolves default preset identifiers to foundation model ids before profile mapping', async () => {
+    send.mockImplementation((cmd: { constructor: { name: string } }) => {
+      const name = cmd.constructor.name;
+      if (name === 'ListInferenceProfilesCommand') {
+        return Promise.resolve({
+          inferenceProfileSummaries: [
+            {
+              inferenceProfileId: 'us.amazon.nova-pro-v1:0',
+              inferenceProfileArn:
+                'arn:aws:bedrock:us-west-2:123456789012:inference-profile/us.amazon.nova-pro-v1:0',
+              models: [
+                {
+                  modelArn:
+                    'arn:aws:bedrock:us-west-2::foundation-model/amazon.nova-pro-v1:0',
+                },
+              ],
+              status: 'ACTIVE',
+              type: 'SYSTEM_DEFINED',
+            },
+          ],
+          nextToken: undefined,
+        });
+      }
+      if (name === 'ListFoundationModelsCommand') {
+        return Promise.resolve({
+          modelSummaries: [
+            {
+              ...eligibleNovaPro,
+              modelArn:
+                'arn:aws:bedrock:us-west-2::foundation-model/amazon.nova-pro-v1:0',
+              modelId: 'amazon.nova-pro-v1:0',
+            },
+          ],
+        });
+      }
+      return Promise.reject(new Error(`unexpected command: ${name}`));
+    });
     const service = new BedrockModelValidationServiceImpl();
     const result = await service.resolveModelsForPersistence([
-      { type: 'default', identifier: 'amazon-nova-lite' },
+      { type: 'default', identifier: 'amazon-nova' },
     ]);
     expect(result).toEqual([
       { type: 'default', identifier: 'us.amazon.nova-pro-v1:0' },
