@@ -263,7 +263,7 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
                 fillOpacity={0.1}
               />
               <Tooltip />
-              <Legend />
+              <Legend wrapperStyle={{ paddingTop: 30 }} />
             </RadarChart>
           </ResponsiveContainer>
           <div className="mt-3 flex gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
@@ -283,12 +283,18 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
           <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
             Total Cost Comparison
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={costBarData}>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={costBarData} margin={{ bottom: 60 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 11 }}
+                interval={0}
+                angle={-25}
+                textAnchor="end"
+              />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(value: number) => `$${value.toFixed(6)}`} />
+              <Tooltip formatter={(value) => `$${Number(value).toFixed(6)}`} />
               <Bar
                 dataKey="Total Cost ($)"
                 fill="hsl(142, 76%, 36%)"
@@ -305,13 +311,19 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
           <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
             Latency Breakdown
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={latencyBarData}>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={latencyBarData} margin={{ bottom: 60 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 11 }}
+                interval={0}
+                angle={-25}
+                textAnchor="end"
+              />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(value: number) => `${value}ms`} />
-              <Legend />
+              <Tooltip formatter={(value) => `${Number(value)}ms`} />
+              <Legend verticalAlign="top" height={36} />
               <Bar
                 dataKey="Total Latency (ms)"
                 fill="hsl(226, 70%, 55%)"
@@ -329,13 +341,19 @@ export function ResultsView({ data, onReset }: ResultsViewProps) {
           <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
             Throughput (Tokens/Second)
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={throughputBarData}>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={throughputBarData} margin={{ bottom: 60 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 11 }}
+                interval={0}
+                angle={-25}
+                textAnchor="end"
+              />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip
-                formatter={(value: number) => `${value.toFixed(1)} t/s`}
+                formatter={(value) => `${Number(value).toFixed(1)} t/s`}
               />
               <Bar
                 dataKey="Tokens/Second"
