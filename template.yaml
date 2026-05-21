@@ -223,6 +223,10 @@ Resources:
                 Resource: !Sub '${DatasetBucket.Arn}/*'
               - Effect: Allow
                 Action:
+                  - s3:ListBucket
+                Resource: !GetAtt DatasetBucket.Arn
+              - Effect: Allow
+                Action:
                   - dynamodb:GetItem
                   - dynamodb:PutItem
                   - dynamodb:UpdateItem
