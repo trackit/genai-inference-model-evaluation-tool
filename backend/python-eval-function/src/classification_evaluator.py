@@ -1,6 +1,8 @@
 import logging
-from typing import Optional, List
+from typing import Optional, List, Mapping
 from dataclasses import dataclass
+
+from metrics import is_metric_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +14,14 @@ class ClassificationMetrics:
     recall_macro: Optional[float] = None
     f1_macro: Optional[float] = None
     f1_weighted: Optional[float] = None
+
+_CLASSIFICATION_KEYS: tuple[str, ...] = (
+    'classification_accuracy',
+    'precision_macro',
+    'recall_macro',
+    'f1_macro',
+    'f1_weighted',
+)
 
 
 def normalize_prediction(prediction: str, valid_classes: List[str]) -> str:
@@ -38,6 +48,7 @@ class ClassificationEvaluator:
         predictions: List[str],
         references: List[str],
         valid_classes: Optional[List[str]] = None,
+        selected: Optional[Mapping[str, bool]] = None,
     ) -> Optional[ClassificationMetrics]:
         if not references or not predictions:
             logger.info("No references or predictions, skipping classification metrics")
@@ -46,6 +57,12 @@ class ClassificationEvaluator:
         if all(ref is None or ref == "" for ref in references):
             logger.info("All references are empty, skipping classification metrics")
             return None
+
+        if selected is not None and not any(
+            is_metric_enabled(selected, k) for k in _CLASSIFICATION_KEYS
+        ):
+            logger.info("All classification metrics disabled, skipping computation")
+            return ClassificationMetrics()
 
         if valid_classes is None:
             valid_classes = list(set(references))
@@ -56,7 +73,7 @@ class ClassificationEvaluator:
 
         logger.info(
             f"Calculating classification metrics for {len(normalized_preds)} predictions "
-            f"across {len(valid_classes)} classes"
+            f"across {len(valid_classes)} classes (selected={dict(selected) if selected is not None else 'all'})"
         )
 
         try:
@@ -86,11 +103,21 @@ class ClassificationEvaluator:
             )
 
             metrics = ClassificationMetrics(
-                accuracy=round(acc, 4),
-                precision_macro=round(precision, 4),
-                recall_macro=round(recall, 4),
-                f1_macro=round(f1, 4),
-                f1_weighted=round(f1_w, 4),
+                accuracy=round(acc, 4)
+                if is_metric_enabled(selected, 'classification_accuracy')
+                else None,
+                precision_macro=round(precision, 4)
+                if is_metric_enabled(selected, 'precision_macro')
+                else None,
+                recall_macro=round(recall, 4)
+                if is_metric_enabled(selected, 'recall_macro')
+                else None,
+                f1_macro=round(f1, 4)
+                if is_metric_enabled(selected, 'f1_macro')
+                else None,
+                f1_weighted=round(f1_w, 4)
+                if is_metric_enabled(selected, 'f1_weighted')
+                else None,
             )
 
             logger.info(

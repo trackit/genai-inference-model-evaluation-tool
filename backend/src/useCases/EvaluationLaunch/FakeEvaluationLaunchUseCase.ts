@@ -1,4 +1,5 @@
-import type {
+import {
+  resolveMetricsConfig,
   EvaluationJob,
   EvaluationRequest,
   ModelConfig,
@@ -40,11 +41,17 @@ export class FakeEvaluationLaunchUseCase implements EvaluationLaunchUseCase {
       );
 
     const normalizedWeights = this.normalizeWeights(request.weights);
+    const metrics = resolveMetricsConfig(request.metrics);
+
+    if (request.metrics && !Object.values(request.metrics).some((v) => v === true)) {
+      throw new Error('At least one accuracy metric must be selected');
+    }
 
     const job = await this.evaluationJobsRepository.createEvaluation(
       request.dataset_id,
       modelsToPersist,
       normalizedWeights,
+      metrics,
     );
 
     await this.fargateService.launchTask(job.evaluation_id);

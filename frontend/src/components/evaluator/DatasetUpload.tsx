@@ -1,6 +1,9 @@
+import { MetricsPicker } from '@/components/evaluator/MetricsPicker';
 import { Button } from '@/components/ui/button';
 import { useUploadDataset } from '@/hooks/useEvaluation';
 import { cn } from '@/lib/utils';
+import type { MetricsToggles, TaskType } from '@/types/evaluation';
+import { hasAtLeastOneMetric } from '@/utils/metrics';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -17,11 +20,15 @@ interface DatasetUploadProps {
   file: File | null;
   onChange: (file: File | null) => void;
   onStartEvaluation: () => void;
-  onUploadSuccess: (data: { dataset_id: string; sample_count: number }) => void;
+  onUploadSuccess: (data: {
+    dataset_id: string;
+    sample_count: number;
+    taskType: TaskType | undefined;
+  }) => void;
   isStarting?: boolean;
+  metrics: MetricsToggles;
+  onMetricsChange: (metrics: MetricsToggles) => void;
 }
-
-type TaskType = 'summarization' | 'classification';
 
 const TASK_TYPES: {
   id: TaskType;
@@ -76,12 +83,23 @@ const TASK_TYPES: {
 
 type FormatTab = 'csv' | 'jsonl';
 
+function resolveDetectedTask(data: {
+  has_summary: boolean;
+  has_class: boolean;
+}): TaskType | undefined {
+  if (data.has_summary) return 'summarization';
+  if (data.has_class) return 'classification';
+  return undefined;
+}
+
 export function DatasetUpload({
   file,
   onChange,
   onStartEvaluation,
   onUploadSuccess,
   isStarting = false,
+  metrics,
+  onMetricsChange,
 }: DatasetUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [activeTask, setActiveTask] = useState<TaskType>('summarization');
@@ -96,6 +114,7 @@ export function DatasetUpload({
         onUploadSuccess({
           dataset_id: data.dataset_id,
           sample_count: data.sample_count,
+          taskType: resolveDetectedTask(data),
         });
       },
     });
@@ -345,11 +364,26 @@ export function DatasetUpload({
       )}
 
       {uploadMutation.isSuccess && (
+        <div className="mt-6">
+          <MetricsPicker
+            metrics={metrics}
+            onChange={onMetricsChange}
+            taskType={resolveDetectedTask(uploadMutation.data)}
+          />
+          {!hasAtLeastOneMetric(metrics) && (
+            <p className="mt-2 text-xs text-destructive" role="alert">
+              Select at least one accuracy metric to continue.
+            </p>
+          )}
+        </div>
+      )}
+
+      {uploadMutation.isSuccess && (
         <Button
           onClick={onStartEvaluation}
           className="mt-6 w-full"
           size="lg"
-          disabled={isStarting}
+          disabled={isStarting || !hasAtLeastOneMetric(metrics)}
         >
           {isStarting ? (
             <>

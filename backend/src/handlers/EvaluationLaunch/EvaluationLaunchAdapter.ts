@@ -3,11 +3,20 @@ import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
 } from 'aws-lambda';
-import { z } from 'zod';
+import { z, ZodRawShape } from 'zod';
 
+import { METRIC_KEYS } from '../../models/Evaluation';
 import { tokenEvaluationLaunchUseCase } from '../../useCases/EvaluationLaunch/EvaluationLaunchUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
 import { parseApiEvent } from '../api/parseApiEvent';
+
+const MetricsConfigSchema = z
+  .object(
+    Object.fromEntries(
+      METRIC_KEYS.map((key) => [key, z.boolean().optional()]),
+    ) as ZodRawShape,
+  )
+  .optional();
 
 const EvaluationRequestSchema = z.object({
   dataset_id: z.string().min(1),
@@ -32,6 +41,7 @@ const EvaluationRequestSchema = z.object({
       cost: z.number().optional(),
     })
     .optional(),
+  metrics: MetricsConfigSchema,
 });
 
 export class EvaluationLaunchAdapter {

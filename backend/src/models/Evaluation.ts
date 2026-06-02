@@ -9,10 +9,49 @@ export interface WeightConfig {
   cost: number;
 }
 
+export const METRIC_KEYS = [
+  // Algorithmic — summarization
+  'bleu',
+  'rouge',
+  'meteor',
+  'levenshtein',
+  'bertscore',
+  // Algorithmic — classification
+  'classification_accuracy',
+  'precision_macro',
+  'recall_macro',
+  'f1_macro',
+  'f1_weighted',
+  // LLM-as-judge
+  'geval_reasoning',
+  'geval_faithfulness',
+] as const;
+
+export type MetricKey = (typeof METRIC_KEYS)[number];
+
+export type MetricsConfig = Record<MetricKey, boolean>;
+
+export const DEFAULT_METRICS_CONFIG: MetricsConfig = Object.fromEntries(
+  METRIC_KEYS.map((k) => [k, false]),
+) as MetricsConfig;
+
+export function resolveMetricsConfig(
+  metrics?: Partial<MetricsConfig>,
+): MetricsConfig {
+  const result = { ...DEFAULT_METRICS_CONFIG };
+  if (!metrics) return result;
+  for (const key of METRIC_KEYS) {
+    const provided = metrics[key];
+    if (provided !== undefined) result[key] = provided;
+  }
+  return result;
+}
+
 export interface EvaluationRequest {
   dataset_id: string;
   models: ModelConfig[];
   weights?: Partial<WeightConfig>;
+  metrics?: Partial<MetricsConfig>;
 }
 
 export interface EvaluationJob {
@@ -20,6 +59,7 @@ export interface EvaluationJob {
   dataset_id: string;
   models: ModelConfig[];
   weights: WeightConfig;
+  metrics: MetricsConfig;
   status: JobStatus;
   progress: number;
   current_model?: string;

@@ -74,8 +74,14 @@ def main():
         dataset_id = job_config['dataset_id']
         models = job_config['models']
         weights = job_config['weights']
-        
-        logger.info(f"Job config loaded - dataset: {dataset_id}, models: {len(models)}")
+        # `metrics_config` is already normalized by DynamoDBService.load_job —
+        # every key present, all bool.
+        metrics_config = job_config.get('metrics') or {}
+
+        logger.info(
+            f"Job config loaded - dataset: {dataset_id}, models: {len(models)}, "
+            f"metrics={metrics_config or 'all'}"
+        )
         
         from dataset_loader import DatasetLoader
         dataset_loader = DatasetLoader()
@@ -134,7 +140,9 @@ def main():
                 predictions = [invocation_results[i].response_text for i in successful_indices]
                 references = [all_references[i] for i in successful_indices] if all_references else None
 
-                accuracy_metrics = accuracy_evaluator.calculate_accuracy_metrics(predictions, references)
+                accuracy_metrics = accuracy_evaluator.calculate_accuracy_metrics(
+                    predictions, references, selected=metrics_config
+                )
                 accuracy_results[model_id] = accuracy_metrics or AccuracyMetrics()
 
             logger.info(f"Summarization accuracy complete for {len(accuracy_results)} models")
@@ -149,7 +157,8 @@ def main():
                 references = [all_references[i] for i in successful_indices] if all_references else None
 
                 cls_metrics = classification_evaluator.calculate_classification_metrics(
-                    predictions, references, valid_classes=unique_classes
+                    predictions, references, valid_classes=unique_classes,
+                    selected=metrics_config,
                 )
 
                 acc = AccuracyMetrics()
@@ -164,27 +173,37 @@ def main():
             logger.info(f"Classification accuracy complete for {len(accuracy_results)} models")
 
         from geval_evaluator import GEvalEvaluator
-        geval_evaluator = GEvalEvaluator()
-        
-        for model_id, invocation_results in results_by_model.items():
-            successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
-            predictions = [invocation_results[i].response_text for i in successful_indices]
-            inputs = [dataset.documents[i] for i in successful_indices]
-            
-            logger.info(f"Running G-Eval for model {model_id} on {len(predictions)} samples")
-            geval_metrics = geval_evaluator.evaluate(inputs, predictions, task_type=task_type)
-            
-            acc = accuracy_results.get(model_id)
-            if acc is None:
-                acc = AccuracyMetrics()
-                accuracy_results[model_id] = acc
-            
-            acc.geval_reasoning = geval_metrics.reasoning
-            acc.geval_faithfulness = geval_metrics.faithfulness
-            
-            logger.info(f"G-Eval complete for {model_id}")
-        
-        logger.info(f"G-Eval evaluation complete for all models")
+        geval_evaluator = GEvalEvaluator(metrics_config=metrics_config)
+
+        if geval_evaluator.enabled:
+            for model_id, invocation_results in results_by_model.items():
+                successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
+                predictions = [invocation_results[i].response_text for i in successful_indices]
+                inputs = [dataset.documents[i] for i in successful_indices]
+
+                logger.info(
+                    f"Running G-Eval for model {model_id} on {len(predictions)} samples "
+                    f"(reasoning={geval_evaluator.compute_reasoning}, faithfulness={geval_evaluator.compute_faithfulness})"
+                )
+                geval_metrics = geval_evaluator.evaluate(
+                    inputs, predictions, task_type=task_type,
+                )
+
+                acc = accuracy_results.get(model_id)
+                if acc is None:
+                    acc = AccuracyMetrics()
+                    accuracy_results[model_id] = acc
+
+                if geval_evaluator.compute_reasoning:
+                    acc.geval_reasoning = geval_metrics.reasoning
+                if geval_evaluator.compute_faithfulness:
+                    acc.geval_faithfulness = geval_metrics.faithfulness
+
+                logger.info(f"G-Eval complete for {model_id}")
+
+            logger.info("G-Eval evaluation complete for all models")
+        else:
+            logger.info("G-Eval disabled via metrics config, skipping")
         
         from cost_calculator import CostCalculator
         cost_calculator = CostCalculator()

@@ -26,7 +26,8 @@ frontend/
 │   │   ├── evaluator/          # Step components for the evaluation workflow
 │   │   │   ├── MetricsWeights.tsx    # Step 1 — tune accuracy / latency / cost weights
 │   │   │   ├── ModelSelection.tsx    # Step 2 — pick Bedrock models to evaluate
-│   │   │   ├── DatasetUpload.tsx     # Step 3 — upload CSV or JSONL dataset
+│   │   │   ├── DatasetUpload.tsx     # Step 3 — upload dataset and pick metrics to compute
+│   │   │   ├── MetricsPicker.tsx     # Task-aware picker for which metrics to compute
 │   │   │   ├── ProgressView.tsx      # Step 4a — real-time job progress
 │   │   │   ├── ResultsView.tsx       # Step 4b — ranked results and recommendation
 │   │   │   └── StepIndicator.tsx     # Navigation breadcrumb for the stepper

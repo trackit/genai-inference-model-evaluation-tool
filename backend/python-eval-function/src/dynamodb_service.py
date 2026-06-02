@@ -7,6 +7,8 @@ from typing import Dict, Any, Optional, List
 import boto3
 from botocore.exceptions import ClientError
 
+from metrics import normalize_metrics_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,18 +30,32 @@ class DynamoDBService:
             item = response['Item']
             models = json.loads(item.get('models', '[]'))
             weights = json.loads(item.get('weights', '{}'))
-            
+            raw_metrics = item.get('metrics')
+            stored_metrics: Optional[Dict[str, Any]] = None
+            if raw_metrics:
+                try:
+                    stored_metrics = json.loads(raw_metrics)
+                except (TypeError, ValueError) as parse_err:
+                    logger.warning(
+                        f"Failed to parse stored metrics config "
+                        f"({parse_err}); defaulting to all metrics enabled"
+                    )
+            metrics = normalize_metrics_config(stored_metrics)
+
             job_config = {
                 'evaluation_id': item['evaluation_id'],
                 'dataset_id': item['dataset_id'],
                 'models': models,
                 'weights': weights,
+                'metrics': metrics,
                 'status': item.get('status', 'pending'),
                 'created_at': item.get('created_at', ''),
                 'total_samples': item.get('total_samples')
             }
-            
-            logger.info(f"Loaded job config: {len(models)} models, weights: {weights}")
+
+            logger.info(
+                f"Loaded job config: {len(models)} models, weights: {weights}, metrics: {metrics}"
+            )
             return job_config
             
         except ClientError as e:

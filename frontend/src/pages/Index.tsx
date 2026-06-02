@@ -10,7 +10,9 @@ import {
   useEvaluationResults,
   useEvaluationStatus,
 } from '@/hooks/useEvaluation';
-import type { EvaluationConfig } from '@/types/evaluation';
+import type { EvaluationConfig, TaskType } from '@/types/evaluation';
+import { DEFAULT_METRICS_TOGGLES } from '@/types/evaluation';
+import { buildDefaultsForTask, hasAtLeastOneMetric, pickEnabledMetrics } from '@/utils/metrics';
 import { AlertCircle, ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -21,6 +23,7 @@ export default function Index() {
   const [step, setStep] = useState(0);
   const [config, setConfig] = useState<EvaluationConfig>({
     weights: { accuracy: 40, cost: 30, latency: 30 },
+    metrics: { ...DEFAULT_METRICS_TOGGLES },
     selectedModels: [],
     datasetFile: null,
   });
@@ -61,6 +64,11 @@ export default function Index() {
       config.weights.accuracy + config.weights.cost + config.weights.latency;
     if (sum !== 100) return;
 
+    if (!hasAtLeastOneMetric(config.metrics)) {
+      setError('At least one accuracy metric must be selected.');
+      return;
+    }
+
     setError(null);
     createEvaluationMutation.mutate(
       {
@@ -74,6 +82,7 @@ export default function Index() {
           latency: config.weights.latency / 100,
           cost: config.weights.cost / 100,
         },
+        metrics: pickEnabledMetrics(config.metrics),
       },
       {
         onSuccess: (data) => {
@@ -90,12 +99,21 @@ export default function Index() {
     datasetId,
     config.selectedModels,
     config.weights,
+    config.metrics,
     createEvaluationMutation,
   ]);
 
   const handleUploadSuccess = useCallback(
-    (data: { dataset_id: string; sample_count: number }) => {
+    (data: {
+      dataset_id: string;
+      sample_count: number;
+      taskType: TaskType | undefined;
+    }) => {
       setDatasetId(data.dataset_id);
+      setConfig((prev) => ({
+        ...prev,
+        metrics: buildDefaultsForTask(data.taskType),
+      }));
     },
     [],
   );
@@ -105,6 +123,7 @@ export default function Index() {
     setStep(0);
     setConfig({
       weights: { accuracy: 40, cost: 30, latency: 30 },
+      metrics: { ...DEFAULT_METRICS_TOGGLES },
       selectedModels: [],
       datasetFile: null,
     });
@@ -153,6 +172,10 @@ export default function Index() {
                   onStartEvaluation={handleStartEvaluation}
                   onUploadSuccess={handleUploadSuccess}
                   isStarting={createEvaluationMutation.isPending}
+                  metrics={config.metrics}
+                  onMetricsChange={(m) =>
+                    setConfig({ ...config, metrics: m })
+                  }
                 />
               )}
 
