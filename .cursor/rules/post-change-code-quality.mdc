@@ -1,0 +1,49 @@
+---
+description: Code quality rules for ESLint, Prettier, TypeScript, tests, and SAM templates
+globs:
+alwaysApply: true
+---
+
+# Code Quality
+
+Before completing any task that involves code changes, you MUST:
+
+1. Run ESLint to check for linting errors:
+
+   ```bash
+   pnpm run lint:backend
+   pnpm run lint:frontend
+   ```
+
+2. Run Prettier to check for formatting issues:
+
+   ```bash
+   pnpm run format:check
+   ```
+
+   If formatting fails, fix with:
+
+   ```bash
+   pnpm run format
+   ```
+
+3. Run TypeScript type checking:
+
+   ```bash
+   pnpm exec tsc --noEmit -p backend/tsconfig.json
+   pnpm exec tsc --noEmit -p frontend/tsconfig.app.json
+   ```
+
+4. Run tests:
+
+   ```bash
+   pnpm run test
+   ```
+
+5. If any SAM template (e.g., `template.yaml`, `infrastructure/*.yaml`, `samconfig.toml`) was updated, validate the template:
+
+   ```bash
+   sam validate
+   ```
+
+6. Fix any errors or formatting issues before telling the user the task is done.
