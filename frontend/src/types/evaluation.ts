@@ -141,7 +141,8 @@ export const METRIC_GROUPS: MetricGroup[] = [
       {
         key: 'geval_faithfulness',
         label: 'G-Eval — Faithfulness',
-        description: 'Whether the output sticks to the input (no hallucination).',
+        description:
+          'Whether the output sticks to the input (no hallucination).',
       },
     ],
   },

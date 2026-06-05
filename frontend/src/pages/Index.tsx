@@ -12,7 +12,11 @@ import {
 } from '@/hooks/useEvaluation';
 import type { EvaluationConfig, TaskType } from '@/types/evaluation';
 import { DEFAULT_METRICS_TOGGLES } from '@/types/evaluation';
-import { buildDefaultsForTask, hasAtLeastOneMetric, pickEnabledMetrics } from '@/utils/metrics';
+import {
+  buildDefaultsForTask,
+  hasAtLeastOneMetric,
+  pickEnabledMetrics,
+} from '@/utils/metrics';
 import { AlertCircle, ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -173,9 +177,7 @@ export default function Index() {
                   onUploadSuccess={handleUploadSuccess}
                   isStarting={createEvaluationMutation.isPending}
                   metrics={config.metrics}
-                  onMetricsChange={(m) =>
-                    setConfig({ ...config, metrics: m })
-                  }
+                  onMetricsChange={(m) => setConfig({ ...config, metrics: m })}
                 />
               )}
 

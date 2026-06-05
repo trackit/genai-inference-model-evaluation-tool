@@ -1,4 +1,4 @@
-name: "Linting and Code Formatting check"
+name: 'Linting and Code Formatting check'
 
 on:
   pull_request:

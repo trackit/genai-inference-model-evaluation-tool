@@ -382,7 +382,7 @@ export function resolveModelsFromSummaries(
   const out: ModelConfig[] = [];
   for (const m of models) {
     const resolvedId = resolveOneIdentifier(m, summaries, profiles);
-    
+
     const profile = profileById.get(resolvedId);
     if (profile) {
       const foundationId = foundationModelIdForProfile(profile, TARGET_REGION);
