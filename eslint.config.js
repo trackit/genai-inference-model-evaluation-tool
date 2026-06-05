@@ -8,24 +8,11 @@ export default defineConfig(
   [
     {
       files: ['**/*.{js,mjs,cjs,ts,mts,cts}'],
-      ignores: ['eslint.config.js'],
       plugins: { js },
       extends: ['js/recommended'],
       languageOptions: {
         globals: globals.node,
         parser: tseslint.parser,
-        parserOptions: {
-          project: './tsconfig.json',
-          tsconfigRootDir: import.meta.dirname,
-        },
-      },
-    },
-    {
-      files: ['eslint.config.js'],
-      plugins: { js },
-      extends: ['js/recommended'],
-      languageOptions: {
-        globals: globals.node,
         parserOptions: {
           project: './tsconfig.json',
           tsconfigRootDir: import.meta.dirname,
@@ -41,6 +28,12 @@ export default defineConfig(
     eslintConfigPrettier,
   ],
   {
-    ignores: ['**/dist/', '**/node_modules/', '.aws-sam/', 'frontend/'],
+    ignores: [
+      '**/dist/',
+      '**/node_modules/',
+      '.aws-sam/',
+      'frontend/',
+      'eslint.config.js',
+    ],
   },
 );
