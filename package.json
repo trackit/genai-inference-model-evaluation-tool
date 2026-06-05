@@ -17,7 +17,8 @@
     "test:handlers": "vitest run backend/src/handlers/",
     "test:usecases": "vitest run backend/src/useCases/",
     "test:services": "vitest run backend/src/services/",
-    "lint": "eslint .",
+    "lint:backend": "eslint .",
+    "lint:frontend": "pnpm --dir frontend lint",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

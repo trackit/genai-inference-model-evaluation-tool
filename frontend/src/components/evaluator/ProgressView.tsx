@@ -23,11 +23,15 @@ export function ProgressView({
   const [showCompiling, setShowCompiling] = useState(false);
 
   useEffect(() => {
-    if (pct >= 100) {
-      const timer = setTimeout(() => setShowCompiling(true), 1000);
-      return () => clearTimeout(timer);
+    if (pct < 100) {
+      return;
     }
-    setShowCompiling(false);
+
+    const timer = setTimeout(() => setShowCompiling(true), 1000);
+    return () => {
+      clearTimeout(timer);
+      setShowCompiling(false);
+    };
   }, [pct]);
 
   const isCompiling = pct >= 100 && showCompiling;

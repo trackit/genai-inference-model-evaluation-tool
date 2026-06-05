@@ -18,7 +18,7 @@ import {
   pickEnabledMetrics,
 } from '@/utils/metrics';
 import { AlertCircle, ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 type Phase = 'config' | 'progress' | 'results';
 
@@ -43,11 +43,8 @@ export default function Index() {
     statusQuery.data?.status === 'completed' ? evaluationId : null,
   );
 
-  useEffect(() => {
-    if (statusQuery.data?.status === 'completed') {
-      setPhase('results');
-    }
-  }, [statusQuery.data?.status]);
+  const activePhase: Phase =
+    statusQuery.data?.status === 'completed' ? 'results' : phase;
 
   const weightsSum =
     config.weights.accuracy + config.weights.cost + config.weights.latency;
@@ -142,12 +139,12 @@ export default function Index() {
 
   return (
     <div className="flex min-h-screen">
-      {phase === 'config' && (
+      {activePhase === 'config' && (
         <StepIndicator currentStep={step} completedSteps={completedSteps} />
       )}
       <main className="flex-1 overflow-y-auto">
         <div
-          className={`mx-auto px-6 py-10 ${phase === 'results' ? 'max-w-6xl' : 'max-w-2xl px-8'}`}
+          className={`mx-auto px-6 py-10 ${activePhase === 'results' ? 'max-w-6xl' : 'max-w-2xl px-8'}`}
         >
           <div className="mb-8">
             <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -155,7 +152,7 @@ export default function Index() {
             </p>
           </div>
 
-          {phase === 'config' && (
+          {activePhase === 'config' && (
             <>
               {step === 0 && (
                 <MetricsWeights
@@ -212,7 +209,7 @@ export default function Index() {
             </>
           )}
 
-          {phase === 'progress' && statusData && (
+          {activePhase === 'progress' && statusData && (
             <>
               <ProgressView
                 status={statusData.status}
@@ -237,20 +234,22 @@ export default function Index() {
             </>
           )}
 
-          {phase === 'progress' && !statusData && statusQuery.isLoading && (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <p className="text-sm text-muted-foreground mt-4">
-                Loading evaluation status…
-              </p>
-            </div>
-          )}
+          {activePhase === 'progress' &&
+            !statusData &&
+            statusQuery.isLoading && (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <p className="text-sm text-muted-foreground mt-4">
+                  Loading evaluation status…
+                </p>
+              </div>
+            )}
 
-          {phase === 'results' && resultsQuery.data && (
+          {activePhase === 'results' && resultsQuery.data && (
             <ResultsView data={resultsQuery.data} onReset={handleReset} />
           )}
 
-          {phase === 'results' && resultsQuery.isLoading && (
+          {activePhase === 'results' && resultsQuery.isLoading && (
             <div className="flex flex-col items-center justify-center py-20">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               <p className="text-sm text-muted-foreground mt-4">
@@ -259,7 +258,7 @@ export default function Index() {
             </div>
           )}
 
-          {phase === 'results' && resultsQuery.isError && (
+          {activePhase === 'results' && resultsQuery.isError && (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
               <div className="flex items-center gap-2 text-destructive">
                 <AlertCircle className="h-5 w-5" />
