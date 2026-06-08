@@ -2,7 +2,7 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { register, reset } from '@trackit.io/di-container';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Dataset } from '../../models/Dataset';
-import { DatasetServiceImpl, tokenS3Client } from './DatasetService';
+import { DatasetServiceImpl, tokenS3Client } from './DatasetServiceS3';
 
 describe('DatasetService', () => {
   let service: DatasetServiceImpl;

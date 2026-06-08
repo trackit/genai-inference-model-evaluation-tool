@@ -6,6 +6,7 @@ import {
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
+import { EvaluationJobsRepository } from 'backend/src/ports/EvaluationJobsEvaluation';
 import { randomUUID } from 'crypto';
 import {
   DEFAULT_METRICS_CONFIG,
@@ -17,29 +18,6 @@ import {
   Recommendation,
   WeightConfig,
 } from '../../models/Evaluation';
-
-export type EvaluationJobsRepository = {
-  createEvaluation(
-    datasetId: string,
-    models: ModelConfig[],
-    weights: WeightConfig,
-    metrics: MetricsConfig,
-  ): Promise<EvaluationJob>;
-
-  updateEvaluation(
-    evaluationId: string,
-    updates: {
-      status?: JobStatus;
-      progress?: number;
-      current_model?: string;
-      samples_processed?: number;
-      total_samples?: number;
-      error_message?: string;
-    },
-  ): Promise<void>;
-
-  getEvaluation(evaluationId: string): Promise<EvaluationJob | null>;
-};
 
 export const tokenDynamoDBClient = createInjectionToken<DynamoDBClient>(
   'DynamoDBClient',

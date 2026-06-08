@@ -1,15 +1,12 @@
 import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
-
-export type FargateService = {
-  launchTask(evaluationId: string): Promise<void>;
-};
+import { TaskService } from '../../ports/TaskService';
 
 export const tokenECSClient = createInjectionToken<ECSClient>('ECSClient', {
   useClass: ECSClient,
 });
 
-class FargateServiceImpl implements FargateService {
+class FargateServiceImpl implements TaskService {
   private readonly clusterName = process.env.ECS_CLUSTER!;
   private readonly taskDefinition = process.env.TASK_DEFINITION!;
   private readonly subnetId = process.env.SUBNET_ID!;
@@ -48,7 +45,7 @@ class FargateServiceImpl implements FargateService {
   }
 }
 
-export const tokenFargateService = createInjectionToken<FargateService>(
+export const tokenFargateService = createInjectionToken<TaskService>(
   'FargateService',
   { useClass: FargateServiceImpl },
 );

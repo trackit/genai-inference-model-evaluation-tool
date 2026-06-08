@@ -9,12 +9,9 @@ import {
 } from '@aws-sdk/client-bedrock';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
+import { BedrockModelValidationService } from 'backend/src/ports/ModelValidationService';
 import { BasicError, BasicErrorType } from '../../errors';
 import type { ModelConfig } from '../../models/Evaluation';
-
-export type BedrockModelValidationService = {
-  resolveModelsForPersistence(models: ModelConfig[]): Promise<ModelConfig[]>;
-};
 
 export const tokenBedrockClient = createInjectionToken<BedrockClient>(
   'BedrockClient',

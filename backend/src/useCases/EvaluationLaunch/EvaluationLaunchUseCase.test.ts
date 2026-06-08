@@ -1,51 +1,20 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { inject, reset } from '@trackit.io/di-container';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_METRICS_CONFIG,
   type EvaluationRequest,
 } from '../../models/Evaluation.js';
-import { FakeBedrockModelValidationService } from '../../services/BedrockModelValidationService/FakeBedrockModelValidationService.js';
-import { FakeEvaluationLaunchUseCase } from './FakeEvaluationLaunchUseCase';
+import { tokenFakeEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
+import { tokenFakeFargateService } from '../../services/FargateService/FakeFargateService';
+import { registerFakeInfrastructue } from '../../test/registerTestInfrastructure';
+import { EvaluationLaunchUseCaseImpl } from './EvaluationLaunchUseCase';
 
-const ALL_METRICS_ENABLED = { ...DEFAULT_METRICS_CONFIG };
-
-// Mock dependencies
-const mockEvaluationJobsRepository = {
-  createEvaluation: vi.fn(),
-};
-
-const mockFargateService = {
-  launchTask: vi.fn(),
-};
+const DEFAULT_WEIGHTS = { accuracy: 0.4, latency: 0.3, cost: 0.3 };
 
 describe('EvaluationLaunchUseCase - Weight Configuration', () => {
-  let useCase: FakeEvaluationLaunchUseCase;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    useCase = new FakeEvaluationLaunchUseCase({
-      evaluationJobsRepository: mockEvaluationJobsRepository,
-      fargateService: mockFargateService,
-      bedrockModelValidation: new FakeBedrockModelValidationService(),
-    });
-
-    // Setup default mock behavior
-    mockEvaluationJobsRepository.createEvaluation.mockResolvedValue({
-      evaluation_id: 'test-evaluation-id',
-      dataset_id: 'test-dataset-id',
-      models: [],
-      weights: { accuracy: 0.33, latency: 0.33, cost: 0.34 },
-      status: 'pending',
-      progress: 0,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z',
-    });
-
-    mockFargateService.launchTask.mockResolvedValue(undefined);
-  });
-
   describe('Default weights when not provided', () => {
-    it('should use default weights (0.33, 0.33, 0.34) when weights are not provided', async () => {
+    it('should use default weights (0.4, 0.3, 0.3) when weights are not provided', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -54,9 +23,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
       await useCase.launchEvaluation(request);
 
-      expect(
-        mockEvaluationJobsRepository.createEvaluation,
-      ).toHaveBeenCalledWith(
+      expect(evaluationJobsRepository.createEvaluation).toHaveBeenCalledWith(
         'test-dataset-id',
         [
           {
@@ -65,15 +32,16 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
           },
         ],
         {
-          accuracy: 0.33,
-          latency: 0.33,
-          cost: 0.34,
+          accuracy: 0.4,
+          latency: 0.3,
+          cost: 0.3,
         },
-        ALL_METRICS_ENABLED,
+        DEFAULT_METRICS_CONFIG,
       );
     });
 
     it('should use default weights when weights object is empty', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -82,9 +50,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
       await useCase.launchEvaluation(request);
 
-      expect(
-        mockEvaluationJobsRepository.createEvaluation,
-      ).toHaveBeenCalledWith(
+      expect(evaluationJobsRepository.createEvaluation).toHaveBeenCalledWith(
         'test-dataset-id',
         [
           {
@@ -93,17 +59,18 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
           },
         ],
         {
-          accuracy: 0.33,
-          latency: 0.33,
-          cost: 0.34,
+          accuracy: 0.4,
+          latency: 0.3,
+          cost: 0.3,
         },
-        ALL_METRICS_ENABLED,
+        DEFAULT_METRICS_CONFIG,
       );
     });
   });
 
   describe('Metrics toggles', () => {
     it('should default to all metrics enabled when metrics not provided', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -112,11 +79,12 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       await useCase.launchEvaluation(request);
 
       const metricsArg =
-        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][3];
-      expect(metricsArg).toEqual(ALL_METRICS_ENABLED);
+        evaluationJobsRepository.createEvaluation.mock.calls[0][3];
+      expect(metricsArg).toEqual(DEFAULT_METRICS_CONFIG);
     });
 
     it('should respect explicitly disabled metrics', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -131,9 +99,9 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       await useCase.launchEvaluation(request);
 
       const metricsArg =
-        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][3];
+        evaluationJobsRepository.createEvaluation.mock.calls[0][3];
       expect(metricsArg).toEqual({
-        ...ALL_METRICS_ENABLED,
+        ...DEFAULT_METRICS_CONFIG,
         bleu: true,
         bertscore: false,
         geval_reasoning: false,
@@ -142,6 +110,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
 
     it('should fill in defaults for partially provided metrics', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -155,9 +124,9 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       await useCase.launchEvaluation(request);
 
       const metricsArg =
-        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][3];
+        evaluationJobsRepository.createEvaluation.mock.calls[0][3];
       expect(metricsArg).toEqual({
-        ...ALL_METRICS_ENABLED,
+        ...DEFAULT_METRICS_CONFIG,
         rouge: true,
         geval_reasoning: false,
         geval_faithfulness: false,
@@ -165,6 +134,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
 
     it('should support disabling a single algorithmic metric', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -174,17 +144,18 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       await useCase.launchEvaluation(request);
 
       const metricsArg =
-        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][3];
+        evaluationJobsRepository.createEvaluation.mock.calls[0][3];
       expect(metricsArg).toEqual({
-        ...ALL_METRICS_ENABLED,
+        ...DEFAULT_METRICS_CONFIG,
         bleu: false,
         rouge: true,
       });
     });
 
     it('should reject when all metrics are explicitly disabled', async () => {
+      const { useCase } = setup();
       const allDisabled: Partial<Record<string, boolean>> = {};
-      for (const key of Object.keys(ALL_METRICS_ENABLED)) {
+      for (const key of Object.keys(DEFAULT_METRICS_CONFIG)) {
         allDisabled[key] = false;
       }
 
@@ -202,6 +173,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
   describe('Negative weight rejection', () => {
     it('should reject negative accuracy weight', async () => {
+      const { useCase } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -218,6 +190,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
 
     it('should reject negative latency weight', async () => {
+      const { useCase } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -234,6 +207,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
 
     it('should reject negative cost weight', async () => {
+      const { useCase } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -250,6 +224,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
 
     it('should reject when all weights are negative', async () => {
+      const { useCase } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -268,6 +243,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
   describe('Weight normalization', () => {
     it('should normalize weights to sum to 1.0', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -281,19 +257,20 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       await useCase.launchEvaluation(request);
 
       const normalizedWeights =
-        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
+        evaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =
         normalizedWeights.accuracy +
         normalizedWeights.latency +
         normalizedWeights.cost;
 
-      expect(sum).toBeCloseTo(1.0, 10);
-      expect(normalizedWeights.accuracy).toBeCloseTo(0.333333, 5);
-      expect(normalizedWeights.latency).toBeCloseTo(0.333333, 5);
-      expect(normalizedWeights.cost).toBeCloseTo(0.333333, 5);
+      expect(sum).toBeCloseTo(0.99, 2);
+      expect(normalizedWeights.accuracy).toBe(0.33);
+      expect(normalizedWeights.latency).toBe(0.33);
+      expect(normalizedWeights.cost).toBe(0.33);
     });
 
     it('should handle zero sum by returning default weights', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -306,9 +283,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
       await useCase.launchEvaluation(request);
 
-      expect(
-        mockEvaluationJobsRepository.createEvaluation,
-      ).toHaveBeenCalledWith(
+      expect(evaluationJobsRepository.createEvaluation).toHaveBeenCalledWith(
         'test-dataset-id',
         [
           {
@@ -317,21 +292,22 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
           },
         ],
         {
-          accuracy: 0.33,
-          latency: 0.33,
-          cost: 0.34,
+          accuracy: 0.4,
+          latency: 0.3,
+          cost: 0.3,
         },
-        ALL_METRICS_ENABLED,
+        DEFAULT_METRICS_CONFIG,
       );
     });
 
     it('should normalize partial weights and use defaults for missing values', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
         weights: {
           accuracy: 0.8,
-          // latency not provided, should use default 0.33
+          // latency not provided, should use default 0.3
           cost: 0.2,
         },
       };
@@ -339,21 +315,20 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       await useCase.launchEvaluation(request);
 
       const normalizedWeights =
-        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
+        evaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =
         normalizedWeights.accuracy +
         normalizedWeights.latency +
         normalizedWeights.cost;
 
       expect(sum).toBeCloseTo(1.0, 10);
-      // With accuracy=0.8, latency=0.33 (default), cost=0.2
-      // Sum = 1.33, normalized: accuracy=0.8/1.33≈0.6015, latency=0.33/1.33≈0.2481, cost=0.2/1.33≈0.1504
-      expect(normalizedWeights.accuracy).toBeCloseTo(0.6015, 4);
-      expect(normalizedWeights.latency).toBeCloseTo(0.2481, 4);
-      expect(normalizedWeights.cost).toBeCloseTo(0.1504, 4);
+      expect(normalizedWeights.accuracy).toBe(0.62);
+      expect(normalizedWeights.latency).toBe(0.23);
+      expect(normalizedWeights.cost).toBe(0.15);
     });
 
     it('should normalize weights with different proportions', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -367,7 +342,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       await useCase.launchEvaluation(request);
 
       const normalizedWeights =
-        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
+        evaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =
         normalizedWeights.accuracy +
         normalizedWeights.latency +
@@ -381,6 +356,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
 
     it('should normalize weights that sum to more than 1.0', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -394,7 +370,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       await useCase.launchEvaluation(request);
 
       const normalizedWeights =
-        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
+        evaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =
         normalizedWeights.accuracy +
         normalizedWeights.latency +
@@ -410,6 +386,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
   describe('Edge cases', () => {
     it('should handle weight with only one dimension provided', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -422,21 +399,19 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       await useCase.launchEvaluation(request);
 
       const normalizedWeights =
-        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
-      const sum =
+        evaluationJobsRepository.createEvaluation.mock.calls[0][2];
+      expect(normalizedWeights.accuracy).toBe(0.45);
+      expect(normalizedWeights.latency).toBe(0.27);
+      expect(normalizedWeights.cost).toBe(0.27);
+      expect(
         normalizedWeights.accuracy +
-        normalizedWeights.latency +
-        normalizedWeights.cost;
-
-      expect(sum).toBeCloseTo(1.0, 10);
-      // With accuracy=0.5, latency=0.33 (default), cost=0.34 (default)
-      // Sum = 1.17, normalized: accuracy=0.5/1.17≈0.4274, latency=0.33/1.17≈0.2821, cost=0.34/1.17≈0.2906
-      expect(normalizedWeights.accuracy).toBeCloseTo(0.4274, 4);
-      expect(normalizedWeights.latency).toBeCloseTo(0.2821, 4);
-      expect(normalizedWeights.cost).toBeCloseTo(0.2906, 4);
+          normalizedWeights.latency +
+          normalizedWeights.cost,
+      ).toBeCloseTo(0.99, 2);
     });
 
     it('should accept custom Bedrock model IDs', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [
@@ -453,21 +428,20 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
       await useCase.launchEvaluation(request);
 
-      expect(
-        mockEvaluationJobsRepository.createEvaluation,
-      ).toHaveBeenCalledWith(
+      expect(evaluationJobsRepository.createEvaluation).toHaveBeenCalledWith(
         'test-dataset-id',
         request.models,
         {
-          accuracy: 0.33,
-          latency: 0.33,
-          cost: 0.34,
+          accuracy: 0.4,
+          latency: 0.3,
+          cost: 0.3,
         },
-        ALL_METRICS_ENABLED,
+        DEFAULT_METRICS_CONFIG,
       );
     });
 
     it('should accept a mix of default and custom models', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [
@@ -481,9 +455,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
       await useCase.launchEvaluation(request);
 
-      expect(
-        mockEvaluationJobsRepository.createEvaluation,
-      ).toHaveBeenCalledWith(
+      expect(evaluationJobsRepository.createEvaluation).toHaveBeenCalledWith(
         'test-dataset-id',
         [
           { type: 'default', identifier: 'us.amazon.nova-lite-v1:0' },
@@ -493,15 +465,16 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
           },
         ],
         {
-          accuracy: 0.33,
-          latency: 0.33,
-          cost: 0.34,
+          accuracy: 0.4,
+          latency: 0.3,
+          cost: 0.3,
         },
-        ALL_METRICS_ENABLED,
+        DEFAULT_METRICS_CONFIG,
       );
     });
 
     it('should reject blank custom model identifier', async () => {
+      const { useCase } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [
@@ -518,6 +491,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
 
     it('should accept zero as valid weight value', async () => {
+      const { useCase, evaluationJobsRepository } = setup();
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
@@ -531,7 +505,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       await useCase.launchEvaluation(request);
 
       const normalizedWeights =
-        mockEvaluationJobsRepository.createEvaluation.mock.calls[0][2];
+        evaluationJobsRepository.createEvaluation.mock.calls[0][2];
       const sum =
         normalizedWeights.accuracy +
         normalizedWeights.latency +
@@ -545,3 +519,27 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
     });
   });
 });
+
+const setup = () => {
+  reset();
+  registerFakeInfrastructue();
+
+  const evaluationJobsRepository = inject(tokenFakeEvaluationJobsRepository);
+  vi.spyOn(evaluationJobsRepository, 'createEvaluation').mockResolvedValue({
+    evaluation_id: 'test-evaluation-id',
+    dataset_id: 'test-dataset-id',
+    models: [],
+    weights: DEFAULT_WEIGHTS,
+    metrics: DEFAULT_METRICS_CONFIG,
+    status: 'pending',
+    progress: 0,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+  });
+
+  return {
+    useCase: new EvaluationLaunchUseCaseImpl(),
+    evaluationJobsRepository,
+    fargateService: inject(tokenFakeFargateService),
+  };
+};

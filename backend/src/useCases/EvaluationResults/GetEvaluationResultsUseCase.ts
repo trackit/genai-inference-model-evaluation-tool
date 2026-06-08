@@ -2,7 +2,7 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { BasicError, BasicErrorType } from '../../errors';
 import { EvaluationResultsData } from '../../models/Evaluation';
-import { tokenEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/EvaluationJobsRepository';
+import { tokenEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/EvaluationJobsDynamoDBRepository';
 
 export type GetEvaluationResultsUseCase = {
   getResults(evaluationId: string): Promise<EvaluationResultsData>;
