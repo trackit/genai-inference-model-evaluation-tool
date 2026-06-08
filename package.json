@@ -4,6 +4,7 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "dev": "sam local start-api",
     "build": "pnpm --dir frontend build && sam build",
@@ -16,8 +17,10 @@
     "test:handlers": "vitest run backend/src/handlers/",
     "test:usecases": "vitest run backend/src/useCases/",
     "test:services": "vitest run backend/src/services/",
-    "lint": "eslint .",
-    "format": "prettier --write ."
+    "lint:backend": "eslint .",
+    "lint:frontend": "pnpm --dir frontend lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@aws-sdk/client-bedrock": "^3.800.0",

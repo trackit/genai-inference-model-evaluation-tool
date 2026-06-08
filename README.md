@@ -13,10 +13,10 @@ The tool guides users through a four-step workflow:
 
 ### Supported task types
 
-| Task | Dataset format | Metrics computed |
-|------|---------------|-----------------|
-| Summarization | `document` + `summary` columns | BLEU, ROUGE, METEOR, Levenshtein, BERTScore, G-Eval |
-| Classification | `document` + `label` columns | Accuracy, Precision, Recall, F1 (macro & weighted), G-Eval |
+| Task           | Dataset format                 | Metrics computed                                           |
+| -------------- | ------------------------------ | ---------------------------------------------------------- |
+| Summarization  | `document` + `summary` columns | BLEU, ROUGE, METEOR, Levenshtein, BERTScore, G-Eval        |
+| Classification | `document` + `label` columns   | Accuracy, Precision, Recall, F1 (macro & weighted), G-Eval |
 
 ### Architecture
 
@@ -50,14 +50,14 @@ The Python evaluation engine runs as a Docker container on ECS Fargate. It loads
 
 ## Prerequisites
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Node.js | 24+ | Backend Lambda functions |
-| pnpm | 10+ | Package manager |
-| Python | 3.12 | Evaluation engine (local dev) |
-| AWS SAM CLI | latest | Build and deploy |
-| Docker | latest | Build the Fargate image |
-| AWS CLI | v2 | Credentials and ECR login |
+| Tool        | Version | Purpose                       |
+| ----------- | ------- | ----------------------------- |
+| Node.js     | 24+     | Backend Lambda functions      |
+| pnpm        | 10+     | Package manager               |
+| Python      | 3.12    | Evaluation engine (local dev) |
+| AWS SAM CLI | latest  | Build and deploy              |
+| Docker      | latest  | Build the Fargate image       |
+| AWS CLI     | v2      | Credentials and ECR login     |
 
 Your AWS credentials must have access to Bedrock, ECR, ECS, S3, DynamoDB, Lambda, API Gateway, CloudFront, and VPC.
 
@@ -110,6 +110,7 @@ bash scripts/deploy-evaluation-engine.sh
 ```
 
 The script:
+
 - Builds the image for `linux/amd64` (required by Fargate)
 - Logs in to ECR using your active AWS credentials
 - Tags and pushes two tags: a timestamped build ID and `latest`
@@ -178,13 +179,13 @@ pnpm test:services    # AWS service integrations
 
 ### Test layers
 
-| Layer | Location | What is tested |
-|-------|----------|---------------|
-| Handlers | `backend/src/handlers/**/*.test.ts` | Request parsing, response shaping, error codes |
-| Use cases | `backend/src/useCases/**/*.test.ts` | Business rules, orchestration logic |
-| Services | `backend/src/services/**/*.test.ts` | DynamoDB, S3, ECS adapter behaviour |
-| Parsers | `backend/src/parsers/**/*.test.ts` | CSV and JSONL parsing, including property-based tests with `fast-check` |
-| Frontend | `frontend/src/services/apiService.test.ts` | API client contract |
+| Layer     | Location                                   | What is tested                                                          |
+| --------- | ------------------------------------------ | ----------------------------------------------------------------------- |
+| Handlers  | `backend/src/handlers/**/*.test.ts`        | Request parsing, response shaping, error codes                          |
+| Use cases | `backend/src/useCases/**/*.test.ts`        | Business rules, orchestration logic                                     |
+| Services  | `backend/src/services/**/*.test.ts`        | DynamoDB, S3, ECS adapter behaviour                                     |
+| Parsers   | `backend/src/parsers/**/*.test.ts`         | CSV and JSONL parsing, including property-based tests with `fast-check` |
+| Frontend  | `frontend/src/services/apiService.test.ts` | API client contract                                                     |
 
 AWS SDK calls are mocked with Vitest's `vi.mock` so tests run without AWS credentials. Property-based tests use `fast-check` to verify parser invariants across randomly generated inputs.
 

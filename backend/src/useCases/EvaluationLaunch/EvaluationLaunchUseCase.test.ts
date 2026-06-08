@@ -145,7 +145,11 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       const request: EvaluationRequest = {
         dataset_id: 'test-dataset-id',
         models: [{ type: 'default', identifier: 'claude-sonnet' }],
-        metrics: { rouge: true, geval_reasoning: false, geval_faithfulness: false },
+        metrics: {
+          rouge: true,
+          geval_reasoning: false,
+          geval_faithfulness: false,
+        },
       };
 
       await useCase.launchEvaluation(request);
@@ -171,7 +175,11 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
       const metricsArg =
         mockEvaluationJobsRepository.createEvaluation.mock.calls[0][3];
-      expect(metricsArg).toEqual({ ...ALL_METRICS_ENABLED, bleu: false, rouge: true });
+      expect(metricsArg).toEqual({
+        ...ALL_METRICS_ENABLED,
+        bleu: false,
+        rouge: true,
+      });
     });
 
     it('should reject when all metrics are explicitly disabled', async () => {

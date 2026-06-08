@@ -4,18 +4,18 @@ React 19 + Vite + Tailwind application that drives the four-step model evaluatio
 
 ## Tech stack
 
-| Layer | Library / Tool |
-|-------|---------------|
-| Framework | React 19 |
-| Build tool | Vite 7 |
-| Styling | Tailwind CSS 4 |
+| Layer                | Library / Tool            |
+| -------------------- | ------------------------- |
+| Framework            | React 19                  |
+| Build tool           | Vite 7                    |
+| Styling              | Tailwind CSS 4            |
 | Component primitives | Radix UI, Base UI, shadcn |
-| Animations | Framer Motion |
-| Charts | Recharts |
-| Data fetching | TanStack Query v5 |
-| Routing | React Router v7 |
-| Testing | Vitest + Testing Library |
-| Language | TypeScript 5 |
+| Animations           | Framer Motion             |
+| Charts               | Recharts                  |
+| Data fetching        | TanStack Query v5         |
+| Routing              | React Router v7           |
+| Testing              | Vitest + Testing Library  |
+| Language             | TypeScript 5              |
 
 ## Project structure
 
@@ -89,14 +89,14 @@ The app is served at `http://localhost:5173`.
 
 ## Available scripts
 
-| Script | Command | Description |
-|--------|---------|-------------|
-| Dev server | `pnpm dev` | Start Vite with HMR at http://localhost:5173 |
-| Build | `pnpm build` | Type-check and bundle to `dist/` |
-| Preview | `pnpm preview` | Serve the production build locally |
-| Lint | `pnpm lint` | Run ESLint |
-| Test | `pnpm test` | Run Vitest in watch mode |
-| Deploy | `pnpm deploy:webui` | Generate env vars, build, and sync to S3 |
+| Script     | Command             | Description                                  |
+| ---------- | ------------------- | -------------------------------------------- |
+| Dev server | `pnpm dev`          | Start Vite with HMR at http://localhost:5173 |
+| Build      | `pnpm build`        | Type-check and bundle to `dist/`             |
+| Preview    | `pnpm preview`      | Serve the production build locally           |
+| Lint       | `pnpm lint`         | Run ESLint                                   |
+| Test       | `pnpm test`         | Run Vitest in watch mode                     |
+| Deploy     | `pnpm deploy:webui` | Generate env vars, build, and sync to S3     |
 
 ## Testing
 
@@ -114,9 +114,9 @@ The main test file (`src/services/apiService.test.ts`) verifies the API client c
 
 ## Environment variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_API_URL` | Yes | Base URL of the deployed API Gateway HTTP API |
-| `STAGE` | Deployment only | Deployment stage used by the deploy scripts |
+| Variable       | Required        | Description                                   |
+| -------------- | --------------- | --------------------------------------------- |
+| `VITE_API_URL` | Yes             | Base URL of the deployed API Gateway HTTP API |
+| `STAGE`        | Deployment only | Deployment stage used by the deploy scripts   |
 
 All variables are consumed at build time by Vite; only `VITE_`-prefixed variables are exposed to the browser bundle.

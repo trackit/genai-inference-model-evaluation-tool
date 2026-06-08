@@ -120,12 +120,6 @@ describe('endpoint functions', () => {
 
       const file = new File(['bad'], 'bad.csv');
       await expect(uploadDataset(file)).rejects.toThrow(ApiError);
-
-      try {
-        await uploadDataset(file);
-      } catch (e) {
-        // second call won't reach here since we already asserted above
-      }
     });
   });
 

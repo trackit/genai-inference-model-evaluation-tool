@@ -46,7 +46,8 @@ export function MetricsPicker({
         </h2>
       </div>
       <p className="text-xs text-muted-foreground mt-1 mb-4">
-        Latency and cost are always computed regardless of choice of accuracy metrics.
+        Latency and cost are always computed regardless of choice of accuracy
+        metrics.
       </p>
 
       <div className="space-y-4">

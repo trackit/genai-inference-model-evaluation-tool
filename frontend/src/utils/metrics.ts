@@ -1,9 +1,9 @@
 import {
   METRIC_GROUPS,
+  METRIC_KEYS,
   type MetricKey,
   type MetricsToggles,
   type TaskType,
-  METRIC_KEYS,
 } from '@/types/evaluation';
 
 export function buildDefaultsForTask(

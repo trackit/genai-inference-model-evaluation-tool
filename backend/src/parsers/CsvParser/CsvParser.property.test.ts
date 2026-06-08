@@ -1,6 +1,6 @@
 import * as fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { CsvParser } from './CsvParser';
+import { CsvParserImpl } from './CsvParser';
 
 /**
  * Property-Based Tests for CSV Parser
@@ -9,64 +9,58 @@ import { CsvParser } from './CsvParser';
  * and verify that validation logic holds across all cases.
  */
 describe('CsvParser - Property-Based Tests', () => {
-  const parser = new CsvParser();
+  const parser = new CsvParserImpl();
 
   describe('Property 1: CSV Validation', () => {
     /**
      * **Validates: Requirements 1.1**
      *
      * For any CSV file, the Dataset_Uploader should validate that it contains
-     * a "prompt" column, and reject files without this required column.
+     * a "document" column, and reject files without this required column.
      */
-    it('should accept any CSV with a "prompt" column', () => {
+    it('should accept any CSV with a "document" column', () => {
       fc.assert(
         fc.property(
-          // Generate arbitrary CSV data with a "prompt" column
           fc.record({
-            // Generate additional column names (excluding "prompt")
             additionalColumns: fc.array(
               fc
                 .string({ minLength: 1, maxLength: 20 })
                 .filter(
-                  (s) => s !== 'prompt' && !s.includes(',') && !s.includes('"'),
+                  (s) =>
+                    s !== 'document' && !s.includes(',') && !s.includes('"'),
                 ),
               { minLength: 0, maxLength: 5 },
             ),
-            // Generate rows of data
             rows: fc.array(
               fc
                 .record({
-                  prompt: fc.string({ minLength: 1, maxLength: 100 }),
+                  document: fc.string({ minLength: 1, maxLength: 100 }),
                   additionalValues: fc.array(fc.string({ maxLength: 50 }), {
                     maxLength: 5,
                   }),
                 })
-                .filter((row) => row.prompt.trim() !== ''), // Ensure prompt is not just whitespace
+                .filter((row) => row.document.trim() !== ''),
               { minLength: 1, maxLength: 10 },
             ),
-            // Randomly position the "prompt" column
-            promptPosition: fc.nat({ max: 5 }),
+            documentPosition: fc.nat({ max: 5 }),
           }),
-          ({ additionalColumns, rows, promptPosition }) => {
-            // Build column headers with "prompt" at the specified position
+          ({ additionalColumns, rows, documentPosition }) => {
             const columns = [...additionalColumns];
             columns.splice(
-              Math.min(promptPosition, columns.length),
+              Math.min(documentPosition, columns.length),
               0,
-              'prompt',
+              'document',
             );
 
-            // Build CSV content
             const header = columns.join(',');
             const dataRows = rows.map((row) => {
               const values = [...row.additionalValues];
-              const promptIndex = Math.min(
-                promptPosition,
+              const documentIndex = Math.min(
+                documentPosition,
                 additionalColumns.length,
               );
-              values.splice(promptIndex, 0, escapeCSVValue(row.prompt));
+              values.splice(documentIndex, 0, escapeCSVValue(row.document));
 
-              // Pad or trim to match column count
               while (values.length < columns.length) {
                 values.push('');
               }
@@ -76,19 +70,15 @@ describe('CsvParser - Property-Based Tests', () => {
             });
 
             const csv = [header, ...dataRows].join('\n');
-
-            // The parser should successfully parse any CSV with a "prompt" column
             const result = parser.parse(csv);
 
-            // Verify the result has the expected structure
             expect(result).toHaveProperty('samples');
             expect(Array.isArray(result.samples)).toBe(true);
             expect(result.samples.length).toBeGreaterThan(0);
 
-            // Verify all samples have a prompt field
             result.samples.forEach((sample) => {
-              expect(sample).toHaveProperty('prompt');
-              expect(typeof sample.prompt).toBe('string');
+              expect(sample).toHaveProperty('document');
+              expect(typeof sample.document).toBe('string');
             });
           },
         ),
@@ -96,25 +86,22 @@ describe('CsvParser - Property-Based Tests', () => {
       );
     });
 
-    it('should reject any CSV without a "prompt" column', () => {
+    it('should reject any CSV without a "document" column', () => {
       fc.assert(
         fc.property(
-          // Generate arbitrary CSV data WITHOUT a "prompt" column
           fc.record({
-            // Generate column names that are NOT "prompt" (non-empty after trim)
             columns: fc.array(
               fc
                 .string({ minLength: 1, maxLength: 20 })
                 .filter(
                   (s) =>
                     s.trim() !== '' &&
-                    s !== 'prompt' &&
+                    s !== 'document' &&
                     !s.includes(',') &&
                     !s.includes('"'),
                 ),
               { minLength: 1, maxLength: 5 },
             ),
-            // Generate rows of data (at least one non-empty row)
             rows: fc.array(
               fc.array(fc.string({ minLength: 1, maxLength: 50 }), {
                 minLength: 1,
@@ -124,17 +111,14 @@ describe('CsvParser - Property-Based Tests', () => {
             ),
           }),
           ({ columns, rows }) => {
-            // Ensure we don't accidentally include "prompt"
             const filteredColumns = columns.filter(
-              (c) => c !== 'prompt' && c.trim() !== '',
+              (c) => c !== 'document' && c.trim() !== '',
             );
 
-            // Skip if no columns remain
             if (filteredColumns.length === 0) {
-              return true; // Skip this test case
+              return true;
             }
 
-            // Build CSV content with at least one non-empty data row
             const header = filteredColumns.join(',');
             const dataRows = rows.map((row) => {
               const values = row.slice(0, filteredColumns.length);
@@ -146,9 +130,8 @@ describe('CsvParser - Property-Based Tests', () => {
 
             const csv = [header, ...dataRows].join('\n');
 
-            // The parser should reject CSV files without a "prompt" column
             expect(() => parser.parse(csv)).toThrow(
-              'CSV file must contain a "prompt" column',
+              'CSV file must contain a "document" column',
             );
           },
         ),
@@ -156,20 +139,19 @@ describe('CsvParser - Property-Based Tests', () => {
       );
     });
 
-    it('should accept CSV with "prompt" column regardless of other columns', () => {
+    it('should accept CSV with "document" column regardless of other columns', () => {
       fc.assert(
         fc.property(
-          // Generate CSV with "prompt" and various other columns
           fc.record({
-            hasContext: fc.boolean(),
-            hasReferenceOutput: fc.boolean(),
+            hasSummary: fc.boolean(),
+            hasClass: fc.boolean(),
             otherColumns: fc.array(
               fc
                 .string({ minLength: 1, maxLength: 20 })
                 .filter(
                   (s) =>
                     s.trim() !== '' &&
-                    !['prompt', 'context', 'reference_output'].includes(s) &&
+                    !['document', 'summary', 'class'].includes(s) &&
                     !s.includes(',') &&
                     !s.includes('"'),
                 ),
@@ -177,19 +159,19 @@ describe('CsvParser - Property-Based Tests', () => {
             ),
             rows: fc.array(
               fc.record({
-                prompt: fc
+                document: fc
                   .string({ minLength: 1, maxLength: 100 })
-                  .filter((s) => s.trim() !== '' && s === s.trim()), // No leading/trailing whitespace
-                context: fc.option(
+                  .filter((s) => s.trim() !== '' && s === s.trim()),
+                summary: fc.option(
                   fc
                     .string({ minLength: 1, maxLength: 100 })
-                    .filter((s) => s.trim() !== '' && s === s.trim()), // No leading/trailing whitespace
+                    .filter((s) => s.trim() !== '' && s === s.trim()),
                   { nil: undefined },
                 ),
-                referenceOutput: fc.option(
+                classLabel: fc.option(
                   fc
                     .string({ minLength: 1, maxLength: 100 })
-                    .filter((s) => s.trim() !== '' && s === s.trim()), // No leading/trailing whitespace
+                    .filter((s) => s.trim() !== '' && s === s.trim()),
                   { nil: undefined },
                 ),
                 otherValues: fc.array(fc.string({ maxLength: 50 }), {
@@ -199,22 +181,18 @@ describe('CsvParser - Property-Based Tests', () => {
               { minLength: 1, maxLength: 10 },
             ),
           }),
-          ({ hasContext, hasReferenceOutput, otherColumns, rows }) => {
-            // Build columns
-            const columns = ['prompt'];
-            if (hasContext) columns.push('context');
-            if (hasReferenceOutput) columns.push('reference_output');
+          ({ hasSummary, hasClass, otherColumns, rows }) => {
+            const columns = ['document'];
+            if (hasSummary) columns.push('summary');
+            if (hasClass) columns.push('class');
             columns.push(...otherColumns);
 
-            // Build CSV
             const header = columns.join(',');
             const dataRows = rows.map((row) => {
-              const values: string[] = [escapeCSVValue(row.prompt)];
-              if (hasContext) values.push(escapeCSVValue(row.context || ''));
-              if (hasReferenceOutput)
-                values.push(escapeCSVValue(row.referenceOutput || ''));
+              const values: string[] = [escapeCSVValue(row.document)];
+              if (hasSummary) values.push(escapeCSVValue(row.summary || ''));
+              if (hasClass) values.push(escapeCSVValue(row.classLabel || ''));
 
-              // Add other values
               const otherVals = row.otherValues.slice(0, otherColumns.length);
               while (otherVals.length < otherColumns.length) {
                 otherVals.push('');
@@ -225,40 +203,35 @@ describe('CsvParser - Property-Based Tests', () => {
             });
 
             const csv = [header, ...dataRows].join('\n');
-
-            // Should parse successfully
             const result = parser.parse(csv);
 
             expect(result.samples.length).toBe(rows.length);
             result.samples.forEach((sample, idx) => {
-              // Since we filter out leading/trailing whitespace in generators,
-              // values should match exactly after CSV round-trip
-              const expectedPrompt = unescapeCSVValue(
-                escapeCSVValue(rows[idx].prompt),
+              const expectedDocument = unescapeCSVValue(
+                escapeCSVValue(rows[idx].document),
               );
-              expect(sample.prompt).toBe(expectedPrompt);
+              expect(sample.document).toBe(expectedDocument);
 
-              // For optional fields, the parser only includes them if they exist and are non-empty
-              if (hasContext && rows[idx].context && rows[idx].context !== '') {
-                const expectedContext = unescapeCSVValue(
-                  escapeCSVValue(rows[idx].context),
+              if (hasSummary && rows[idx].summary && rows[idx].summary !== '') {
+                const expectedSummary = unescapeCSVValue(
+                  escapeCSVValue(rows[idx].summary),
                 );
-                expect(sample.context).toBe(expectedContext);
+                expect(sample.summary).toBe(expectedSummary);
               } else {
-                expect(sample.context).toBeUndefined();
+                expect(sample.summary).toBeUndefined();
               }
 
               if (
-                hasReferenceOutput &&
-                rows[idx].referenceOutput &&
-                rows[idx].referenceOutput !== ''
+                hasClass &&
+                rows[idx].classLabel &&
+                rows[idx].classLabel !== ''
               ) {
-                const expectedRef = unescapeCSVValue(
-                  escapeCSVValue(rows[idx].referenceOutput),
+                const expectedClass = unescapeCSVValue(
+                  escapeCSVValue(rows[idx].classLabel),
                 );
-                expect(sample.reference_output).toBe(expectedRef);
+                expect(sample.class_label).toBe(expectedClass);
               } else {
-                expect(sample.reference_output).toBeUndefined();
+                expect(sample.class_label).toBeUndefined();
               }
             });
           },
@@ -269,13 +242,9 @@ describe('CsvParser - Property-Based Tests', () => {
   });
 });
 
-/**
- * Helper function to escape CSV values
- */
 function escapeCSVValue(value: string): string {
   if (!value) return '';
 
-  // If value contains comma, quote, or newline, wrap in quotes and escape quotes
   if (value.includes(',') || value.includes('"') || value.includes('\n')) {
     return `"${value.replace(/"/g, '""')}"`;
   }
@@ -283,13 +252,9 @@ function escapeCSVValue(value: string): string {
   return value;
 }
 
-/**
- * Helper function to unescape CSV values (reverse of escapeCSVValue)
- */
 function unescapeCSVValue(value: string): string {
   if (!value) return '';
 
-  // If value is wrapped in quotes, remove them and unescape internal quotes
   if (value.startsWith('"') && value.endsWith('"')) {
     return value.slice(1, -1).replace(/""/g, '"');
   }
