@@ -6,7 +6,7 @@ import {
 } from '../../models/Evaluation.js';
 import { tokenFakeEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
 import { tokenFakeFargateService } from '../../services/FargateService/FakeFargateService';
-import { registerFakeInfrastructue } from '../../test/registerTestInfrastructure';
+import { registerTestInfrastructue } from '../../test/registerTestInfrastructure';
 import { EvaluationLaunchUseCaseImpl } from './EvaluationLaunchUseCase';
 
 const DEFAULT_WEIGHTS = { accuracy: 0.4, latency: 0.3, cost: 0.3 };
@@ -522,7 +522,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
 
 const setup = () => {
   reset();
-  registerFakeInfrastructue();
+  registerTestInfrastructue();
 
   const evaluationJobsRepository = inject(tokenFakeEvaluationJobsRepository);
   vi.spyOn(evaluationJobsRepository, 'createEvaluation').mockResolvedValue({

@@ -1,7 +1,7 @@
 import { RunTaskCommand } from '@aws-sdk/client-ecs';
 import { inject, reset } from '@trackit.io/di-container';
 import { mockClient } from 'aws-sdk-client-mock';
-import { registerFakeInfrastructue } from 'backend/src/test/registerTestInfrastructure';
+import { registerTestInfrastructue } from 'backend/src/test/registerTestInfrastructure';
 import { describe, expect, it } from 'vitest';
 import { FargateServiceImpl, tokenClientECS } from './FargateService';
 
@@ -53,7 +53,7 @@ describe('FargateService', () => {
 
 const setup = () => {
   reset();
-  registerFakeInfrastructue();
+  registerTestInfrastructue();
 
   process.env.ECS_CLUSTER = 'test-cluster';
   process.env.TASK_DEFINITION = 'test-task-def';

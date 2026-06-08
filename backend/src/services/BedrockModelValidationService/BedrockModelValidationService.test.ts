@@ -11,7 +11,7 @@ import {
 } from '@aws-sdk/client-bedrock';
 import { inject, reset } from '@trackit.io/di-container';
 import { mockClient } from 'aws-sdk-client-mock';
-import { registerFakeInfrastructue } from 'backend/src/test/registerTestInfrastructure';
+import { registerTestInfrastructue } from 'backend/src/test/registerTestInfrastructure';
 import { describe, expect, it, vi } from 'vitest';
 import {
   BedrockModelValidationServiceImpl,
@@ -254,7 +254,7 @@ describe('BedrockModelValidationService', () => {
 
 const setup = () => {
   reset();
-  registerFakeInfrastructue();
+  registerTestInfrastructue();
   vi.spyOn(console, 'info').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 

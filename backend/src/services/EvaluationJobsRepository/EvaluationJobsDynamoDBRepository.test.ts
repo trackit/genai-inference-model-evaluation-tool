@@ -5,7 +5,7 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { inject, reset } from '@trackit.io/di-container';
 import { mockClient } from 'aws-sdk-client-mock';
-import { registerFakeInfrastructue } from 'backend/src/test/registerTestInfrastructure';
+import { registerTestInfrastructue } from 'backend/src/test/registerTestInfrastructure';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_METRICS_CONFIG } from '../../models/Evaluation';
 import {
@@ -232,7 +232,7 @@ describe('EvaluationJobsDynamoDBRepository', () => {
 
 const setup = () => {
   reset();
-  registerFakeInfrastructue();
+  registerTestInfrastructue();
 
   process.env.DYNAMODB_TABLE = 'evaluation-jobs-test';
   const dynamoClientMock = mockClient(inject(tokenClientDynamoDB));

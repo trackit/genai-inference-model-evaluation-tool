@@ -9,7 +9,7 @@ import {
 } from '../../models/Evaluation';
 import type { FakeEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
 import { tokenFakeEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
-import { registerFakeInfrastructue } from '../../test/registerTestInfrastructure';
+import { registerTestInfrastructue } from '../../test/registerTestInfrastructure';
 import { tokenGetEvaluationResultsUseCase } from './GetEvaluationResultsUseCase';
 
 const SAMPLE_MODEL_RESULT: ModelResult = {
@@ -124,7 +124,7 @@ describe('GetEvaluationResultsUseCase', () => {
 
 const setup = () => {
   reset();
-  registerFakeInfrastructue();
+  registerTestInfrastructue();
 
   return {
     useCase: inject(tokenGetEvaluationResultsUseCase),
