@@ -11,7 +11,40 @@ import { EvaluationLaunchUseCaseImpl } from './EvaluationLaunchUseCase';
 
 const DEFAULT_WEIGHTS = { accuracy: 0.4, latency: 0.3, cost: 0.3 };
 
-describe('EvaluationLaunchUseCase - Weight Configuration', () => {
+const validLaunchRequest = (): EvaluationRequest => ({
+  dataset_id: 'test-dataset-id',
+  models: [{ type: 'default', identifier: 'claude-sonnet' }],
+  weights: DEFAULT_WEIGHTS,
+});
+
+describe('EvaluationLaunchUseCase', () => {
+  describe('launchEvaluation', () => {
+    it('should persist the job and launch a Fargate task with the evaluation id', async () => {
+      const { useCase, evaluationJobsRepository, fargateService } = setup();
+      const request = validLaunchRequest();
+
+      const job = await useCase.launchEvaluation(request);
+
+      expect(job.evaluation_id).toBe('test-evaluation-id');
+      expect(evaluationJobsRepository.createEvaluation).toHaveBeenCalledOnce();
+      expect(evaluationJobsRepository.createEvaluation).toHaveBeenCalledWith(
+        request.dataset_id,
+        [
+          {
+            type: 'default',
+            identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+          },
+        ],
+        DEFAULT_WEIGHTS,
+        DEFAULT_METRICS_CONFIG,
+      );
+      expect(fargateService.launchedEvaluationIds).toEqual([
+        'test-evaluation-id',
+      ]);
+    });
+  });
+
+  describe('Weight Configuration', () => {
   describe('Default weights when not provided', () => {
     it('should use default weights (0.4, 0.3, 0.3) when weights are not provided', async () => {
       const { useCase, evaluationJobsRepository } = setup();
@@ -517,6 +550,7 @@ describe('EvaluationLaunchUseCase - Weight Configuration', () => {
       expect(normalizedWeights.latency).toBeCloseTo(0.5, 5);
       expect(normalizedWeights.cost).toBeCloseTo(0.5, 5);
     });
+  });
   });
 });
 
