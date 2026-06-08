@@ -19,14 +19,9 @@ import {
   WeightConfig,
 } from '../../models/Evaluation';
 
-export const tokenDynamoDBClient = createInjectionToken<DynamoDBClient>(
-  'DynamoDBClient',
-  { useClass: DynamoDBClient },
-);
-
-class EvaluationJobsRepositoryImpl implements EvaluationJobsRepository {
+export class EvaluationJobsRepositoryImpl implements EvaluationJobsRepository {
   private readonly tableName = process.env.DYNAMODB_TABLE!;
-  private readonly dynamoClient = inject(tokenDynamoDBClient);
+  private readonly dynamoClient = inject(tokenClientDynamoDB);
 
   public async createEvaluation(
     datasetId: string,
@@ -187,6 +182,11 @@ class EvaluationJobsRepositoryImpl implements EvaluationJobsRepository {
     };
   }
 }
+
+export const tokenClientDynamoDB = createInjectionToken<DynamoDBClient>(
+  'ClientDynamoDB',
+  { useClass: DynamoDBClient },
+);
 
 export const tokenEvaluationJobsRepository =
   createInjectionToken<EvaluationJobsRepository>('EvaluationJobsRepository', {

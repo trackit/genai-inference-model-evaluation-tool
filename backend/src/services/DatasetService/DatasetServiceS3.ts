@@ -4,13 +4,9 @@ import { randomUUID } from 'crypto';
 import { Dataset, DatasetMetadata } from '../../models/Dataset';
 import { DatasetService } from '../../ports/DatasetService';
 
-export const tokenS3Client = createInjectionToken<S3Client>('S3Client', {
-  useClass: S3Client,
-});
-
 export class DatasetServiceImpl implements DatasetService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
-  private readonly s3Client = inject(tokenS3Client);
+  private readonly s3Client = inject(tokenClientS3);
 
   async uploadDataset(
     content: string,
@@ -42,6 +38,10 @@ export class DatasetServiceImpl implements DatasetService {
     };
   }
 }
+
+export const tokenClientS3 = createInjectionToken<S3Client>('ClientS3', {
+  useClass: S3Client,
+});
 
 export const tokenDatasetService = createInjectionToken<DatasetService>(
   'DatasetService',

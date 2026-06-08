@@ -29,6 +29,7 @@
     "@aws-sdk/client-lambda": "^3.800.0",
     "@aws-sdk/client-s3": "^3.800.0",
     "@trackit.io/di-container": "1.0.0",
+    "aws-sdk-client-mock": "^4.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

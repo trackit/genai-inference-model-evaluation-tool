@@ -1,39 +1,35 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { register, reset } from '@trackit.io/di-container';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { inject, reset } from '@trackit.io/di-container';
+import { mockClient } from 'aws-sdk-client-mock';
+import { registerFakeInfrastructue } from 'backend/src/test/registerTestInfrastructure';
+import { describe, expect, it } from 'vitest';
 import { Dataset } from '../../models/Dataset';
-import { DatasetServiceImpl, tokenS3Client } from './DatasetServiceS3';
+import { DatasetServiceImpl, tokenClientS3 } from './DatasetServiceS3';
 
-describe('DatasetService', () => {
-  let service: DatasetServiceImpl;
-  let mockS3Send: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    reset();
-    vi.clearAllMocks();
-
-    mockS3Send = vi.fn().mockResolvedValue({});
-    const mockS3Client = { send: mockS3Send } as unknown as S3Client;
-    register(tokenS3Client, { useValue: mockS3Client });
-
-    process.env.DATASET_BUCKET = 'test-bucket';
-    process.env.AWS_REGION = 'us-east-1';
-
-    service = new DatasetServiceImpl();
-  });
-
+describe('DatasetServiceS3', () => {
   describe('uploadDataset', () => {
     it('should upload CSV dataset to S3 with encryption', async () => {
+      const { service, s3ClientMock } = setup();
       const content = 'document\n"What is AI?"';
       const dataset: Dataset = {
         samples: [{ document: 'What is AI?' }],
       };
 
+      s3ClientMock.on(PutObjectCommand).resolves({});
+
       const result = await service.uploadDataset(content, 'csv', dataset);
 
-      expect(mockS3Send).toHaveBeenCalledTimes(1);
-      const callArg = mockS3Send.mock.calls[0][0];
-      expect(callArg).toBeInstanceOf(PutObjectCommand);
+      const putCalls = s3ClientMock.commandCalls(PutObjectCommand);
+      expect(putCalls).toHaveLength(1);
+      expect(putCalls[0].args[0].input).toMatchObject({
+        Bucket: 'test-bucket',
+        Body: content,
+        ContentType: 'text/csv',
+        ServerSideEncryption: 'AES256',
+      });
+      expect(putCalls[0].args[0].input.Key).toMatch(
+        /^datasets\/[a-f0-9-]+\.csv$/,
+      );
 
       expect(result.dataset_id).toMatch(/^[a-f0-9-]+$/);
       expect(result.sample_count).toBe(1);
@@ -43,22 +39,35 @@ describe('DatasetService', () => {
     });
 
     it('should upload JSONL dataset to S3', async () => {
+      const { service, s3ClientMock } = setup();
       const content = '{"document":"What is AI?"}';
       const dataset: Dataset = {
         samples: [{ document: 'What is AI?' }],
       };
 
+      s3ClientMock.on(PutObjectCommand).resolves({});
+
       const result = await service.uploadDataset(content, 'jsonl', dataset);
 
-      expect(mockS3Send).toHaveBeenCalledTimes(1);
+      const putCalls = s3ClientMock.commandCalls(PutObjectCommand);
+      expect(putCalls).toHaveLength(1);
+      expect(putCalls[0].args[0].input).toMatchObject({
+        Bucket: 'test-bucket',
+        Body: content,
+        ContentType: 'application/jsonl',
+        ServerSideEncryption: 'AES256',
+      });
       expect(result.s3_key).toMatch(/^datasets\/[a-f0-9-]+\.jsonl$/);
     });
 
     it('should detect has_summary correctly', async () => {
+      const { service, s3ClientMock } = setup();
       const content = 'document,summary\n"What is AI?","AI explanation"';
       const dataset: Dataset = {
         samples: [{ document: 'What is AI?', summary: 'AI explanation' }],
       };
+
+      s3ClientMock.on(PutObjectCommand).resolves({});
 
       const result = await service.uploadDataset(content, 'csv', dataset);
 
@@ -66,10 +75,13 @@ describe('DatasetService', () => {
     });
 
     it('should detect has_class correctly', async () => {
+      const { service, s3ClientMock } = setup();
       const content = 'document,class\n"What is AI?","technology"';
       const dataset: Dataset = {
         samples: [{ document: 'What is AI?', class_label: 'technology' }],
       };
+
+      s3ClientMock.on(PutObjectCommand).resolves({});
 
       const result = await service.uploadDataset(content, 'csv', dataset);
 
@@ -77,6 +89,7 @@ describe('DatasetService', () => {
     });
 
     it('should handle dataset with multiple samples', async () => {
+      const { service, s3ClientMock } = setup();
       const dataset: Dataset = {
         samples: [
           { document: 'Question 1' },
@@ -84,6 +97,8 @@ describe('DatasetService', () => {
           { document: 'Question 3', class_label: 'category' },
         ],
       };
+
+      s3ClientMock.on(PutObjectCommand).resolves({});
 
       const result = await service.uploadDataset('content', 'csv', dataset);
 
@@ -93,9 +108,12 @@ describe('DatasetService', () => {
     });
 
     it('should generate unique dataset IDs', async () => {
+      const { service, s3ClientMock } = setup();
       const dataset: Dataset = {
         samples: [{ document: 'Test' }],
       };
+
+      s3ClientMock.on(PutObjectCommand).resolves({});
 
       const result1 = await service.uploadDataset('content', 'csv', dataset);
       const result2 = await service.uploadDataset('content', 'csv', dataset);
@@ -104,3 +122,17 @@ describe('DatasetService', () => {
     });
   });
 });
+
+const setup = () => {
+  reset();
+  registerFakeInfrastructue();
+
+  process.env.DATASET_BUCKET = 'test-bucket';
+
+  const s3ClientMock = mockClient(inject(tokenClientS3));
+
+  return {
+    service: new DatasetServiceImpl(),
+    s3ClientMock,
+  };
+};
