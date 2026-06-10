@@ -31,3 +31,6 @@ jobs:
 
       - name: Run backend tests
         run: pnpm run test:backend
+
+      - name: Run frontend tests
+        run: pnpm run test:frontend
