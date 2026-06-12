@@ -82,12 +82,13 @@ Edit `.env`:
 ```env
 STAGE=dev
 LOG_RETENTION_IN_DAYS=14
+AWS_REGION=us-west-2
 ACCOUNT_ID=<your-aws-account-id>
 ```
 
 ### 3. Add your SAM deployment profile
 
-Add a section to `samconfig.toml` for your username:
+Add an optional section to `samconfig.toml` for your username:
 
 ```toml
 [yourname.deploy.parameters]
@@ -123,7 +124,7 @@ The script:
 pnpm deploy:backend
 ```
 
-This runs `sam build --cached` followed by `sam deploy` using the profile in `samconfig.toml` that matches your `STAGE`. SAM will prompt you to confirm the changeset before applying.
+This runs `sam build --cached` followed by `sam deploy` using the environment vars as parameters. SAM will prompt you to confirm the changeset before applying.
 
 ### 6. Configure the frontend
 
@@ -235,3 +236,22 @@ Three sample files are included at the repo root for manual smoke-testing:
 ├── samconfig.toml             # Per-developer deployment profiles
 └── vitest.config.ts           # Test runner configuration
 ```
+
+## Automated deployment (main branch)
+
+Pushes to `main` run `.github/workflows/deploy.yml`, which:
+
+1. Builds the SAM backend
+2. Pushes the evaluation engine Docker image to ECR
+3. Deploys the CloudFormation stack
+4. Builds and deploys the frontend (`deploy:webui:prod`)
+
+### Required GitHub secrets
+
+| Secret                  | Description                     |
+| ----------------------- | ------------------------------- |
+| `STAGE`                 | Deployment stage (stack suffix) |
+| `AWS_REGION`            | AWS region                      |
+| `ACCOUNT_ID`            | AWS account ID (ECR registry)   |
+| `AWS_ACCESS_KEY_ID`     | Deploy principal access key     |
+| `AWS_SECRET_ACCESS_KEY` | Deploy principal secret key     |
