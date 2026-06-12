@@ -15,6 +15,11 @@ if [ -z "${AWS_REGION-}" ]; then
   exit 1
 fi
 
+if [ -z "${ACCOUNT_ID-}" ]; then
+  echo "Error: ACCOUNT_ID not set" >&2
+  exit 1
+fi
+
 REGION="${AWS_REGION}"
 REPO="genai-evaluation"
 REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"

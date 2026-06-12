@@ -1,0 +1,62 @@
+name: Deploy to AWS
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      STAGE: ${{ secrets.STAGE }}
+      DEBUG: false
+      LOG_RETENTION_IN_DAYS: 14
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node and cache dependencies
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: ./pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Backend
+        run: pnpm run build:backend
+
+      - name: Build Frontend
+        run: pnpm run build:webui
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy evaluation engine image to ECR
+        run: pnpm run deploy:evaluation-worker
+
+      - name: Deploy Backend
+        run: pnpm run deploy:backend -- --no-confirm-changeset
+
+      - name: Deploy Frontend
+        run: pnpm run deploy:webui:prod
