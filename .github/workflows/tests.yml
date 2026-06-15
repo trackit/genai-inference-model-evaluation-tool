@@ -46,8 +46,9 @@ jobs:
 
       - name: Install deps
         run: |
-          pip install -r backend/python-eval-function/requirements.txt
-          pip install pytest
+          cd backend/python-eval-function
+          python3 -m venv .venv
+          .venv/bin/pip install -r requirements.txt pytest
 
       - name: Run Python eval tests
         run: pnpm run test:evaluation-worker
