@@ -122,7 +122,7 @@ export function mapToInferenceProfileIds(
         `[BedrockModelValidation] "${id}" → inference profile "${profileId}"`,
       );
     }
-    return { type: m.type, identifier: profileId };
+    return { identifier: profileId };
   });
 }
 
@@ -243,51 +243,6 @@ function filterEligibleSummaries(
   );
 }
 
-const DEFAULT_PRESET_MATCHERS: Record<
-  string,
-  (s: FoundationModelSummary) => boolean
-> = {
-  'amazon-nova': (s) => {
-    const id = s.modelId ?? '';
-    return (
-      id.includes('nova-pro') &&
-      !id.includes('nova-lite') &&
-      !id.includes('nova-micro')
-    );
-  },
-  'amazon-nova-lite': (s) => (s.modelId ?? '').includes('nova-lite'),
-  'amazon-nova-micro': (s) => (s.modelId ?? '').includes('nova-micro'),
-  'claude-sonnet': (s) => {
-    const id = s.modelId ?? '';
-    return id.includes('anthropic') && id.includes('sonnet');
-  },
-  'claude-opus': (s) => {
-    const id = s.modelId ?? '';
-    return id.includes('anthropic') && id.includes('opus');
-  },
-};
-
-function pickSingleMatch(
-  presetKey: string,
-  matches: FoundationModelSummary[],
-): FoundationModelSummary {
-  if (matches.length === 0) {
-    throw new BasicError(
-      BasicErrorType.BAD_REQUEST,
-      'INVALID_BEDROCK_MODEL',
-      `No eligible Bedrock foundation model found for preset "${presetKey}" in this Region (text input with streaming).`,
-    );
-  }
-  if (matches.length > 1) {
-    throw new BasicError(
-      BasicErrorType.BAD_REQUEST,
-      'AMBIGUOUS_MODEL_PRESET',
-      `Multiple foundation models match preset "${presetKey}" in this Region. Use type "custom" with a full modelId from ListFoundationModels.`,
-    );
-  }
-  return matches[0];
-}
-
 function resolveOneIdentifier(
   model: ModelConfig,
   summaries: FoundationModelSummary[],
@@ -330,32 +285,11 @@ function resolveOneIdentifier(
     return raw;
   }
 
-  if (model.type === 'custom') {
-    if (byId.has(raw)) {
-      throw new BasicError(
-        BasicErrorType.BAD_REQUEST,
-        'INVALID_BEDROCK_MODEL',
-        `Model "${raw}" is not eligible for Converse streaming evaluation (needs text input with response streaming).`,
-      );
-    }
-    throw new BasicError(
-      BasicErrorType.BAD_REQUEST,
-      'INVALID_BEDROCK_MODEL',
-      `Unknown Bedrock foundation model id or inference profile for this Region: ${raw}`,
-    );
-  }
-
-  const matcher = DEFAULT_PRESET_MATCHERS[raw];
-  if (!matcher) {
-    throw new BasicError(
-      BasicErrorType.BAD_REQUEST,
-      'INVALID_MODEL_IDENTIFIER',
-      `Invalid default model identifier: ${raw}`,
-    );
-  }
-
-  const matches = active.filter(matcher);
-  return pickSingleMatch(raw, matches).modelId as string;
+  throw new BasicError(
+    BasicErrorType.BAD_REQUEST,
+    'INVALID_BEDROCK_MODEL',
+    `Unknown Bedrock foundation model id or inference profile for this Region: ${raw}`,
+  );
 }
 
 export function resolveModelsFromSummaries(
@@ -392,7 +326,7 @@ export function resolveModelsFromSummaries(
           continue;
         }
       }
-      out.push({ type: m.type, identifier: resolvedId });
+      out.push({ identifier: resolvedId });
       continue;
     }
 
@@ -410,7 +344,7 @@ export function resolveModelsFromSummaries(
       );
       continue;
     }
-    out.push({ type: m.type, identifier: resolvedId });
+    out.push({ identifier: resolvedId });
   }
 
   if (out.length === 0 && models.length > 0) {

@@ -1,5 +1,4 @@
 export interface ModelConfig {
-  type: 'default' | 'custom';
   identifier: string;
 }
 

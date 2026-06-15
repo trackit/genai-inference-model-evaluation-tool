@@ -228,7 +228,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
 
 export interface CreateEvaluationRequest {
   dataset_id: string;
-  models: { type: 'default' | 'custom'; identifier: string }[];
+  models: { identifier: string }[];
   weights: { accuracy: number; latency: number; cost: number };
   metrics?: Partial<Record<MetricKey, boolean>>;
 }

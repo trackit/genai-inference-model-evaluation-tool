@@ -68,38 +68,13 @@ export class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
       );
     }
 
-    const validDefaultIdentifiers = [
-      'claude-sonnet',
-      'claude-opus',
-      'amazon-nova',
-      'amazon-nova-lite',
-      'amazon-nova-micro',
-    ];
-
     for (const model of models) {
-      switch (model.type) {
-        case 'default':
-          if (!validDefaultIdentifiers.includes(model.identifier)) {
-            throw new BasicError(
-              BasicErrorType.BAD_REQUEST,
-              'INVALID_MODEL_IDENTIFIER',
-              `Invalid default model identifier: ${model.identifier}`,
-            );
-          }
-          break;
-        case 'custom':
-          if (!model.identifier.trim()) {
-            throw new BasicError(
-              BasicErrorType.BAD_REQUEST,
-              'INVALID_MODEL_IDENTIFIER',
-              'Custom model identifier must be a non-empty Bedrock model ID',
-            );
-          }
-          break;
-        default: {
-          const _exhaustive: never = model;
-          return _exhaustive;
-        }
+      if (!model.identifier.trim()) {
+        throw new BasicError(
+          BasicErrorType.BAD_REQUEST,
+          'INVALID_MODEL_IDENTIFIER',
+          'Model identifier must be a non-empty Bedrock model ID',
+        );
       }
     }
   }
