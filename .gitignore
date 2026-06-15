@@ -140,3 +140,9 @@ vite.config.ts.timestamp-*
 
 .aws-sam
 .samconfig.toml
+
+# Python eval function
+backend/python-eval-function/.venv/
+backend/python-eval-function/__pycache__/
+backend/python-eval-function/tests/__pycache__/
+backend/python-eval-function/src/__pycache__/
