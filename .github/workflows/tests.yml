@@ -1,4 +1,4 @@
-name: 'Tests check'
+name: "Tests check"
 on:
   pull_request:
   push:
@@ -37,18 +37,32 @@ jobs:
   python-worker-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/python-eval-function/requirements.txt
 
-      - name: Install deps
+      - name: Cache Python venv
+        uses: actions/cache@v4
+        id: cache-python-venv
+        with:
+          path: backend/python-eval-function/.venv
+          key: ${{ runner.os }}-python-eval-venv-${{ hashFiles('backend/python-eval-function/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-python-eval-venv-
+
+      - name: Install Python deps
+        if: steps.cache-python-venv.outputs.cache-hit != 'true'
         run: |
           cd backend/python-eval-function
           python3 -m venv .venv
-          .venv/bin/pip install -r requirements.txt pytest
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements.txt
 
       - name: Run Python eval tests
-        run: pnpm run test:evaluation-worker
+        run: backend/python-eval-function/.venv/bin/python -m pytest

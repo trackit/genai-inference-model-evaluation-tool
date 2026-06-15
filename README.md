@@ -187,7 +187,7 @@ The `test:evaluation-worker` script uses a virtual environment at `backend/pytho
 ```bash
 cd backend/python-eval-function
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt pytest
+.venv/bin/pip install -r requirements.txt
 cd ../..
 pnpm test:evaluation-worker
 ```
