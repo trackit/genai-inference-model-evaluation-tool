@@ -186,7 +186,7 @@ The `test:evaluation-worker` script uses a virtual environment at `backend/pytho
 
 ```bash
 cd backend/python-eval-function
-python3 -m venv .venv
+python3.12 -m venv .venv   # must be 3.12 — 3.14 breaks tokenizers (PyO3)
 .venv/bin/pip install -r requirements.txt
 cd ../..
 pnpm test:evaluation-worker

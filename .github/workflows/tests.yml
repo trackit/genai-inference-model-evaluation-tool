@@ -1,4 +1,4 @@
-name: "Tests check"
+name: 'Tests check'
 on:
   pull_request:
   push:
@@ -43,7 +43,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
           cache: pip
           cache-dependency-path: backend/python-eval-function/requirements.txt
 
