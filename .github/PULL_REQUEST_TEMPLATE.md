@@ -6,6 +6,7 @@ Describe the changes in this pull request.
 
 - [ ] Tests not needed (explain why)
 - [ ] `pnpm run test:backend`
+- [ ] `pnpm run test:frontend`
 - [ ] Manual testing (describe)
 
 ## Checklist
