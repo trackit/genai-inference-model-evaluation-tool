@@ -8,7 +8,7 @@ import { tokenFakeEvaluationJobsRepository } from '../services/EvaluationJobsRep
 import { tokenFakeFargateService } from '../services/FargateService/FakeFargateService';
 import { tokenFargateService } from '../services/FargateService/FargateService';
 
-export const registerTestInfrastructue = (): void => {
+export const registerTestInfrastructure = (): void => {
   register(tokenEvaluationJobsRepository, {
     useFactory: () => inject(tokenFakeEvaluationJobsRepository),
   });

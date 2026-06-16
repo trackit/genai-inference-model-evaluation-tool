@@ -7,7 +7,7 @@ import {
 } from '../../models/Evaluation';
 import type { FakeEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
 import { tokenFakeEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
-import { registerTestInfrastructue } from '../../test/registerTestInfrastructure';
+import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { tokenGetEvaluationStatusUseCase } from './GetEvaluationStatusUseCase';
 
 describe('GetEvaluationStatusUseCase', () => {
@@ -113,7 +113,7 @@ describe('GetEvaluationStatusUseCase', () => {
 
 const setup = () => {
   reset();
-  registerTestInfrastructue();
+  registerTestInfrastructure();
 
   return {
     useCase: inject(tokenGetEvaluationStatusUseCase),

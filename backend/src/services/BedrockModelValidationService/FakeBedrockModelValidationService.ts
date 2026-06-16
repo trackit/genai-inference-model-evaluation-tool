@@ -1,5 +1,5 @@
 import { createInjectionToken } from '@trackit.io/di-container';
-import type { BedrockModelValidationService } from 'backend/src/ports/ModelValidationService';
+import type { BedrockModelValidationService } from '../../ports/ModelValidationService';
 import {
   mapToInferenceProfileIds,
   resolveModelsFromSummaries,

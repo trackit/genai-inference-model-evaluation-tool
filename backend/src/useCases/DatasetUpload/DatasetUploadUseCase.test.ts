@@ -1,7 +1,7 @@
 import { inject, reset } from '@trackit.io/di-container';
 import { tokenFakeDatasetService } from 'backend/src/services/DatasetService/FakeDatasetService';
 import { describe, expect, it } from 'vitest';
-import { registerTestInfrastructue } from '../../test/registerTestInfrastructure';
+import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { tokenDatasetUploadUseCase } from './DatasetUploadUseCase';
 
 describe('DatasetUploadUseCase', () => {
@@ -162,7 +162,7 @@ describe('DatasetUploadUseCase', () => {
 
 const setup = () => {
   reset();
-  registerTestInfrastructue();
+  registerTestInfrastructure();
 
   return {
     useCase: inject(tokenDatasetUploadUseCase),

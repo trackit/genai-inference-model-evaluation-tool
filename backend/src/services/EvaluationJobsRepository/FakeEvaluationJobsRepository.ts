@@ -1,5 +1,4 @@
 import { createInjectionToken } from '@trackit.io/di-container';
-import { EvaluationJobsRepository } from 'backend/src/ports/EvaluationJobsEvaluation';
 import { randomUUID } from 'crypto';
 import {
   EvaluationJob,
@@ -8,6 +7,7 @@ import {
   ModelConfig,
   WeightConfig,
 } from '../../models/Evaluation';
+import { EvaluationJobsRepository } from '../../ports/EvaluationJobsEvaluation';
 
 export class FakeEvaluationJobsRepository implements EvaluationJobsRepository {
   public readonly evaluationJobs: EvaluationJob[] = [];

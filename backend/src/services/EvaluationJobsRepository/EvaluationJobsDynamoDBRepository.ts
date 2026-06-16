@@ -6,7 +6,6 @@ import {
   UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
-import { EvaluationJobsRepository } from 'backend/src/ports/EvaluationJobsEvaluation';
 import { randomUUID } from 'crypto';
 import {
   DEFAULT_METRICS_CONFIG,
@@ -18,6 +17,7 @@ import {
   Recommendation,
   WeightConfig,
 } from '../../models/Evaluation';
+import { EvaluationJobsRepository } from '../../ports/EvaluationJobsEvaluation';
 
 export class EvaluationJobsRepositoryImpl implements EvaluationJobsRepository {
   private readonly tableName = process.env.DYNAMODB_TABLE!;

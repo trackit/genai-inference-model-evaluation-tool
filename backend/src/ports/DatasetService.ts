@@ -1,4 +1,4 @@
-import { Dataset, DatasetMetadata } from 'backend/src/models/Dataset';
+import { Dataset, DatasetMetadata } from '../models/Dataset';
 
 export interface DatasetService {
   uploadDataset(

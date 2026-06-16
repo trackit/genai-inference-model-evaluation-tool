@@ -1,9 +1,9 @@
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { inject, reset } from '@trackit.io/di-container';
 import { mockClient } from 'aws-sdk-client-mock';
-import { registerTestInfrastructue } from 'backend/src/test/registerTestInfrastructure';
 import { describe, expect, it } from 'vitest';
 import { Dataset } from '../../models/Dataset';
+import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { DatasetServiceImpl, tokenClientS3 } from './DatasetServiceS3';
 
 describe('DatasetServiceS3', () => {
@@ -125,7 +125,7 @@ describe('DatasetServiceS3', () => {
 
 const setup = () => {
   reset();
-  registerTestInfrastructue();
+  registerTestInfrastructure();
 
   process.env.DATASET_BUCKET = 'test-bucket';
 
