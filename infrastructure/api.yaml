@@ -15,6 +15,8 @@ Parameters:
     Type: String
   EvaluationJobsTableName:
     Type: String
+  AccessCodesTableName:
+    Type: String
   EvaluationClusterName:
     Type: String
   EvaluationTaskDefinitionArn:
@@ -26,6 +28,8 @@ Parameters:
   FargateExecutionRoleArn:
     Type: String
   FargateTaskRoleArn:
+    Type: String
+  SesFromAddress:
     Type: String
 
 Globals:
@@ -56,6 +60,16 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: $default
+      Auth:
+        Authorizers:
+          AccessCodeAuthorizer:
+            FunctionArn: !GetAtt AccessCodeAuthorizerFunction.Arn
+            Identity:
+              Headers:
+                - x-access-email
+                - x-access-code
+            AuthorizerPayloadFormatVersion: '2.0'
+            EnableSimpleResponses: true
       Tags:
         Project: !Ref Project
         Owner: !Ref Owner
@@ -89,6 +103,24 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/aws/lambda/${EvaluationResultsFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  RequestAccessCodeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${RequestAccessCodeFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  VerifyAccessCodeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${VerifyAccessCodeFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  AccessCodeAuthorizerFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AccessCodeAuthorizerFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
   HealthFunction:
@@ -141,6 +173,8 @@ Resources:
             Path: /datasets
             Method: POST
             ApiId: !Ref Api
+            Auth:
+              Authorizer: AccessCodeAuthorizer
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -198,6 +232,8 @@ Resources:
             Path: /evaluations
             Method: POST
             ApiId: !Ref Api
+            Auth:
+              Authorizer: AccessCodeAuthorizer
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -279,6 +315,111 @@ Resources:
           - .js=.mjs
         EntryPoints:
           - src/handlers/EvaluationResults/EvaluationResults.ts
+
+  RequestAccessCodeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: RequestAccessCode.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-request-access-code-function'
+      Environment:
+        Variables:
+          ACCESS_CODES_TABLE: !Ref AccessCodesTableName
+          CODE_TTL_MINUTES: '30'
+          RESEND_COOLDOWN_SECONDS: '60'
+          SES_FROM_ADDRESS: !Ref SesFromAddress
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccessCodesTableName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+              Resource: '*'
+      Events:
+        RequestAccessCodeApi:
+          Type: HttpApi
+          Properties:
+            Path: /auth/request-code
+            Method: POST
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/RequestAccessCode/RequestAccessCode.ts
+
+  VerifyAccessCodeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: VerifyAccessCode.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-verify-access-code-function'
+      Environment:
+        Variables:
+          ACCESS_CODES_TABLE: !Ref AccessCodesTableName
+          MAX_CODE_ATTEMPTS: '5'
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccessCodesTableName
+      Events:
+        VerifyAccessCodeApi:
+          Type: HttpApi
+          Properties:
+            Path: /auth/verify-code
+            Method: POST
+            ApiId: !Ref Api
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/VerifyAccessCode/VerifyAccessCode.ts
+
+  AccessCodeAuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: AccessCodeAuthorizer.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-access-code-authorizer-function'
+      Environment:
+        Variables:
+          ACCESS_CODES_TABLE: !Ref AccessCodesTableName
+          MAX_CODE_ATTEMPTS: '5'
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccessCodesTableName
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/AccessCodeAuthorizer/AccessCodeAuthorizer.ts
 
 Outputs:
   ApiUrl:
