@@ -1,3 +1,4 @@
+import { AccessCodeGate } from '@/components/auth/AccessCodeGate';
 import { DatasetUpload } from '@/components/evaluator/DatasetUpload';
 import { MetricsWeights } from '@/components/evaluator/MetricsWeights';
 import { ModelSelection } from '@/components/evaluator/ModelSelection';
@@ -10,6 +11,10 @@ import {
   useEvaluationResults,
   useEvaluationStatus,
 } from '@/hooks/useEvaluation';
+import {
+  getAccessCredentials,
+  setAccessCredentials,
+} from '@/lib/accessCredentials';
 import type { EvaluationConfig, TaskType } from '@/types/evaluation';
 import { DEFAULT_METRICS_TOGGLES } from '@/types/evaluation';
 import {
@@ -23,6 +28,9 @@ import { useCallback, useState } from 'react';
 type Phase = 'config' | 'progress' | 'results';
 
 export default function Index() {
+  const [authenticated, setAuthenticated] = useState(
+    () => getAccessCredentials() !== null,
+  );
   const [phase, setPhase] = useState<Phase>('config');
   const [step, setStep] = useState(0);
   const [config, setConfig] = useState<EvaluationConfig>({
@@ -136,6 +144,17 @@ export default function Index() {
   const statusData = statusQuery.data;
   const isFailedOrTimeout =
     statusData?.status === 'failed' || statusData?.status === 'timeout';
+
+  if (!authenticated) {
+    return (
+      <AccessCodeGate
+        onAuthenticated={(email, code) => {
+          setAccessCredentials({ email, code });
+          setAuthenticated(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-screen">

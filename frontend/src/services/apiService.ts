@@ -1,3 +1,4 @@
+import { authHeaders } from '@/lib/accessCredentials';
 import type {
   CreateEvaluationRequest,
   DatasetUploadData,
@@ -30,7 +31,7 @@ export class ApiError extends Error {
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
-  if (response.ok) {
+  if (response.ok || response.status === 202) {
     const json = (await response.json()) as { data: T };
     return json.data;
   }
@@ -84,12 +85,36 @@ async function fetchWithTimeout(
   }
 }
 
+export async function requestAccessCode(email: string): Promise<void> {
+  const response = await fetchWithTimeout(`${getBaseUrl()}/auth/request-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  await handleResponse<{ sent: boolean }>(response);
+}
+
+export async function verifyAccessCode(
+  email: string,
+  code: string,
+): Promise<void> {
+  const response = await fetchWithTimeout(`${getBaseUrl()}/auth/verify-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  });
+
+  await handleResponse<{ valid: true }>(response);
+}
+
 export async function uploadDataset(file: File): Promise<DatasetUploadData> {
   const formData = new FormData();
   formData.append('file', file);
 
   const response = await fetchWithTimeout(`${getBaseUrl()}/datasets`, {
     method: 'POST',
+    headers: authHeaders(),
     body: formData,
   });
 
@@ -101,7 +126,10 @@ export async function createEvaluation(
 ): Promise<EvaluationLaunchData> {
   const response = await fetchWithTimeout(`${getBaseUrl()}/evaluations`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
     body: JSON.stringify(request),
   });
 
