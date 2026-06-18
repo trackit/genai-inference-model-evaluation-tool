@@ -11,6 +11,8 @@ Parameters:
   Project:
     Type: String
     Default: genai-inference-evaluation-tool
+  CodeSendSESSourceEmailAddress:
+    Type: String
 
 Globals:
   Function:
@@ -49,6 +51,7 @@ Resources:
       [
         DatasetBucket,
         EvaluationJobsTable,
+        AccessCodesTable,
         EvaluationCluster,
         EvaluationTaskDefinition,
         FargateExecutionRole,
@@ -62,6 +65,7 @@ Resources:
         Project: !Ref Project
         DatasetBucketName: !Ref DatasetBucket
         EvaluationJobsTableName: !Ref EvaluationJobsTable
+        AccessCodesTableName: !Ref AccessCodesTable
         EvaluationClusterName: !Ref EvaluationCluster
         EvaluationTaskDefinitionArn: !Ref EvaluationTaskDefinition
         PublicSubnetId: !GetAtt NetworkStack.Outputs.PublicSubnetId
@@ -174,6 +178,24 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
+
+  AccessCodesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-access-codes'
+      Tags:
+        - Key: Project
+          Value: !Ref Project
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-access-codes-table'
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
 
   # ECS Cluster
   EvaluationCluster:
@@ -328,6 +350,9 @@ Outputs:
   EvaluationJobsTableName:
     Description: DynamoDB table for evaluation jobs
     Value: !Ref EvaluationJobsTable
+  AccessCodesTableName:
+    Description: DynamoDB table for access codes
+    Value: !Ref AccessCodesTable
   EvaluationClusterName:
     Description: ECS cluster for evaluation tasks
     Value: !Ref EvaluationCluster
