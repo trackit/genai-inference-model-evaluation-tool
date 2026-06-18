@@ -1,3 +1,7 @@
+import {
+  clearAccessCredentials,
+  setAccessCredentials,
+} from '@/lib/accessCredentials';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ApiError,
@@ -5,7 +9,9 @@ import {
   getBaseUrl,
   getEvaluationResults,
   getEvaluationStatus,
+  requestAccessCode,
   uploadDataset,
+  verifyAccessCode,
 } from './apiService';
 
 // --- getBaseUrl ---
@@ -60,6 +66,7 @@ describe('endpoint functions', () => {
     mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
     import.meta.env.VITE_API_URL = 'http://localhost:3000';
+    clearAccessCredentials();
   });
 
   afterEach(() => {
@@ -73,6 +80,68 @@ describe('endpoint functions', () => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
+
+  describe('requestAccessCode', () => {
+    it('sends email via POST /auth/request-code', async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ success: true, data: { sent: true } }, 202),
+      );
+
+      await requestAccessCode('user@example.com');
+
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('http://localhost:3000/auth/request-code');
+      expect(init.method).toBe('POST');
+      expect((init.headers as Record<string, string>)['Content-Type']).toBe(
+        'application/json',
+      );
+      expect(JSON.parse(init.body as string)).toEqual({
+        email: 'user@example.com',
+      });
+    });
+  });
+
+  describe('verifyAccessCode', () => {
+    it('sends email and code via POST /auth/verify-code', async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ success: true, data: { valid: true } }),
+      );
+
+      await verifyAccessCode('user@example.com', '123456');
+
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('http://localhost:3000/auth/verify-code');
+      expect(init.method).toBe('POST');
+      expect((init.headers as Record<string, string>)['Content-Type']).toBe(
+        'application/json',
+      );
+      expect(JSON.parse(init.body as string)).toEqual({
+        email: 'user@example.com',
+        code: '123456',
+      });
+    });
+
+    it('throws ApiError on invalid code', async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse(
+          {
+            error: {
+              code: 'INVALID_CODE',
+              message: 'Verification code is invalid or expired',
+            },
+          },
+          403,
+        ),
+      );
+
+      await expect(
+        verifyAccessCode('user@example.com', '000000'),
+      ).rejects.toMatchObject({
+        code: 'INVALID_CODE',
+        status: 403,
+      });
+    });
+  });
 
   // --- uploadDataset ---
 
@@ -102,6 +171,27 @@ describe('endpoint functions', () => {
       expect(
         (init.headers as Record<string, string> | undefined)?.['Content-Type'],
       ).toBeUndefined();
+    });
+
+    it('includes access code headers when credentials are stored', async () => {
+      setAccessCredentials({ email: 'user@example.com', code: '123456' });
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({
+          success: true,
+          data: { dataset_id: 'd1', sample_count: 10 },
+        }),
+      );
+
+      const file = new File(['hello'], 'test.csv', { type: 'text/csv' });
+      await uploadDataset(file);
+
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect((init.headers as Record<string, string>)['x-access-email']).toBe(
+        'user@example.com',
+      );
+      expect((init.headers as Record<string, string>)['x-access-code']).toBe(
+        '123456',
+      );
     });
 
     it('throws ApiError on non-2xx with JSON error body', async () => {
@@ -152,6 +242,34 @@ describe('endpoint functions', () => {
         'application/json',
       );
       expect(JSON.parse(init.body as string)).toEqual(request);
+    });
+
+    it('includes access code headers when credentials are stored', async () => {
+      setAccessCredentials({ email: 'user@example.com', code: '123456' });
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({
+          success: true,
+          data: {
+            evaluation_id: 'e1',
+            status: 'pending',
+            created_at: '2024-01-01T00:00:00Z',
+          },
+        }),
+      );
+
+      await createEvaluation({
+        dataset_id: 'd1',
+        models: [{ type: 'default', identifier: 'claude-sonnet' }],
+        weights: { accuracy: 0.5, latency: 0.3, cost: 0.2 },
+      });
+
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect((init.headers as Record<string, string>)['x-access-email']).toBe(
+        'user@example.com',
+      );
+      expect((init.headers as Record<string, string>)['x-access-code']).toBe(
+        '123456',
+      );
     });
   });
 
