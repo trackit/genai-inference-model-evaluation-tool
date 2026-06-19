@@ -1,4 +1,4 @@
-import { authHeaders } from '@/lib/accessCredentials';
+import { authHeaders, clearAccessCredentials } from '@/lib/accessCredentials';
 import type {
   CreateEvaluationRequest,
   DatasetUploadData,
@@ -52,7 +52,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
       err?.details,
     );
   } catch (e) {
-    if (e instanceof ApiError) throw e;
+    if (e instanceof ApiError) {
+      if (e.status === 401) {
+        clearAccessCredentials();
+      }
+      throw e;
+    }
     throw new ApiError(response.status, 'UNKNOWN_ERROR', response.statusText);
   }
 }
