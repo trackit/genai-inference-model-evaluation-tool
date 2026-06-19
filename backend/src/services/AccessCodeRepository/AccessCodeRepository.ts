@@ -1,4 +1,5 @@
 import {
+  DeleteItemCommand,
   DynamoDBClient,
   GetItemCommand,
   PutItemCommand,
@@ -62,6 +63,15 @@ export class AccessCodeRepositoryDynamoDB implements AccessCodeRepository {
           ':zero': { N: '0' },
           ':one': { N: '1' },
         },
+      }),
+    );
+  }
+
+  async deleteCode(email: string): Promise<void> {
+    await this.dynamoClient.send(
+      new DeleteItemCommand({
+        TableName: this.tableName,
+        Key: { email: { S: email } },
       }),
     );
   }

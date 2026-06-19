@@ -34,7 +34,6 @@ export class RequestAccessCodeUseCaseImpl implements RequestAccessCodeUseCase {
 
     const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
     const codeHash = createHash('sha256').update(code).digest('hex');
-
     await this.repository.saveCode({
       email: normalizedEmail,
       code_hash: codeHash,
@@ -43,11 +42,20 @@ export class RequestAccessCodeUseCaseImpl implements RequestAccessCodeUseCase {
       last_sent_at: new Date(),
     });
 
-    await this.emailService.sendEmail(
-      normalizedEmail,
-      'Your verification code',
-      `Your verification code is ${code}. This code expires in ${CODE_TTL_MINUTES} minutes.`,
-    );
+    try {
+      await this.emailService.sendEmail(
+        normalizedEmail,
+        'Your verification code',
+        `Your verification code is ${code}. This code expires in ${CODE_TTL_MINUTES} minutes.`,
+      );
+    } catch (error) {
+      console.error('Error sending access code to email', {
+        email: normalizedEmail,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      await this.repository.deleteCode(normalizedEmail);
+      throw error;
+    }
   }
 
   private normalizeEmail(email: string): string {
