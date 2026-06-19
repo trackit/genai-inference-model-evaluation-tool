@@ -77,6 +77,7 @@ Edit `frontend/.env` with the API Gateway URL printed at the end of the SAM depl
 ```env
 VITE_API_URL=https://<api-id>.execute-api.us-west-2.amazonaws.com
 STAGE=dev
+VITE_CODE_TTL_MINUTES=30
 ```
 
 ### Run the dev server
