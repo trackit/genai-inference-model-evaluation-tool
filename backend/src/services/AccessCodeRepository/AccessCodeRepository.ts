@@ -19,9 +19,9 @@ export class AccessCodeRepositoryDynamoDB implements AccessCodeRepository {
         Item: {
           email: { S: record.email },
           code_hash: { S: record.code_hash },
-          expires_at: { N: record.expires_at.toString() },
+          expires_at: { S: record.expires_at.toString() },
           attempts: { N: record.attempts.toString() },
-          last_sent_at: { N: record.last_sent_at.toString() },
+          last_sent_at: { S: record.last_sent_at.toString() },
         },
       }),
     );
@@ -42,11 +42,9 @@ export class AccessCodeRepositoryDynamoDB implements AccessCodeRepository {
     return {
       email: result.Item['email'].S ?? email,
       code_hash: result.Item['code_hash'].S ?? '',
-      expires_at: new Date(Number(result.Item['expires_at'].N ?? '0') * 1000),
+      expires_at: new Date(result.Item['expires_at'].S ?? '0'),
       attempts: Number(result.Item['attempts'].N ?? '0'),
-      last_sent_at: new Date(
-        Number(result.Item['last_sent_at'].N ?? '0') * 1000,
-      ),
+      last_sent_at: new Date(result.Item['last_sent_at'].S ?? '0'),
     };
   }
 
