@@ -23,6 +23,10 @@ export class FakeAccessCodeRepository implements AccessCodeRepository {
       attempts: current.attempts + 1,
     });
   }
+
+  async deleteCode(email: string): Promise<void> {
+    this.records.delete(email);
+  }
 }
 
 export const tokenFakeAccessCodeRepository =
