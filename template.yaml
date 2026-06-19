@@ -72,6 +72,7 @@ Resources:
         FargateSecurityGroupId: !GetAtt NetworkStack.Outputs.FargateSecurityGroupId
         FargateExecutionRoleArn: !GetAtt FargateExecutionRole.Arn
         FargateTaskRoleArn: !GetAtt FargateTaskRole.Arn
+        SesFromAddress: !Ref CodeSendSESSourceEmailAddress
 
   EvaluationEngineLogGroup:
     Type: AWS::Logs::LogGroup
@@ -183,6 +184,7 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub '${AWS::StackName}-access-codes'
+      BillingMode: PAY_PER_REQUEST
       Tags:
         - Key: Project
           Value: !Ref Project
