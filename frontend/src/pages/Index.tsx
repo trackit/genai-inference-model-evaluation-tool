@@ -6,15 +6,12 @@ import { ProgressView } from '@/components/evaluator/ProgressView';
 import { ResultsView } from '@/components/evaluator/ResultsView';
 import { StepIndicator } from '@/components/evaluator/StepIndicator';
 import { Button } from '@/components/ui/button';
+import { useAccessSession } from '@/hooks/useAccessSession';
 import {
   useCreateEvaluation,
   useEvaluationResults,
   useEvaluationStatus,
 } from '@/hooks/useEvaluation';
-import {
-  getAccessCredentials,
-  setAccessCredentials,
-} from '@/lib/accessCredentials';
 import type { EvaluationConfig, TaskType } from '@/types/evaluation';
 import { DEFAULT_METRICS_TOGGLES } from '@/types/evaluation';
 import {
@@ -28,9 +25,7 @@ import { useCallback, useState } from 'react';
 type Phase = 'config' | 'progress' | 'results';
 
 export default function Index() {
-  const [authenticated, setAuthenticated] = useState(
-    () => getAccessCredentials() !== null,
-  );
+  const { state: accessState, signIn } = useAccessSession();
   const [phase, setPhase] = useState<Phase>('config');
   const [step, setStep] = useState(0);
   const [config, setConfig] = useState<EvaluationConfig>({
@@ -145,15 +140,16 @@ export default function Index() {
   const isFailedOrTimeout =
     statusData?.status === 'failed' || statusData?.status === 'timeout';
 
-  if (!authenticated) {
+  if (accessState === 'checking') {
     return (
-      <AccessCodeGate
-        onAuthenticated={(email, code) => {
-          setAccessCredentials({ email, code });
-          setAuthenticated(true);
-        }}
-      />
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
     );
+  }
+
+  if (accessState === 'unauthenticated') {
+    return <AccessCodeGate onAuthenticated={signIn} />;
   }
 
   return (
