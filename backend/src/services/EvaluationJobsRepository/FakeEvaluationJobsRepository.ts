@@ -7,7 +7,7 @@ import {
   ModelConfig,
   WeightConfig,
 } from '../../models/Evaluation';
-import { EvaluationJobsRepository } from '../../ports/EvaluationJobsEvaluation';
+import { EvaluationJobsRepository } from '../../ports/EvaluationJobsRepository';
 
 export class FakeEvaluationJobsRepository implements EvaluationJobsRepository {
   public readonly evaluationJobs: EvaluationJob[] = [];
