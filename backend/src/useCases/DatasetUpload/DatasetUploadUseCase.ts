@@ -4,7 +4,7 @@ import { BasicError, BasicErrorType } from '../../errors';
 import { Dataset, DatasetMetadata } from '../../models/Dataset';
 import { tokenCsvParser } from '../../parsers/CsvParser/CsvParser';
 import { tokenJsonlParser } from '../../parsers/JsonlParser/JsonlParser';
-import { tokenDatasetService } from '../../services/DatasetService/DatasetService';
+import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 
 export type DatasetUploadUseCase = {
   execute(content: string, filename: string): Promise<DatasetMetadata>;

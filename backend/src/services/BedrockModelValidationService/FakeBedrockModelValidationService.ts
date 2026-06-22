@@ -1,5 +1,5 @@
 import { createInjectionToken } from '@trackit.io/di-container';
-import type { BedrockModelValidationService } from './BedrockModelValidationService';
+import type { BedrockModelValidationService } from '../../ports/ModelValidationService';
 import {
   mapToInferenceProfileIds,
   resolveModelsFromSummaries,
@@ -32,7 +32,7 @@ export class FakeBedrockModelValidationService implements BedrockModelValidation
 }
 
 export const tokenFakeBedrockModelValidationService =
-  createInjectionToken<BedrockModelValidationService>(
+  createInjectionToken<FakeBedrockModelValidationService>(
     'FakeBedrockModelValidationService',
     { useClass: FakeBedrockModelValidationService },
   );

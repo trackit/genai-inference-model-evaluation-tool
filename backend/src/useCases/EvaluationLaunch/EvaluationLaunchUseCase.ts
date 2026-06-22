@@ -9,14 +9,14 @@ import {
   WeightConfig,
 } from '../../models/Evaluation';
 import { tokenBedrockModelValidationService } from '../../services/BedrockModelValidationService/BedrockModelValidationService';
-import { tokenEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/EvaluationJobsRepository';
+import { tokenEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/EvaluationJobsDynamoDBRepository';
 import { tokenFargateService } from '../../services/FargateService/FargateService';
 
 export type EvaluationLaunchUseCase = {
   launchEvaluation(request: EvaluationRequest): Promise<EvaluationJob>;
 };
 
-class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
+export class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
   private readonly evaluationJobsRepository = inject(
     tokenEvaluationJobsRepository,
   );

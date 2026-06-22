@@ -2,22 +2,11 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { randomUUID } from 'crypto';
 import { Dataset, DatasetMetadata } from '../../models/Dataset';
-
-export type DatasetService = {
-  uploadDataset(
-    content: string,
-    fileExtension: 'csv' | 'jsonl',
-    dataset: Dataset,
-  ): Promise<DatasetMetadata>;
-};
-
-export const tokenS3Client = createInjectionToken<S3Client>('S3Client', {
-  useClass: S3Client,
-});
+import { DatasetService } from '../../ports/DatasetService';
 
 export class DatasetServiceImpl implements DatasetService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
-  private readonly s3Client = inject(tokenS3Client);
+  private readonly s3Client = inject(tokenClientS3);
 
   async uploadDataset(
     content: string,
@@ -49,6 +38,10 @@ export class DatasetServiceImpl implements DatasetService {
     };
   }
 }
+
+export const tokenClientS3 = createInjectionToken<S3Client>('ClientS3', {
+  useClass: S3Client,
+});
 
 export const tokenDatasetService = createInjectionToken<DatasetService>(
   'DatasetService',
