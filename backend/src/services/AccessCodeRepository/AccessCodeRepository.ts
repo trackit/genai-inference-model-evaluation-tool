@@ -8,7 +8,6 @@ import {
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { AccessCodeRecord } from '../../models/AccessCode';
 import type { AccessCodeRepository } from '../../ports/AccessCodeRepository';
-import { tokenDynamoDBClient } from '../EvaluationJobsRepository/EvaluationJobsRepository';
 export class AccessCodeRepositoryDynamoDB implements AccessCodeRepository {
   private readonly tableName = process.env.ACCESS_CODES_TABLE!;
   private readonly dynamoClient = inject(tokenAccessCodeDynamoDBClient);
@@ -84,5 +83,5 @@ export const tokenAccessCodeRepository =
 
 export const tokenAccessCodeDynamoDBClient =
   createInjectionToken<DynamoDBClient>('AccessCodeDynamoDBClient', {
-    useFactory: () => inject(tokenDynamoDBClient),
+    useClass: DynamoDBClient,
   });

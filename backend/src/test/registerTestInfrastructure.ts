@@ -1,8 +1,12 @@
 import { inject, register } from '@trackit.io/di-container';
+import { tokenAccessCodeRepository } from '../services/AccessCodeRepository/AccessCodeRepository';
+import { tokenFakeAccessCodeRepository } from '../services/AccessCodeRepository/FakeAccessCodeRepository';
 import { tokenBedrockModelValidationService } from '../services/BedrockModelValidationService/BedrockModelValidationService';
 import { tokenFakeBedrockModelValidationService } from '../services/BedrockModelValidationService/FakeBedrockModelValidationService';
 import { tokenDatasetService } from '../services/DatasetService/DatasetServiceS3';
 import { tokenFakeDatasetService } from '../services/DatasetService/FakeDatasetService';
+import { tokenEmailService } from '../services/EmailService/EmailService';
+import { tokenFakeEmailService } from '../services/EmailService/FakeEmailService';
 import { tokenEvaluationJobsRepository } from '../services/EvaluationJobsRepository/EvaluationJobsDynamoDBRepository';
 import { tokenFakeEvaluationJobsRepository } from '../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
 import { tokenFakeFargateService } from '../services/FargateService/FakeFargateService';
@@ -20,5 +24,11 @@ export const registerTestInfrastructure = (): void => {
   });
   register(tokenDatasetService, {
     useFactory: () => inject(tokenFakeDatasetService),
+  });
+  register(tokenEmailService, {
+    useFactory: () => inject(tokenFakeEmailService),
+  });
+  register(tokenAccessCodeRepository, {
+    useFactory: () => inject(tokenFakeAccessCodeRepository),
   });
 };
