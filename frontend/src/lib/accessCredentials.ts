@@ -1,4 +1,4 @@
-// ponytail: keep in sync with backend CODE_TTL_MINUTES (default 30)
+// keep in sync with backend CODE_TTL_MINUTES (default 30)
 const CODE_TTL_MINUTES = Number(import.meta.env.VITE_CODE_TTL_MINUTES) || 30;
 export const ACCESS_CODE_TTL_MS = CODE_TTL_MINUTES * 60 * 1000;
 const STORAGE_KEY = 'access-credentials';
