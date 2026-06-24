@@ -13,7 +13,7 @@ export class CsvParserImpl implements CsvParser {
 
     if (lines.length < 2) {
       throw new BasicError(
-        BasicErrorType.BAD_REQUEST,
+        BasicErrorType.UNPROCESSABLE_ENTITY,
         'INVALID_FORMAT',
         'CSV file must contain a header row and at least one data row',
       );
@@ -25,7 +25,7 @@ export class CsvParserImpl implements CsvParser {
     const documentIndex = headers.indexOf('document');
     if (documentIndex === -1) {
       throw new BasicError(
-        BasicErrorType.BAD_REQUEST,
+        BasicErrorType.UNPROCESSABLE_ENTITY,
         'MISSING_DOCUMENT',
         'CSV file must contain a "document" column',
       );
@@ -44,7 +44,7 @@ export class CsvParserImpl implements CsvParser {
 
         if (values.length !== headers.length) {
           throw new BasicError(
-            BasicErrorType.BAD_REQUEST,
+            BasicErrorType.UNPROCESSABLE_ENTITY,
             'INVALID_FORMAT',
             `Expected ${headers.length} columns but found ${values.length}`,
           );
@@ -80,7 +80,7 @@ export class CsvParserImpl implements CsvParser {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown parsing error';
         throw new BasicError(
-          BasicErrorType.BAD_REQUEST,
+          BasicErrorType.UNPROCESSABLE_ENTITY,
           'INVALID_FORMAT',
           `Error parsing row ${i + 1}: ${errorMessage}`,
         );

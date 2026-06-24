@@ -314,7 +314,7 @@ export function DatasetUpload({
           Drop your file here or click to browse
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          CSV or JSONL · up to 50 MB · min 10 rows
+          CSV or JSONL · up to 200 MB · min 10 rows
         </p>
       </div>
 

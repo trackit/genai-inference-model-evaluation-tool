@@ -8,6 +8,7 @@ import { BasicError, BasicErrorType } from '../../errors';
 
 const ErrorTypeResponseCode: Record<BasicErrorType, number> = {
   [BasicErrorType.BAD_REQUEST]: 400,
+  [BasicErrorType.UNPROCESSABLE_ENTITY]: 422,
   [BasicErrorType.FORBIDDEN]: 403,
   [BasicErrorType.NOT_FOUND]: 404,
   [BasicErrorType.CONFLICT]: 409,
@@ -17,8 +18,10 @@ const ErrorTypeResponseCode: Record<BasicErrorType, number> = {
 export const buildResponse = (
   statusCode: number,
   body: unknown = {},
+  headers: Record<string, string> = {},
 ): APIGatewayProxyResultV2 => ({
   statusCode,
+  headers,
   body: JSON.stringify(body),
 });
 
@@ -26,14 +29,16 @@ export const handleHttpRequest = async ({
   event,
   func,
   statusCode = 200,
+  headers = {},
 }: {
   event: APIGatewayProxyEventV2;
   func: (event: APIGatewayProxyEventV2) => Promise<unknown>;
   statusCode?: number;
+  headers?: Record<string, string>;
 }): Promise<APIGatewayProxyResultV2> => {
   try {
     const result = await func(event);
-    return buildResponse(statusCode, { success: true, data: result });
+    return buildResponse(statusCode, { success: true, data: result }, headers);
   } catch (e: unknown) {
     if (e instanceof BasicError) {
       const httpStatus = ErrorTypeResponseCode[e.type];
@@ -54,7 +59,7 @@ export const handleHttpRequest = async ({
 
     if (e instanceof z.ZodError) {
       console.error('ValidationError', e.issues);
-      return buildResponse(400, {
+      return buildResponse(422, {
         success: false,
         error: {
           code: 'VALIDATION_ERROR',

@@ -5,9 +5,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.800.0",
-    "@aws-sdk/client-ecs": "^3.800.0",
-    "@aws-sdk/client-s3": "^3.800.0",
+    "@aws-sdk/client-dynamodb": "^3.1075.0",
+    "@aws-sdk/client-ecs": "^3.1075.0",
+    "@aws-sdk/client-s3": "^3.1075.0",
+    "@aws-sdk/s3-presigned-post": "^3.1075.0",
     "@trackit.io/di-container": "1.0.0",
     "zod": "^4.3.6"
   },
