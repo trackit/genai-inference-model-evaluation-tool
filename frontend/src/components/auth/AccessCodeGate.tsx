@@ -19,7 +19,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EMPTY_DIGITS = ['', '', '', '', '', ''];
 
 type AccessCodeGateProps = {
-  onAuthenticated: (email: string, code: string) => void;
+  onAuthenticated: (email: string, code: string, expiresAt: number) => void;
 };
 
 export function AccessCodeGate({ onAuthenticated }: AccessCodeGateProps) {
@@ -44,8 +44,8 @@ export function AccessCodeGate({ onAuthenticated }: AccessCodeGateProps) {
       setVerifying(true);
       setError(null);
       try {
-        await verifyAccessCode(normalizedEmail, code);
-        onAuthenticated(normalizedEmail, code);
+        const { expiresAt } = await verifyAccessCode(normalizedEmail, code);
+        onAuthenticated(normalizedEmail, code, expiresAt);
       } catch (e) {
         resetDigits();
         setError(

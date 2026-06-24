@@ -103,14 +103,17 @@ export async function requestAccessCode(email: string): Promise<void> {
 export async function verifyAccessCode(
   email: string,
   code: string,
-): Promise<void> {
+): Promise<{ expiresAt: number }> {
   const response = await fetchWithTimeout(`${getBaseUrl()}/auth/verify-code`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, code }),
   });
 
-  await handleResponse<{ valid: true }>(response);
+  const data = await handleResponse<{ valid: true; expiresAt: string }>(
+    response,
+  );
+  return { expiresAt: Date.parse(data.expiresAt) };
 }
 
 export async function uploadDataset(file: File): Promise<DatasetUploadData> {

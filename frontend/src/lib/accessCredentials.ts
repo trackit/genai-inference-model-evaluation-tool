@@ -1,24 +1,21 @@
-// keep in sync with backend CODE_TTL_MINUTES (default 30)
-const CODE_TTL_MINUTES = Number(import.meta.env.VITE_CODE_TTL_MINUTES) || 30;
-export const ACCESS_CODE_TTL_MS = CODE_TTL_MINUTES * 60 * 1000;
 const STORAGE_KEY = 'access-credentials';
 export const ACCESS_CREDENTIALS_CLEARED_EVENT = 'access-credentials-cleared';
 
 export type AccessCredentials = {
   email: string;
   code: string;
+  expiresAt: number;
 };
 
-type StoredAccessCredentials = AccessCredentials & {
-  verifiedAt: number;
-};
-
-export function getAccessCredentials(): AccessCredentials | null {
+export function getAccessCredentials(): Omit<
+  AccessCredentials,
+  'expiresAt'
+> | null {
   const stored = readStored();
   if (!stored) {
     return null;
   }
-  if (isExpired(stored.verifiedAt)) {
+  if (isExpired(stored.expiresAt)) {
     clearAccessCredentials();
     return null;
   }
@@ -26,11 +23,7 @@ export function getAccessCredentials(): AccessCredentials | null {
 }
 
 export function setAccessCredentials(credentials: AccessCredentials): void {
-  const stored: StoredAccessCredentials = {
-    ...credentials,
-    verifiedAt: Date.now(),
-  };
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(credentials));
 }
 
 export function clearAccessCredentials(): void {
@@ -40,14 +33,14 @@ export function clearAccessCredentials(): void {
 
 export function getAccessCredentialsExpiresAt(): number | null {
   const stored = readStored();
-  if (!stored || isExpired(stored.verifiedAt)) {
+  if (!stored || isExpired(stored.expiresAt)) {
     return null;
   }
-  return stored.verifiedAt + ACCESS_CODE_TTL_MS;
+  return stored.expiresAt;
 }
 
 export function authHeaders(
-  credentials?: AccessCredentials | null,
+  credentials?: Pick<AccessCredentials, 'email' | 'code'> | null,
 ): Record<string, string> {
   const { email, code } = credentials ?? getAccessCredentials() ?? {};
   if (!email || !code) {
@@ -59,28 +52,29 @@ export function authHeaders(
   };
 }
 
-function readStored(): StoredAccessCredentials | null {
+function readStored(): AccessCredentials | null {
   const raw = sessionStorage.getItem(STORAGE_KEY);
   if (!raw) {
     return null;
   }
   try {
-    const parsed = JSON.parse(raw) as Partial<StoredAccessCredentials>;
+    const parsed = JSON.parse(raw) as Partial<AccessCredentials>;
     if (
       !parsed.email ||
       !parsed.code ||
-      typeof parsed.verifiedAt !== 'number'
+      typeof parsed.expiresAt !== 'number' ||
+      !Number.isFinite(parsed.expiresAt)
     ) {
       clearAccessCredentials();
       return null;
     }
-    return parsed as StoredAccessCredentials;
+    return parsed as AccessCredentials;
   } catch {
     clearAccessCredentials();
     return null;
   }
 }
 
-function isExpired(verifiedAt: number): boolean {
-  return Date.now() - verifiedAt >= ACCESS_CODE_TTL_MS;
+function isExpired(expiresAt: number): boolean {
+  return Date.now() >= expiresAt;
 }

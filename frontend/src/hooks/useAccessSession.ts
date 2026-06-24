@@ -18,10 +18,13 @@ export function useAccessSession() {
     setState('unauthenticated');
   }, []);
 
-  const signIn = useCallback((email: string, code: string) => {
-    setAccessCredentials({ email, code });
-    setState('authenticated');
-  }, []);
+  const signIn = useCallback(
+    (email: string, code: string, expiresAt: number) => {
+      setAccessCredentials({ email, code, expiresAt });
+      setState('authenticated');
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +39,15 @@ export function useAccessSession() {
       }
 
       try {
-        await verifyAccessCode(credentials.email, credentials.code);
+        const { expiresAt } = await verifyAccessCode(
+          credentials.email,
+          credentials.code,
+        );
+        setAccessCredentials({
+          email: credentials.email,
+          code: credentials.code,
+          expiresAt,
+        });
         if (!cancelled) {
           setState('authenticated');
         }

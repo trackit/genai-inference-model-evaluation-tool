@@ -17,7 +17,8 @@ describe('VerifyAccessCode Handler', () => {
 
   it('should return 200 when verification succeeds', async () => {
     const { handler } = await import('./VerifyAccessCode');
-    verify.mockResolvedValue(undefined);
+    const expiresAt = new Date();
+    verify.mockResolvedValue({ expiresAt });
     const result = await handler(
       createEvent({ email: 'user@example.com', code: '123456' }),
     );
@@ -26,7 +27,7 @@ describe('VerifyAccessCode Handler', () => {
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body)).toEqual({
       success: true,
-      data: { valid: true },
+      data: { valid: true, expiresAt: expiresAt.toISOString() },
     });
     expect(verify).toHaveBeenCalledWith('user@example.com', '123456');
   });

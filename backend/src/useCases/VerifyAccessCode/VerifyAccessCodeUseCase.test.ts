@@ -16,8 +16,10 @@ describe('VerifyAccessCodeUseCase', () => {
       .build();
     await accessCodeRepository.saveCode(accessCode);
 
-    await expect(useCase.verify('user@example.com', '123456')).resolves.toBe(
-      undefined,
+    await expect(useCase.verify('user@example.com', '123456')).resolves.toEqual(
+      {
+        expiresAt: accessCode.expires_at,
+      },
     );
   });
 

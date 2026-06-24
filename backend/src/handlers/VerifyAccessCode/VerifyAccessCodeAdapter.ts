@@ -29,7 +29,7 @@ export class VerifyAccessCodeAdapter {
     const { body } = parseApiEvent(event, {
       bodySchema: VerifyAccessCodeSchema,
     });
-    await this.useCase.verify(body.email, body.code);
-    return { valid: true };
+    const { expiresAt } = await this.useCase.verify(body.email, body.code);
+    return { valid: true, expiresAt: expiresAt.toISOString() };
   }
 }

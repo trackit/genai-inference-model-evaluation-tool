@@ -4,14 +4,18 @@ import { BasicError, BasicErrorType } from '../../errors';
 import { MAX_CODE_ATTEMPTS } from '../../models/AccessCode';
 import { tokenAccessCodeRepository } from '../../services/AccessCodeRepository/AccessCodeRepository';
 
+export type VerifyAccessCodeResult = {
+  expiresAt: Date;
+};
+
 export type VerifyAccessCodeUseCase = {
-  verify(email: string, code: string): Promise<void>;
+  verify(email: string, code: string): Promise<VerifyAccessCodeResult>;
 };
 
 export class VerifyAccessCodeUseCaseImpl implements VerifyAccessCodeUseCase {
   private readonly repository = inject(tokenAccessCodeRepository);
 
-  async verify(email: string, code: string): Promise<void> {
+  async verify(email: string, code: string): Promise<VerifyAccessCodeResult> {
     const normalizedEmail = this.normalizeEmail(email);
     const normalizedCode = this.normalizeCode(code);
     const record = await this.repository.getByEmail(normalizedEmail);
@@ -39,6 +43,8 @@ export class VerifyAccessCodeUseCaseImpl implements VerifyAccessCodeUseCase {
       await this.repository.incrementAttempts(normalizedEmail);
       this.throwInvalidCode();
     }
+
+    return { expiresAt: record.expires_at };
   }
 
   private normalizeEmail(email: string): string {

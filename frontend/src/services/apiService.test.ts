@@ -14,6 +14,8 @@ import {
   verifyAccessCode,
 } from './apiService';
 
+const FUTURE_EXPIRES_AT = Date.now() + 60 * 60 * 1000;
+
 // --- getBaseUrl ---
 
 describe('getBaseUrl', () => {
@@ -104,10 +106,20 @@ describe('endpoint functions', () => {
   describe('verifyAccessCode', () => {
     it('sends email and code via POST /auth/verify-code', async () => {
       mockFetch.mockResolvedValueOnce(
-        jsonResponse({ success: true, data: { valid: true } }),
+        jsonResponse({
+          success: true,
+          data: {
+            valid: true,
+            expiresAt: new Date('2026-01-01T10:30:00.000Z').toISOString(),
+          },
+        }),
       );
 
-      await verifyAccessCode('user@example.com', '123456');
+      const result = await verifyAccessCode('user@example.com', '123456');
+
+      expect(result).toEqual({
+        expiresAt: new Date('2026-01-01T10:30:00.000Z').getTime(),
+      });
 
       const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
       expect(url).toBe('http://localhost:3000/auth/verify-code');
@@ -174,7 +186,11 @@ describe('endpoint functions', () => {
     });
 
     it('includes access code headers when credentials are stored', async () => {
-      setAccessCredentials({ email: 'user@example.com', code: '123456' });
+      setAccessCredentials({
+        email: 'user@example.com',
+        code: '123456',
+        expiresAt: FUTURE_EXPIRES_AT,
+      });
       mockFetch.mockResolvedValueOnce(
         jsonResponse({
           success: true,
@@ -245,7 +261,11 @@ describe('endpoint functions', () => {
     });
 
     it('includes access code headers when credentials are stored', async () => {
-      setAccessCredentials({ email: 'user@example.com', code: '123456' });
+      setAccessCredentials({
+        email: 'user@example.com',
+        code: '123456',
+        expiresAt: FUTURE_EXPIRES_AT,
+      });
       mockFetch.mockResolvedValueOnce(
         jsonResponse({
           success: true,
