@@ -1,3 +1,4 @@
+import { AccessCodeGate } from '@/components/auth/AccessCodeGate';
 import { DatasetUpload } from '@/components/evaluator/DatasetUpload';
 import { MetricsWeights } from '@/components/evaluator/MetricsWeights';
 import { ModelSelection } from '@/components/evaluator/ModelSelection';
@@ -5,6 +6,7 @@ import { ProgressView } from '@/components/evaluator/ProgressView';
 import { ResultsView } from '@/components/evaluator/ResultsView';
 import { StepIndicator } from '@/components/evaluator/StepIndicator';
 import { Button } from '@/components/ui/button';
+import { useAccessSession } from '@/hooks/useAccessSession';
 import {
   useCreateEvaluation,
   useEvaluationResults,
@@ -23,6 +25,7 @@ import { useCallback, useState } from 'react';
 type Phase = 'config' | 'progress' | 'results';
 
 export default function Index() {
+  const { state: accessState, signIn } = useAccessSession();
   const [phase, setPhase] = useState<Phase>('config');
   const [step, setStep] = useState(0);
   const [config, setConfig] = useState<EvaluationConfig>({
@@ -136,6 +139,18 @@ export default function Index() {
   const statusData = statusQuery.data;
   const isFailedOrTimeout =
     statusData?.status === 'failed' || statusData?.status === 'timeout';
+
+  if (accessState === 'checking') {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (accessState === 'unauthenticated') {
+    return <AccessCodeGate onAuthenticated={signIn} />;
+  }
 
   return (
     <div className="flex min-h-screen">
