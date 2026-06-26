@@ -177,9 +177,7 @@ describe('endpoint functions', () => {
           }),
         )
         .mockResolvedValueOnce(new Response(null, { status: 204 }))
-        .mockResolvedValueOnce(
-          jsonResponse({ success: true, data: payload }),
-        );
+        .mockResolvedValueOnce(jsonResponse({ success: true, data: payload }));
 
       const file = new File(['hello'], 'test.csv', { type: 'text/csv' });
       const result = await uploadDataset(file);
