@@ -6,7 +6,6 @@ import { tokenJsonlParser } from '../../parsers/JsonlParser/JsonlParser';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 import {
   extractDatasetMetadata,
-  scanForMaliciousContent,
   validateDatasetSize,
 } from '../datasetValidation';
 
@@ -25,7 +24,6 @@ export class ConfirmDatasetUploadUseCaseImpl implements ConfirmDatasetUploadUseC
 
     const dataset = this.parseDataset(content, fileExtension);
     validateDatasetSize(dataset);
-    scanForMaliciousContent(content);
 
     return extractDatasetMetadata(datasetId, dataset);
   }

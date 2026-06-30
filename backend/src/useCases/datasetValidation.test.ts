@@ -4,7 +4,6 @@ import { Dataset } from '../models/Dataset';
 import {
   extractDatasetMetadata,
   parseDatasetFileExtension,
-  scanForMaliciousContent,
   validateDatasetSize,
 } from './datasetValidation';
 
@@ -53,20 +52,6 @@ describe('datasetValidation', () => {
       expect(() => validateDatasetSize(dataset)).toThrow(
         'Dataset must contain at least 10 samples. Found 2 samples',
       );
-    });
-  });
-
-  describe('scanForMaliciousContent', () => {
-    it('rejects script tags', () => {
-      expect(() =>
-        scanForMaliciousContent('<script>alert(1)</script>'),
-      ).toThrow('File contains potentially malicious content');
-    });
-
-    it('accepts safe content', () => {
-      expect(() =>
-        scanForMaliciousContent('document\n"What is AI?"'),
-      ).not.toThrow();
     });
   });
 

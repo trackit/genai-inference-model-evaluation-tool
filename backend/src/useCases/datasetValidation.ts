@@ -28,27 +28,6 @@ export function validateDatasetSize(dataset: Dataset): void {
   }
 }
 
-export function scanForMaliciousContent(content: string): void {
-  const maliciousPatterns = [
-    /<script[^>]*>.*?<\/script>/gi,
-    /javascript:/gi,
-    /on\w+\s*=/gi,
-    /<iframe/gi,
-    /eval\(/gi,
-    /expression\(/gi,
-  ];
-
-  for (const pattern of maliciousPatterns) {
-    if (pattern.test(content)) {
-      throw new BasicError(
-        BasicErrorType.UNPROCESSABLE_ENTITY,
-        'MALICIOUS_CONTENT',
-        'File contains potentially malicious content',
-      );
-    }
-  }
-}
-
 export function extractDatasetMetadata(
   datasetId: string,
   dataset: Dataset,

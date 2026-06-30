@@ -169,8 +169,10 @@ Resources:
         Variables:
           DATASET_BUCKET: !Ref DatasetBucketName
       Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref DatasetBucketName
+        - Statement:
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets/*'
       Events:
         InitializeDatasetUploadApi:
           Type: HttpApi

@@ -67,23 +67,6 @@ describe('ConfirmDatasetUploadUseCase', () => {
     );
   });
 
-  it('rejects malicious content', async () => {
-    const content = `document\n${Array.from({ length: 10 }, () => '"<script>alert(1)</script>"').join('\n')}`;
-    const { useCase, datasetService } = setup();
-    await datasetService.upload('dataset-id', content, 'csv');
-
-    await expect(datasetService.retrieveDataset('dataset-id')).resolves.toEqual(
-      {
-        content,
-        fileExtension: 'csv',
-      },
-    );
-
-    await expect(useCase.confirmDatasetUpload('dataset-id')).rejects.toThrow(
-      'File contains potentially malicious content',
-    );
-  });
-
   it('propagates dataset not found errors', async () => {
     const { useCase, datasetService } = setup();
 
