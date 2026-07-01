@@ -11,6 +11,12 @@ export function getBaseUrl(): string {
   return import.meta.env.VITE_API_URL ?? '/api';
 }
 
+type InitializeDatasetUploadResponse = {
+  dataset_id: string;
+  upload_url: string;
+  fields: Record<string, string>;
+};
+
 export class ApiError extends Error {
   public readonly status: number;
   public readonly code: string;
@@ -116,17 +122,54 @@ export async function verifyAccessCode(
   return { expiresAt: Date.parse(data.expiresAt) };
 }
 
-export async function uploadDataset(file: File): Promise<DatasetUploadData> {
+async function uploadToS3(
+  uploadUrl: string,
+  fields: Record<string, string>,
+  file: File,
+): Promise<void> {
   const formData = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    formData.append(key, value);
+  }
   formData.append('file', file);
 
-  const response = await fetchWithTimeout(`${getBaseUrl()}/datasets`, {
+  const response = await fetchWithTimeout(
+    uploadUrl,
+    { method: 'POST', body: formData },
+    300_000,
+  );
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      'S3_UPLOAD_FAILED',
+      'Failed to upload dataset to storage',
+    );
+  }
+}
+
+export async function uploadDataset(file: File): Promise<DatasetUploadData> {
+  const initResponse = await fetchWithTimeout(`${getBaseUrl()}/datasets/init`, {
     method: 'POST',
-    headers: authHeaders(),
-    body: formData,
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: file.name }),
   });
 
-  return handleResponse<DatasetUploadData>(response);
+  const { dataset_id, upload_url, fields } =
+    await handleResponse<InitializeDatasetUploadResponse>(initResponse);
+
+  await uploadToS3(upload_url, fields, file);
+
+  const confirmResponse = await fetchWithTimeout(
+    `${getBaseUrl()}/datasets/${dataset_id}/confirm`,
+    {
+      method: 'POST',
+      headers: authHeaders(),
+    },
+    120_000,
+  );
+
+  return handleResponse<DatasetUploadData>(confirmResponse);
 }
 
 export async function createEvaluation(

@@ -1,9 +1,14 @@
-import { Dataset, DatasetMetadata } from '../models/Dataset';
-
 export interface DatasetService {
-  uploadDataset(
-    content: string,
+  generatePresignedPost(
+    datasetId: string,
     fileExtension: 'csv' | 'jsonl',
-    dataset: Dataset,
-  ): Promise<DatasetMetadata>;
+  ): Promise<{
+    url: string;
+    fields: Record<string, string>;
+  }>;
+
+  retrieveDataset(datasetId: string): Promise<{
+    content: string;
+    fileExtension: 'csv' | 'jsonl';
+  }>;
 }

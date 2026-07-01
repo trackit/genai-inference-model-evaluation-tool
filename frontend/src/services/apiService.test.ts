@@ -158,31 +158,57 @@ describe('endpoint functions', () => {
   // --- uploadDataset ---
 
   describe('uploadDataset', () => {
-    it('sends FormData via POST /datasets and returns data', async () => {
+    it('runs init → S3 → confirm flow and returns data', async () => {
       const payload = {
         dataset_id: 'd1',
         sample_count: 42,
         has_summary: true,
         has_class: false,
       };
-      mockFetch.mockResolvedValueOnce(
-        jsonResponse({ success: true, data: payload }),
-      );
+      mockFetch
+        .mockResolvedValueOnce(
+          jsonResponse({
+            success: true,
+            data: {
+              dataset_id: 'd1',
+              upload_url: 'https://bucket.s3.amazonaws.com',
+              fields: { key: 'value' },
+            },
+          }),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+        .mockResolvedValueOnce(jsonResponse({ success: true, data: payload }));
 
       const file = new File(['hello'], 'test.csv', { type: 'text/csv' });
       const result = await uploadDataset(file);
 
       expect(result).toEqual(payload);
-      expect(mockFetch).toHaveBeenCalledOnce();
+      expect(mockFetch).toHaveBeenCalledTimes(3);
 
-      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe('http://localhost:3000/datasets');
-      expect(init.method).toBe('POST');
-      expect(init.body).toBeInstanceOf(FormData);
-      // Content-Type must NOT be set manually
-      expect(
-        (init.headers as Record<string, string> | undefined)?.['Content-Type'],
-      ).toBeUndefined();
+      const [initUrl, initInit] = mockFetch.mock.calls[0] as [
+        string,
+        RequestInit,
+      ];
+      expect(initUrl).toBe('http://localhost:3000/datasets/init');
+      expect(initInit.method).toBe('POST');
+      expect((initInit.headers as Record<string, string>)['Content-Type']).toBe(
+        'application/json',
+      );
+      expect(JSON.parse(initInit.body as string)).toEqual({
+        filename: 'test.csv',
+      });
+
+      const [s3Url, s3Init] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect(s3Url).toBe('https://bucket.s3.amazonaws.com');
+      expect(s3Init.method).toBe('POST');
+      expect(s3Init.body).toBeInstanceOf(FormData);
+
+      const [confirmUrl, confirmInit] = mockFetch.mock.calls[2] as [
+        string,
+        RequestInit,
+      ];
+      expect(confirmUrl).toBe('http://localhost:3000/datasets/d1/confirm');
+      expect(confirmInit.method).toBe('POST');
     });
 
     it('includes access code headers when credentials are stored', async () => {
@@ -191,23 +217,40 @@ describe('endpoint functions', () => {
         code: '123456',
         expiresAt: FUTURE_EXPIRES_AT,
       });
-      mockFetch.mockResolvedValueOnce(
-        jsonResponse({
-          success: true,
-          data: { dataset_id: 'd1', sample_count: 10 },
-        }),
-      );
+      mockFetch
+        .mockResolvedValueOnce(
+          jsonResponse({
+            success: true,
+            data: {
+              dataset_id: 'd1',
+              upload_url: 'https://bucket.s3.amazonaws.com',
+              fields: {},
+            },
+          }),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            success: true,
+            data: { dataset_id: 'd1', sample_count: 10 },
+          }),
+        );
 
       const file = new File(['hello'], 'test.csv', { type: 'text/csv' });
       await uploadDataset(file);
 
-      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-      expect((init.headers as Record<string, string>)['x-access-email']).toBe(
-        'user@example.com',
-      );
-      expect((init.headers as Record<string, string>)['x-access-code']).toBe(
-        '123456',
-      );
+      for (const callIndex of [0, 2]) {
+        const [, init] = mockFetch.mock.calls[callIndex] as [
+          string,
+          RequestInit,
+        ];
+        expect((init.headers as Record<string, string>)['x-access-email']).toBe(
+          'user@example.com',
+        );
+        expect((init.headers as Record<string, string>)['x-access-code']).toBe(
+          '123456',
+        );
+      }
     });
 
     it('throws ApiError on non-2xx with JSON error body', async () => {

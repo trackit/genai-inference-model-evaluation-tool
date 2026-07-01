@@ -82,12 +82,6 @@ Resources:
       LogGroupName: !Sub '/aws/lambda/${HealthFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
-  DatasetUploadFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/lambda/${DatasetUploadFunction}'
-      RetentionInDays: !Ref LogRetentionInDays
-
   EvaluationLaunchFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -104,6 +98,18 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/aws/lambda/${EvaluationResultsFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  InitializeDatasetUploadFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${InitializeDatasetUploadFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  ConfirmDatasetUploadFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ConfirmDatasetUploadFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
   RequestAccessCodeFunctionLogGroup:
@@ -152,26 +158,26 @@ Resources:
         EntryPoints:
           - src/handlers/health.ts
 
-  DatasetUploadFunction:
+  InitializeDatasetUploadFunction:
     Type: AWS::Serverless::Function
     Properties:
       Runtime: nodejs20.x
-      Handler: DatasetUpload.handler
-      Timeout: 60
-      MemorySize: 512
+      Handler: InitializeDatasetUpload.handler
       Tags:
-        Name: !Sub '${AWS::StackName}-dataset-upload-function'
+        Name: !Sub '${AWS::StackName}-initialize-dataset-upload-function'
       Environment:
         Variables:
           DATASET_BUCKET: !Ref DatasetBucketName
       Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref DatasetBucketName
+        - Statement:
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets/*'
       Events:
-        UploadApi:
+        InitializeDatasetUploadApi:
           Type: HttpApi
           Properties:
-            Path: /datasets
+            Path: /datasets/init
             Method: POST
             ApiId: !Ref Api
             Auth:
@@ -188,7 +194,45 @@ Resources:
         OutExtension:
           - .js=.mjs
         EntryPoints:
-          - src/handlers/DatasetUpload/DatasetUpload.ts
+          - src/handlers/InitializeDatasetUpload/InitializeDatasetUpload.ts
+
+  ConfirmDatasetUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: ConfirmDatasetUpload.handler
+      Timeout: 60
+      MemorySize: 512
+      Tags:
+        Name: !Sub '${AWS::StackName}-confirm-dataset-upload-function'
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucketName
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref DatasetBucketName
+      Events:
+        ConfirmDatasetUploadApi:
+          Type: HttpApi
+          Properties:
+            Path: /datasets/{id}/confirm
+            Method: POST
+            ApiId: !Ref Api
+            Auth:
+              Authorizer: AccessCodeAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/ConfirmDatasetUpload/ConfirmDatasetUpload.ts
 
   EvaluationLaunchFunction:
     Type: AWS::Serverless::Function

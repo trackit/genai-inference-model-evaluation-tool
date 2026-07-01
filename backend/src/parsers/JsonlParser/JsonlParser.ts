@@ -21,7 +21,7 @@ export class JsonlParserImpl implements JsonlParser {
 
         if (!obj.document) {
           throw new BasicError(
-            BasicErrorType.BAD_REQUEST,
+            BasicErrorType.UNPROCESSABLE_ENTITY,
             'MISSING_DOCUMENT',
             'Each line must contain a "document" field',
           );
@@ -48,7 +48,7 @@ export class JsonlParserImpl implements JsonlParser {
         if (error instanceof BasicError) throw error;
         if (error instanceof SyntaxError) {
           throw new BasicError(
-            BasicErrorType.BAD_REQUEST,
+            BasicErrorType.UNPROCESSABLE_ENTITY,
             'INVALID_FORMAT',
             `Error parsing line ${i + 1}: Invalid JSON`,
           );
@@ -56,7 +56,7 @@ export class JsonlParserImpl implements JsonlParser {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown parsing error';
         throw new BasicError(
-          BasicErrorType.BAD_REQUEST,
+          BasicErrorType.UNPROCESSABLE_ENTITY,
           'INVALID_FORMAT',
           `Error parsing line ${i + 1}: ${errorMessage}`,
         );
