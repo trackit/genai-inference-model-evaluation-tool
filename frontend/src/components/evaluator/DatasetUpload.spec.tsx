@@ -17,10 +17,24 @@ let mutationState = {
   isError: false,
   data: undefined as
     | {
+        dataset_type: 'structured';
         dataset_id: string;
         sample_count: number;
         has_summary: boolean;
         has_class: boolean;
+      }
+    | {
+        dataset_type: 'documents';
+        dataset_id: string;
+        file_count: number;
+        total_size_bytes: number;
+        documents: Array<{
+          document_id: string;
+          filename: string;
+          file_type: string;
+          s3_key: string;
+          size_bytes: number;
+        }>;
       }
     | undefined,
   error: null as { message: string } | null,
@@ -36,7 +50,7 @@ vi.mock('@/hooks/useEvaluation', () => ({
 
 describe('DatasetUpload', () => {
   const defaultProps = {
-    file: null,
+    files: [],
     onChange: vi.fn(),
     onStartEvaluation: vi.fn(),
     onUploadSuccess: vi.fn(),
@@ -55,9 +69,10 @@ describe('DatasetUpload', () => {
     };
     mutateMock.mockImplementation(
       (
-        _file: File,
+        _files: File[],
         options?: {
           onSuccess?: (data: {
+            dataset_type: 'structured';
             dataset_id: string;
             sample_count: number;
             has_summary: boolean;
@@ -66,6 +81,7 @@ describe('DatasetUpload', () => {
         },
       ) => {
         options?.onSuccess?.({
+          dataset_type: 'structured',
           dataset_id: 'dataset-1',
           sample_count: 25,
           has_summary: true,
@@ -86,7 +102,7 @@ describe('DatasetUpload', () => {
       screen.getByRole('button', { name: /classification/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Drop your file here or click to browse'),
+      screen.getByText('Drop files here or click to browse'),
     ).toBeInTheDocument();
   });
 
@@ -100,11 +116,91 @@ describe('DatasetUpload', () => {
     expect(screen.getByText(/Classification is detected/)).toBeInTheDocument();
   });
 
-  it('uploads a selected file and shows success state', async () => {
+  it('adds multiple files and removes files from the list', async () => {
+    const onChange = vi.fn();
+    const initialFile = new File(['one'], 'initial.pdf', {
+      type: 'application/pdf',
+    });
+    const secondFile = new File(['two'], 'second.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    const thirdFile = new File(['three'], 'third.doc', {
+      type: 'application/msword',
+    });
+
+    renderWithProviders(
+      <DatasetUpload
+        {...defaultProps}
+        files={[initialFile]}
+        onChange={onChange}
+      />,
+    );
+
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [secondFile, thirdFile] } });
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith([
+        initialFile,
+        secondFile,
+        thirdFile,
+      ]);
+      expect(resetMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(onChange).toHaveBeenLastCalledWith([]);
+  });
+
+  it('shows validation error for mixed dataset/document selection', () => {
+    const csvFile = new File(['a,b'], 'samples.csv', { type: 'text/csv' });
+    const pdfFile = new File(['doc'], 'report.pdf', {
+      type: 'application/pdf',
+    });
+
+    renderWithProviders(
+      <DatasetUpload {...defaultProps} files={[csvFile, pdfFile]} />,
+    );
+
+    expect(
+      screen.getByText('CSV/JSONL datasets must be uploaded alone'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+  });
+
+  it('uploads selected files on explicit upload click', async () => {
     const onChange = vi.fn();
     const onUploadSuccess = vi.fn();
     const file = new File(['document,summary\na,b'], 'samples.csv', {
       type: 'text/csv',
+    });
+
+    renderWithProviders(
+      <DatasetUpload
+        {...defaultProps}
+        files={[file]}
+        onChange={onChange}
+        onUploadSuccess={onUploadSuccess}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(mutateMock).toHaveBeenCalledWith([file], expect.any(Object));
+      expect(onUploadSuccess).toHaveBeenCalledWith({
+        dataset_id: 'dataset-1',
+        taskType: 'summarization',
+      });
+    });
+  });
+
+  it('shows document upload success summary', () => {
+    const file1 = new File(['doc'], 'report.pdf', { type: 'application/pdf' });
+    const file2 = new File(['doc2'], 'notes.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
 
     mutationState = {
@@ -112,40 +208,20 @@ describe('DatasetUpload', () => {
       isSuccess: true,
       isError: false,
       data: {
+        dataset_type: 'documents',
         dataset_id: 'dataset-1',
-        sample_count: 25,
-        has_summary: true,
-        has_class: false,
+        file_count: 2,
+        total_size_bytes: file1.size + file2.size,
+        documents: [],
       },
       error: null,
     };
 
     renderWithProviders(
-      <DatasetUpload
-        {...defaultProps}
-        file={file}
-        onChange={onChange}
-        onUploadSuccess={onUploadSuccess}
-      />,
+      <DatasetUpload {...defaultProps} files={[file1, file2]} />,
     );
 
-    const input = document.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement;
-    fireEvent.change(input, { target: { files: [file] } });
-
-    await waitFor(() => {
-      expect(mutateMock).toHaveBeenCalledWith(file, expect.any(Object));
-      expect(onChange).toHaveBeenCalledWith(file);
-      expect(onUploadSuccess).toHaveBeenCalledWith({
-        dataset_id: 'dataset-1',
-        sample_count: 25,
-        taskType: 'summarization',
-      });
-    });
-
-    expect(screen.getByText('samples.csv')).toBeInTheDocument();
-    expect(screen.getByText(/25 samples/)).toBeInTheDocument();
+    expect(screen.getByText(/2 files uploaded/)).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Start Evaluation' }),
     ).toBeDisabled();
@@ -162,7 +238,7 @@ describe('DatasetUpload', () => {
       error: { message: 'Invalid dataset format' },
     };
 
-    renderWithProviders(<DatasetUpload {...defaultProps} file={file} />);
+    renderWithProviders(<DatasetUpload {...defaultProps} files={[file]} />);
 
     expect(screen.getByText('Invalid dataset format')).toBeInTheDocument();
   });

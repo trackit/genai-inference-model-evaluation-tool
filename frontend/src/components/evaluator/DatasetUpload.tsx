@@ -2,7 +2,11 @@ import { MetricsPicker } from '@/components/evaluator/MetricsPicker';
 import { Button } from '@/components/ui/button';
 import { useUploadDataset } from '@/hooks/useEvaluation';
 import { cn } from '@/lib/utils';
-import type { MetricsToggles, TaskType } from '@/types/evaluation';
+import type {
+  DatasetUploadData,
+  MetricsToggles,
+  TaskType,
+} from '@/types/evaluation';
 import { hasAtLeastOneMetric } from '@/utils/metrics';
 import { motion } from 'framer-motion';
 import {
@@ -17,12 +21,11 @@ import {
 import { useState } from 'react';
 
 interface DatasetUploadProps {
-  file: File | null;
-  onChange: (file: File | null) => void;
+  files: File[];
+  onChange: (files: File[]) => void;
   onStartEvaluation: () => void;
   onUploadSuccess: (data: {
     dataset_id: string;
-    sample_count: number;
     taskType: TaskType | undefined;
   }) => void;
   isStarting?: boolean;
@@ -92,8 +95,45 @@ function resolveDetectedTask(data: {
   return undefined;
 }
 
+function getValidationError(files: File[]): string | null {
+  const extensions = files.map((file) =>
+    file.name.toLowerCase().split('.').pop(),
+  );
+  const isDataset = (extension?: string) =>
+    extension === 'csv' || extension === 'jsonl';
+  const isDocument = (extension?: string) =>
+    extension === 'pdf' || extension === 'doc' || extension === 'docx';
+
+  if (
+    extensions.some(
+      (extension) => !isDataset(extension) && !isDocument(extension),
+    )
+  ) {
+    return 'Unsupported file type. Supported: CSV, JSONL, PDF, DOC, DOCX';
+  }
+
+  if (extensions.some(isDataset) && files.length > 1) {
+    return 'CSV/JSONL datasets must be uploaded alone';
+  }
+
+  return null;
+}
+
+function formatBytes(size: number): string {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function detectedTaskFromUpload(
+  data: DatasetUploadData | undefined,
+): TaskType | undefined {
+  if (!data || data.dataset_type !== 'structured') return undefined;
+  return resolveDetectedTask(data);
+}
+
 export function DatasetUpload({
-  file,
+  files,
   onChange,
   onStartEvaluation,
   onUploadSuccess,
@@ -105,16 +145,26 @@ export function DatasetUpload({
   const [activeTask, setActiveTask] = useState<TaskType>('summarization');
   const [formatTab, setFormatTab] = useState<FormatTab>('csv');
   const uploadMutation = useUploadDataset();
+  const validationError = getValidationError(files);
 
-  const handleFile = (f: File) => {
+  const handleAddFiles = (newFiles: File[]) => {
+    if (newFiles.length === 0) return;
     uploadMutation.reset();
-    onChange(f);
-    uploadMutation.mutate(f, {
+    onChange([...files, ...newFiles]);
+  };
+
+  const handleRemoveFile = (index: number) => {
+    uploadMutation.reset();
+    onChange(files.filter((_, fileIndex) => fileIndex !== index));
+  };
+
+  const handleUpload = () => {
+    if (files.length === 0 || validationError) return;
+    uploadMutation.mutate(files, {
       onSuccess: (data) => {
         onUploadSuccess({
           dataset_id: data.dataset_id,
-          sample_count: data.sample_count,
-          taskType: resolveDetectedTask(data),
+          taskType: detectedTaskFromUpload(data),
         });
       },
     });
@@ -123,8 +173,8 @@ export function DatasetUpload({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleAddFiles(droppedFiles);
   };
 
   const task = TASK_TYPES.find((t) => t.id === activeTask)!;
@@ -138,7 +188,8 @@ export function DatasetUpload({
     >
       <h1 className="text-2xl font-semibold tracking-tight">Upload Dataset</h1>
       <p className="text-sm text-muted-foreground mt-1 mb-6">
-        Upload a CSV or JSONL file. Summarization requires{' '}
+        Upload CSV/JSONL datasets or multiple PDF/DOC/DOCX files. For structured
+        datasets, Summarization requires{' '}
         <span className="font-mono text-foreground/80">document</span> and{' '}
         <span className="font-mono text-foreground/80">summary</span>;
         classification requires{' '}
@@ -301,25 +352,87 @@ export function DatasetUpload({
       >
         <input
           type="file"
-          accept=".csv,.jsonl,.json"
+          multiple
+          accept=".csv,.jsonl,.json,.pdf,.doc,.docx"
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           disabled={uploadMutation.isPending}
           onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleFile(f);
+            handleAddFiles(Array.from(e.target.files ?? []));
+            e.currentTarget.value = '';
           }}
         />
         <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
         <p className="text-sm font-medium">
-          Drop your file here or click to browse
+          Drop files here or click to browse
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          CSV or JSONL · up to 200 MB · min 10 rows
+          CSV/JSONL (single file) or PDF/DOC/DOCX (multiple files) · up to 200
+          MB total
         </p>
       </div>
 
+      {files.length > 0 && (
+        <div className="mt-4 rounded-lg border border-border bg-surface">
+          <div className="border-b border-border px-4 py-2 text-xs font-medium text-muted-foreground">
+            Selected files ({files.length})
+          </div>
+          <div className="divide-y divide-border">
+            {files.map((selectedFile, index) => (
+              <div
+                key={`${selectedFile.name}-${selectedFile.size}-${index}`}
+                className="flex items-center justify-between px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatBytes(selectedFile.size)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadMutation.isPending}
+                  onClick={() => handleRemoveFile(index)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {validationError && (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {validationError}
+        </p>
+      )}
+
+      <Button
+        onClick={handleUpload}
+        className="mt-4 w-full"
+        disabled={
+          files.length === 0 ||
+          !!validationError ||
+          uploadMutation.isPending ||
+          uploadMutation.isSuccess
+        }
+      >
+        {uploadMutation.isPending ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Uploading…
+          </>
+        ) : (
+          'Upload'
+        )}
+      </Button>
+
       {/* ── Upload status ── */}
-      {file && (
+      {files.length > 0 && (
         <div
           className={cn(
             'mt-4 flex items-center gap-3 rounded-lg p-4 shadow-card',
@@ -340,14 +453,17 @@ export function DatasetUpload({
             <>
               <FileCheck className="h-4 w-4 text-accent" />
               <div>
-                <span className="text-sm font-medium">{file.name}</span>
+                <span className="text-sm font-medium">Upload complete</span>
                 <span className="text-xs text-muted-foreground ml-2">
-                  {uploadMutation.data.sample_count} samples —{' '}
-                  {uploadMutation.data.has_summary
-                    ? 'Summarization'
-                    : uploadMutation.data.has_class
-                      ? 'Classification'
-                      : 'Ready'}
+                  {uploadMutation.data.dataset_type === 'structured'
+                    ? `${uploadMutation.data.sample_count} samples — ${
+                        uploadMutation.data.has_summary
+                          ? 'Summarization'
+                          : uploadMutation.data.has_class
+                            ? 'Classification'
+                            : 'Ready'
+                      }`
+                    : `${uploadMutation.data.file_count} files uploaded`}
                 </span>
               </div>
             </>
@@ -368,7 +484,7 @@ export function DatasetUpload({
           <MetricsPicker
             metrics={metrics}
             onChange={onMetricsChange}
-            taskType={resolveDetectedTask(uploadMutation.data)}
+            taskType={detectedTaskFromUpload(uploadMutation.data)}
           />
           {!hasAtLeastOneMetric(metrics) && (
             <p className="mt-2 text-xs text-destructive" role="alert">

@@ -32,7 +32,7 @@ export default function Index() {
     weights: { accuracy: 40, cost: 30, latency: 30 },
     metrics: { ...DEFAULT_METRICS_TOGGLES },
     selectedModels: [],
-    datasetFile: null,
+    datasetFiles: [],
   });
   const [datasetId, setDatasetId] = useState<string | null>(null);
   const [evaluationId, setEvaluationId] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export default function Index() {
   const completedSteps = [];
   if (weightsValid) completedSteps.push(0);
   if (config.selectedModels.length >= 3) completedSteps.push(1);
-  if (config.datasetFile) completedSteps.push(2);
+  if (config.datasetFiles.length > 0) completedSteps.push(2);
 
   const canNext =
     (step === 0 && weightsValid) ||
@@ -108,11 +108,7 @@ export default function Index() {
   ]);
 
   const handleUploadSuccess = useCallback(
-    (data: {
-      dataset_id: string;
-      sample_count: number;
-      taskType: TaskType | undefined;
-    }) => {
+    (data: { dataset_id: string; taskType: TaskType | undefined }) => {
       setDatasetId(data.dataset_id);
       setConfig((prev) => ({
         ...prev,
@@ -129,7 +125,7 @@ export default function Index() {
       weights: { accuracy: 40, cost: 30, latency: 30 },
       metrics: { ...DEFAULT_METRICS_TOGGLES },
       selectedModels: [],
-      datasetFile: null,
+      datasetFiles: [],
     });
     setDatasetId(null);
     setEvaluationId(null);
@@ -183,8 +179,10 @@ export default function Index() {
               )}
               {step === 2 && (
                 <DatasetUpload
-                  file={config.datasetFile}
-                  onChange={(f) => setConfig({ ...config, datasetFile: f })}
+                  files={config.datasetFiles}
+                  onChange={(files) =>
+                    setConfig({ ...config, datasetFiles: files })
+                  }
                   onStartEvaluation={handleStartEvaluation}
                   onUploadSuccess={handleUploadSuccess}
                   isStarting={createEvaluationMutation.isPending}

@@ -15,7 +15,7 @@ import type {
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 export function useUploadDataset() {
-  return useMutation<DatasetUploadData, ApiError, File>({
+  return useMutation<DatasetUploadData, ApiError, File[]>({
     mutationFn: uploadDataset,
   });
 }
