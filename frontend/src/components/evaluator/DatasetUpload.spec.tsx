@@ -223,8 +223,51 @@ describe('DatasetUpload', () => {
 
     expect(screen.getByText(/2 files uploaded/)).toBeInTheDocument();
     expect(
+      screen.getByText('Select a task type to configure metrics.'),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole('button', { name: 'Start Evaluation' }),
     ).toBeDisabled();
+    expect(
+      screen.queryByText('Pick the metrics to compute'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('requires task type selection for document uploads', async () => {
+    const onUploadSuccess = vi.fn();
+    const file = new File(['doc'], 'report.pdf', { type: 'application/pdf' });
+
+    mutationState = {
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+      data: {
+        dataset_type: 'documents',
+        dataset_id: 'dataset-1',
+        file_count: 1,
+        total_size_bytes: file.size,
+        documents: [],
+      },
+      error: null,
+    };
+
+    renderWithProviders(
+      <DatasetUpload
+        {...defaultProps}
+        files={[file]}
+        onUploadSuccess={onUploadSuccess}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /classification/i }));
+
+    await waitFor(() => {
+      expect(onUploadSuccess).toHaveBeenCalledWith({
+        dataset_id: 'dataset-1',
+        taskType: 'classification',
+      });
+    });
+    expect(screen.getByText('Pick the metrics to compute')).toBeInTheDocument();
   });
 
   it('shows upload error message', () => {
