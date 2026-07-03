@@ -56,7 +56,7 @@ export default function Index() {
   const completedSteps = [];
   if (weightsValid) completedSteps.push(0);
   if (config.selectedModels.length >= 3) completedSteps.push(1);
-  if (config.datasetFiles.length > 0) completedSteps.push(2);
+  if (datasetId !== null) completedSteps.push(2);
 
   const canNext =
     (step === 0 && weightsValid) ||

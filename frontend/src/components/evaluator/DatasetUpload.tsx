@@ -104,6 +104,10 @@ function getValidationError(files: File[]): string | null {
   const isDocument = (extension?: string) =>
     extension === 'pdf' || extension === 'doc' || extension === 'docx';
 
+  if (files.reduce((s, f) => s + f.size, 0) > 209_715_200) {
+    return 'Total size must not exceed 200 MB';
+  }
+
   if (
     extensions.some(
       (extension) => !isDataset(extension) && !isDocument(extension),

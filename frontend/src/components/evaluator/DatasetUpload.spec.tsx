@@ -27,13 +27,9 @@ let mutationState = {
         dataset_type: 'documents';
         dataset_id: string;
         file_count: number;
-        total_size_bytes: number;
         documents: Array<{
-          document_id: string;
           filename: string;
           file_type: string;
-          s3_key: string;
-          size_bytes: number;
         }>;
       }
     | undefined,
