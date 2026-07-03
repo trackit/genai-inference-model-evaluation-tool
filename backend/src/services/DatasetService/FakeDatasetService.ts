@@ -89,12 +89,6 @@ export class FakeDatasetService implements DatasetService {
     }
     return size;
   }
-
-  async listDocuments(datasetId: string): Promise<string[]> {
-    return (
-      this.manifests.get(datasetId)?.files.map((file) => file.s3_key) ?? []
-    );
-  }
 }
 
 export const tokenFakeDatasetService = createInjectionToken<FakeDatasetService>(

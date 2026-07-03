@@ -1,7 +1,6 @@
 import {
   GetObjectCommand,
   HeadObjectCommand,
-  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -139,43 +138,6 @@ export class DatasetServiceImpl implements DatasetService {
           throw jsonlError;
         }
       }
-      throw error;
-    }
-  }
-
-  async listDocuments(datasetId: string): Promise<string[]> {
-    try {
-      const prefix = `documents/${datasetId}/`;
-      const allKeys: string[] = [];
-      let continuationToken: string | undefined;
-
-      do {
-        const response = await this.s3Client.send(
-          new ListObjectsV2Command({
-            Bucket: this.bucketName,
-            Prefix: prefix,
-            ContinuationToken: continuationToken,
-          }),
-        );
-
-        if (!response.Contents || response.Contents.length === 0) {
-          break;
-        }
-
-        const pageKeys = response.Contents.map(
-          (object) => object.Key || '',
-        ).filter((key) => key !== '');
-        allKeys.push(...pageKeys);
-
-        continuationToken = response.NextContinuationToken;
-      } while (continuationToken);
-
-      return allKeys;
-    } catch (error: unknown) {
-      if (isS3NotFound(error)) {
-        return [];
-      }
-
       throw error;
     }
   }

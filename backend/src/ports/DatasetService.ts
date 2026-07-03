@@ -23,6 +23,4 @@ export interface DatasetService {
     content: string;
     fileExtension: 'csv' | 'jsonl';
   }>;
-
-  listDocuments(datasetId: string): Promise<string[]>;
 }
