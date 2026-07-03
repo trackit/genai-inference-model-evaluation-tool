@@ -1,9 +1,16 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { DatasetService } from '../../ports/DatasetService';
 
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
+import { DocumentUploadManifest, MIN_FILE_BYTES } from '../../models/Dataset';
 
 export class DatasetServiceImpl implements DatasetService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
@@ -11,21 +18,18 @@ export class DatasetServiceImpl implements DatasetService {
   private readonly EXPIRY_TIME = 1800;
 
   async generatePresignedPost(
-    datasetId: string,
-    fileExtension: 'csv' | 'jsonl',
+    location: string,
+    contentType: string,
+    maxBytes: number,
   ): Promise<{
     url: string;
     fields: Record<string, string>;
   }> {
-    const s3Key = `datasets/${datasetId}.${fileExtension}`;
-    const contentType =
-      fileExtension === 'csv' ? 'text/csv' : 'application/jsonl';
-
     const { url, fields } = await createPresignedPost(this.s3Client, {
       Bucket: this.bucketName,
-      Key: s3Key,
+      Key: location,
       Conditions: [
-        ['content-length-range', 10, 209715200],
+        ['content-length-range', MIN_FILE_BYTES, maxBytes],
         ['eq', '$Content-Type', contentType],
         ['eq', '$x-amz-server-side-encryption', 'AES256'],
       ],
@@ -37,6 +41,63 @@ export class DatasetServiceImpl implements DatasetService {
     });
 
     return { url, fields };
+  }
+
+  async writeUploadManifest(
+    datasetId: string,
+    manifest: DocumentUploadManifest,
+  ): Promise<void> {
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: `documents/${datasetId}/.upload-manifest.json`,
+        Body: JSON.stringify(manifest),
+        ContentType: 'application/json',
+        ServerSideEncryption: 'AES256',
+      }),
+    );
+  }
+
+  async readUploadManifest(
+    datasetId: string,
+  ): Promise<DocumentUploadManifest | null> {
+    try {
+      const response = await this.s3Client.send(
+        new GetObjectCommand({
+          Bucket: this.bucketName,
+          Key: `documents/${datasetId}/.upload-manifest.json`,
+        }),
+      );
+      const body = await response.Body!.transformToString();
+      return JSON.parse(body) as DocumentUploadManifest;
+    } catch (error: unknown) {
+      if (isS3NotFound(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async getUploadedObjectSize(s3Key: string): Promise<number> {
+    try {
+      const response = await this.s3Client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucketName,
+          Key: s3Key,
+        }),
+      );
+      return response.ContentLength ?? 0;
+    } catch (error: unknown) {
+      if (isS3NotFound(error)) {
+        throw new BasicError(
+          BasicErrorType.UNPROCESSABLE_ENTITY,
+          'UPLOAD_INCOMPLETE',
+          'One or more files were not uploaded',
+          `Missing object: ${s3Key}`,
+        );
+      }
+      throw error;
+    }
   }
 
   async retrieveDataset(datasetId: string): Promise<{
@@ -78,6 +139,43 @@ export class DatasetServiceImpl implements DatasetService {
           throw jsonlError;
         }
       }
+      throw error;
+    }
+  }
+
+  async listDocuments(datasetId: string): Promise<string[]> {
+    try {
+      const prefix = `documents/${datasetId}/`;
+      const allKeys: string[] = [];
+      let continuationToken: string | undefined;
+
+      do {
+        const response = await this.s3Client.send(
+          new ListObjectsV2Command({
+            Bucket: this.bucketName,
+            Prefix: prefix,
+            ContinuationToken: continuationToken,
+          }),
+        );
+
+        if (!response.Contents || response.Contents.length === 0) {
+          break;
+        }
+
+        const pageKeys = response.Contents.map(
+          (object) => object.Key || '',
+        ).filter((key) => key !== '');
+        allKeys.push(...pageKeys);
+
+        continuationToken = response.NextContinuationToken;
+      } while (continuationToken);
+
+      return allKeys;
+    } catch (error: unknown) {
+      if (isS3NotFound(error)) {
+        return [];
+      }
+
       throw error;
     }
   }

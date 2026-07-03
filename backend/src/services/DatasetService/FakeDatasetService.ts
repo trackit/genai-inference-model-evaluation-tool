@@ -1,6 +1,7 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
+import { DocumentUploadManifest } from '../../models/Dataset';
 import { DatasetService } from '../../ports/DatasetService';
 
 export type StoredDatasetUpload = {
@@ -11,6 +12,9 @@ export type StoredDatasetUpload = {
 
 export class FakeDatasetService implements DatasetService {
   public readonly uploads: StoredDatasetUpload[] = [];
+  public readonly manifests = new Map<string, DocumentUploadManifest>();
+  public readonly documentObjects = new Map<string, number>();
+  public readonly presignedMaxBytes: number[] = [];
 
   async upload(
     datasetId: string,
@@ -26,14 +30,19 @@ export class FakeDatasetService implements DatasetService {
     }
   }
 
+  uploadDocument(s3Key: string, sizeBytes: number): void {
+    this.documentObjects.set(s3Key, sizeBytes);
+  }
+
   async generatePresignedPost(
-    datasetId: string,
-    fileExtension: 'csv' | 'jsonl',
+    location: string,
+    _contentType: string,
+    maxBytes: number,
   ): Promise<{ url: string; fields: Record<string, string> }> {
-    const key = `datasets/${datasetId}.${fileExtension}`;
+    this.presignedMaxBytes.push(maxBytes);
     return {
-      url: `https://fake-s3.test/${key}`,
-      fields: { key, Policy: 'fake-policy' },
+      url: `https://fake-s3.test/${location}`,
+      fields: { key: location, Policy: 'fake-policy' },
     };
   }
 
@@ -53,6 +62,38 @@ export class FakeDatasetService implements DatasetService {
       content: stored.content,
       fileExtension: stored.fileExtension,
     };
+  }
+
+  async writeUploadManifest(
+    datasetId: string,
+    manifest: DocumentUploadManifest,
+  ): Promise<void> {
+    this.manifests.set(datasetId, manifest);
+  }
+
+  async readUploadManifest(
+    datasetId: string,
+  ): Promise<DocumentUploadManifest | null> {
+    return this.manifests.get(datasetId) ?? null;
+  }
+
+  async getUploadedObjectSize(s3Key: string): Promise<number> {
+    const size = this.documentObjects.get(s3Key);
+    if (size === undefined) {
+      throw new BasicError(
+        BasicErrorType.UNPROCESSABLE_ENTITY,
+        'UPLOAD_INCOMPLETE',
+        'One or more files were not uploaded',
+        `Missing object: ${s3Key}`,
+      );
+    }
+    return size;
+  }
+
+  async listDocuments(datasetId: string): Promise<string[]> {
+    return (
+      this.manifests.get(datasetId)?.files.map((file) => file.s3_key) ?? []
+    );
   }
 }
 

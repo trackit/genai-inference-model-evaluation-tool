@@ -5,12 +5,18 @@ import type {
 } from 'aws-lambda';
 import { z } from 'zod';
 
+import { MAX_DATASET_BYTES, MIN_FILE_BYTES } from '../../models/Dataset';
 import { tokenInitializeDatasetUploadUseCase } from '../../useCases/InitializeDatasetUpload/InitializeDatasetUploadUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
 import { parseApiEvent } from '../api/parseApiEvent';
 
-const InitializeDatasetUploadBodySchema = z.object({
+const FileUploadRequestSchema = z.object({
   filename: z.string().min(1),
+  size_bytes: z.number().int().min(MIN_FILE_BYTES).max(MAX_DATASET_BYTES),
+});
+
+const InitializeDatasetUploadBodySchema = z.object({
+  files: z.array(FileUploadRequestSchema).min(1),
 });
 
 export class InitializeDatasetUploadAdapter {
@@ -31,6 +37,11 @@ export class InitializeDatasetUploadAdapter {
       bodySchema: InitializeDatasetUploadBodySchema,
     });
 
-    return this.useCase.initDatasetUpload(body.filename);
+    const fileRequests = body.files.map((file) => ({
+      filename: file.filename,
+      size_bytes: file.size_bytes,
+    }));
+
+    return this.useCase.initDatasetUpload(fileRequests);
   }
 }
