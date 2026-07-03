@@ -1,0 +1,5 @@
+// TO remove once we got the real data
+
+{"chunk_id":"chunk-001","document_id":"doc-001","source_filename":"quarterly-report.pdf","chunk_index":0,"text":"Revenue increased by 18 percent in Q2 due to growth in enterprise subscriptions and improved renewal rates.","metadata":{"section_title":"Executive Summary","page_start":1,"page_end":1}}
+{"chunk_id":"chunk-002","document_id":"doc-001","source_filename":"quarterly-report.pdf","chunk_index":1,"text":"Operating expenses rose because of cloud infrastructure expansion and additional hiring in customer support.","metadata":{"section_title":"Operating Expenses","page_start":2,"page_end":3}}
+{"chunk_id":"chunk-003","document_id":"doc-002","source_filename":"support-policy.doc","chunk_index":0,"text":"Customers can request refunds within 30 days when a billing error is confirmed by the support team.","metadata":{"section_title":"Refund Policy"}}
