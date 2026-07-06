@@ -49,7 +49,7 @@ export class DatasetServiceImpl implements DatasetService {
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
-        Key: `documents/${datasetId}/.upload-manifest.json`,
+        Key: `datasets/${datasetId}/.upload-manifest.json`,
         Body: JSON.stringify(manifest),
         ContentType: 'application/json',
         ServerSideEncryption: 'AES256',
@@ -64,7 +64,7 @@ export class DatasetServiceImpl implements DatasetService {
       const response = await this.s3Client.send(
         new GetObjectCommand({
           Bucket: this.bucketName,
-          Key: `documents/${datasetId}/.upload-manifest.json`,
+          Key: `datasets/${datasetId}/.upload-manifest.json`,
         }),
       );
       const body = await response.Body!.transformToString();

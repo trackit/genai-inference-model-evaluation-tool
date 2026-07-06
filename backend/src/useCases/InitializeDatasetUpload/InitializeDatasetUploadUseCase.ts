@@ -52,7 +52,7 @@ export function documentS3Key(
   documentId: string,
   fileType: DatasetFileType,
 ): string {
-  return `documents/${datasetId}/${documentId}.${fileType}`;
+  return `datasets/${datasetId}/${documentId}.${fileType}`;
 }
 
 export class InitializeDatasetUploadUseCaseImpl implements InitializeDatasetUploadUseCase {

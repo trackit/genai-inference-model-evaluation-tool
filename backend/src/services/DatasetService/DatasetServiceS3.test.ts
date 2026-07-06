@@ -70,7 +70,7 @@ describe('DatasetServiceImpl', () => {
             document_id: 'doc-1',
             filename: 'report.pdf',
             file_type: 'pdf' as const,
-            s3_key: 'documents/dataset-id/doc-1.pdf',
+            s3_key: 'datasets/dataset-id/doc-1.pdf',
             size_bytes: 1024,
           },
         ],
@@ -83,7 +83,7 @@ describe('DatasetServiceImpl', () => {
       const call = s3ClientMock.commandCalls(PutObjectCommand)[0];
       expect(call.args[0].input).toMatchObject({
         Bucket: 'test-bucket',
-        Key: 'documents/dataset-id/.upload-manifest.json',
+        Key: 'datasets/dataset-id/.upload-manifest.json',
         Body: JSON.stringify(manifest),
         ContentType: 'application/json',
         ServerSideEncryption: 'AES256',
@@ -128,7 +128,7 @@ describe('DatasetServiceImpl', () => {
       s3ClientMock.on(HeadObjectCommand).resolves({ ContentLength: 4096 });
 
       await expect(
-        service.getUploadedObjectSize('documents/dataset-id/doc-1.pdf'),
+        service.getUploadedObjectSize('datasets/dataset-id/doc-1.pdf'),
       ).resolves.toBe(4096);
     });
 
@@ -139,7 +139,7 @@ describe('DatasetServiceImpl', () => {
       s3ClientMock.on(HeadObjectCommand).rejects(notFound);
 
       await expect(
-        service.getUploadedObjectSize('documents/dataset-id/missing.pdf'),
+        service.getUploadedObjectSize('datasets/dataset-id/missing.pdf'),
       ).rejects.toThrow(BasicError);
     });
   });

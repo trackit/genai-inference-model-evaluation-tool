@@ -173,7 +173,7 @@ Resources:
             - Effect: Allow
               Action:
                 - s3:PutObject
-              Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/*'
+              Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets/*'
       Events:
         InitializeDatasetUploadApi:
           Type: HttpApi
@@ -217,8 +217,8 @@ Resources:
                 - s3:HeadObject
                 - s3:ListBucket
               Resource:
-                - !Sub 'arn:aws:s3:::${DatasetBucketName}'
-                - !Sub 'arn:aws:s3:::${DatasetBucketName}/*'
+                - !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets'
+                - !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets/*'
       Events:
         ConfirmDatasetUploadApi:
           Type: HttpApi
