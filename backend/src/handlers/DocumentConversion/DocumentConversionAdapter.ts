@@ -26,7 +26,6 @@ export class DocumentConversionAdapter {
     const result = await this.useCase.execute(request);
 
     return {
-      uncompleteDatasetFile: result.uncompleteDatasetFile,
       S3key: result.S3key,
     };
   }

@@ -18,9 +18,7 @@ export type DocumentChunk = {
 };
 
 export interface DocumentConversionResult {
-  uncompleteDatasetFile: string;
   S3key: string;
-  jsonl: string;
 }
 
 export interface ExtractedDocument {
