@@ -3,14 +3,71 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { BasicError, BasicErrorType } from '../../errors';
 import {
   ChunkingStrategy,
+  DocumentChunk,
   DocumentConversionRequest,
   DocumentConversionResult,
+  ExtractedDocument,
 } from '../../models/DocumentConversion';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
 
 export type DocumentConversionUseCase = {
   execute(request: DocumentConversionRequest): Promise<DocumentConversionResult>;
 };
+
+export function chunkDocuments(
+  extracted: ExtractedDocument[],
+  strategy: ChunkingStrategy,
+): DocumentChunk[] {
+  return extracted.flatMap((document) => {
+    if (strategy === ChunkingStrategy.DOCUMENT) {
+      return [
+        {
+          documentId: document.documentId,
+          chunkId: `${document.documentId}-0`,
+          text: document.text.trim(),
+        },
+      ];
+    }
+
+    return chunkDocumentByChapter(document);
+  });
+}
+
+export function buildConversionJsonl(chunks: DocumentChunk[]): string {
+  return chunks
+    .map((chunk) =>
+      JSON.stringify({
+        document_id: chunk.documentId,
+        chunk_id: chunk.chunkId,
+        text: chunk.text,
+      }),
+    )
+    .join('\n');
+}
+
+function chunkDocumentByChapter(document: ExtractedDocument): DocumentChunk[] {
+  const normalizedText = document.text.replace(/\r\n/g, '\n').trim();
+  const potentialChapters = normalizedText
+    .split(/\n{2,}/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+
+  if (potentialChapters.length === 0) {
+    return [
+      {
+        documentId: document.documentId,
+        chunkId: `${document.documentId}-0`,
+        text: normalizedText,
+      },
+    ];
+  }
+
+  return potentialChapters.map((text, index) => ({
+    documentId: document.documentId,
+    chunkId: `${document.documentId}-${index}`,
+    text,
+  }));
+}
 
 export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase {
   private readonly documentConversionService = inject(
@@ -21,21 +78,28 @@ export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase 
     request: DocumentConversionRequest,
   ): Promise<DocumentConversionResult> {
     this.validateRequest(request);
+    // TODO: Extract fileType from the upload manifest instead of hardcoding it to 'pdf'
 
-    await this.fetchAllDocuments(request);
+    const extracted = await this.fetchAndParseAll(request);
+    const chunks = chunkDocuments(extracted, request.chunkingStrategy);
+    const jsonl = buildConversionJsonl(chunks);
 
-    // Text extraction, chunking, JSONL generation, and S3 storage
-    // will be implemented in the next task.
-    throw new Error('Not implemented');
+    return {
+      uncompleteDatasetFile: '',
+      S3key: '',
+      jsonl,
+    };
   }
 
-  private async fetchAllDocuments(request: DocumentConversionRequest) {
+  private async fetchAndParseAll(
+    request: DocumentConversionRequest,
+  ): Promise<ExtractedDocument[]> {
     return Promise.all(
       request.documents.map((documentId) =>
-        this.documentConversionService.fetchDocument(
+        this.documentConversionService.fetchAndParse(
           request.datasetId,
           documentId,
-          // fileType will come from the upload manifest (next task)
+          // fileType will come from the upload manifest
           'pdf',
         ),
       ),

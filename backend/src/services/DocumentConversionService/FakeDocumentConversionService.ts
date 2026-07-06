@@ -1,14 +1,13 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
 import { DatasetFileType } from '../../models/Dataset';
-import { DocumentId, FetchedDocument } from '../../models/DocumentConversion';
+import { DocumentId, ExtractedDocument } from '../../models/DocumentConversion';
 import { DocumentConversionService } from '../../ports/DocumentConversionService';
 
 export type SeededDocument = {
   datasetId: string;
   documentId: DocumentId;
-  fileType: DatasetFileType;
-  rawContent: Buffer;
+  text: string;
 };
 
 export class FakeDocumentConversionService implements DocumentConversionService {
@@ -18,11 +17,11 @@ export class FakeDocumentConversionService implements DocumentConversionService 
     this.documents.set(`${doc.datasetId}/${doc.documentId}`, doc);
   }
 
-  async fetchDocument(
+  async fetchAndParse(
     datasetId: string,
     documentId: DocumentId,
-    fileType: DatasetFileType,
-  ): Promise<FetchedDocument> {
+    _fileType: DatasetFileType,
+  ): Promise<ExtractedDocument> {
     const doc = this.documents.get(`${datasetId}/${documentId}`);
 
     if (!doc) {
@@ -31,7 +30,7 @@ export class FakeDocumentConversionService implements DocumentConversionService 
       );
     }
 
-    return { documentId, datasetId, fileType, rawContent: doc.rawContent };
+    return { documentId, text: doc.text };
   }
 }
 

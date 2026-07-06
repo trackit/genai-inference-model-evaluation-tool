@@ -1,15 +1,14 @@
 import { DatasetFileType } from '../models/Dataset';
-import { DocumentId, FetchedDocument } from '../models/DocumentConversion';
+import { DocumentId, ExtractedDocument } from '../models/DocumentConversion';
 
 export interface DocumentConversionService {
   /**
-   * Fetches the raw bytes of a document from S3.
-   * The S3 key is constructed as documents/{datasetId}/{documentId}.{ext}
-   * using the manifest entry's file_type.
+   * Fetches a document from S3 by its key and extracts plain text from it.
+   * The S3 key is constructed as documents/{datasetId}/{documentId}.{ext}.
    */
-  fetchDocument(
+  fetchAndParse(
     datasetId: string,
     documentId: DocumentId,
     fileType: DatasetFileType,
-  ): Promise<FetchedDocument>;
+  ): Promise<ExtractedDocument>;
 }

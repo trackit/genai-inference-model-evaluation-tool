@@ -1,5 +1,3 @@
-import { DatasetFileType } from './Dataset';
-
 export enum ChunkingStrategy {
   DOCUMENT = 'DOCUMENT',
   CHAPTER = 'CHAPTER',
@@ -13,16 +11,16 @@ export interface DocumentConversionRequest {
   chunkingStrategy: ChunkingStrategy;
 }
 
+export type DocumentChunk = {
+  documentId: DocumentId;
+  chunkId: string;
+  text: string;
+};
+
 export interface DocumentConversionResult {
   uncompleteDatasetFile: string;
   S3key: string;
-}
-
-export interface FetchedDocument {
-  documentId: DocumentId;
-  datasetId: string;
-  fileType: DatasetFileType;
-  rawContent: Buffer;
+  jsonl: string;
 }
 
 export interface ExtractedDocument {

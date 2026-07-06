@@ -5,7 +5,7 @@ import type {
 } from 'aws-lambda';
 
 import { BasicError, BasicErrorType } from '../../errors';
-import { DocumentConversionRequest } from '../../models/DocumentConversion';
+import { ChunkingStrategy, DocumentConversionRequest } from '../../models/DocumentConversion';
 import { tokenDocumentConversionUseCase } from '../../useCases/DocumentConversion/DocumentConversionUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
 
@@ -71,14 +71,9 @@ export class DocumentConversionAdapter {
       );
     }
 
-    if (!chunkingStrategy) {
-      throw new BasicError(
-        BasicErrorType.BAD_REQUEST,
-        'MISSING_CHUNKING_STRATEGY',
-        'chunkingStrategy is required',
-      );
-    }
+    const chunkingStrategyToUse =
+      chunkingStrategy ?? ChunkingStrategy.CHAPTER;
 
-    return { datasetId, documents, chunkingStrategy };
+    return { datasetId, documents, chunkingStrategy: chunkingStrategyToUse };
   }
 }
