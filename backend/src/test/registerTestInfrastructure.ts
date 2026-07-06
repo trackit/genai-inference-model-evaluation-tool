@@ -5,6 +5,8 @@ import { tokenBedrockModelValidationService } from '../services/BedrockModelVali
 import { tokenFakeBedrockModelValidationService } from '../services/BedrockModelValidationService/FakeBedrockModelValidationService';
 import { tokenDatasetService } from '../services/DatasetService/DatasetServiceS3';
 import { tokenFakeDatasetService } from '../services/DatasetService/FakeDatasetService';
+import { tokenDocumentConversionService } from '../services/DocumentConversionService/DocumentConversionServiceS3';
+import { tokenFakeDocumentConversionService } from '../services/DocumentConversionService/FakeDocumentConversionService';
 import { tokenEmailService } from '../services/EmailService/EmailService';
 import { tokenFakeEmailService } from '../services/EmailService/FakeEmailService';
 import { tokenEvaluationJobsRepository } from '../services/EvaluationJobsRepository/EvaluationJobsDynamoDBRepository';
@@ -24,6 +26,9 @@ export const registerTestInfrastructure = (): void => {
   });
   register(tokenDatasetService, {
     useFactory: () => inject(tokenFakeDatasetService),
+  });
+  register(tokenDocumentConversionService, {
+    useFactory: () => inject(tokenFakeDocumentConversionService),
   });
   register(tokenEmailService, {
     useFactory: () => inject(tokenFakeEmailService),
