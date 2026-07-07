@@ -1,4 +1,5 @@
 import { inject, register } from '@trackit.io/di-container';
+import { tokenSyntheticOutputModelClient } from '../ports/SyntheticOutputModelClient';
 import { tokenAccessCodeRepository } from '../services/AccessCodeRepository/AccessCodeRepository';
 import { tokenFakeAccessCodeRepository } from '../services/AccessCodeRepository/FakeAccessCodeRepository';
 import { tokenBedrockModelValidationService } from '../services/BedrockModelValidationService/BedrockModelValidationService';
@@ -13,6 +14,7 @@ import { tokenEvaluationJobsRepository } from '../services/EvaluationJobsReposit
 import { tokenFakeEvaluationJobsRepository } from '../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
 import { tokenFakeFargateService } from '../services/FargateService/FakeFargateService';
 import { tokenFargateService } from '../services/FargateService/FargateService';
+import { tokenFakeSyntheticOutputModelClient } from '../services/SyntheticOutputModelClient/FakeSyntheticOutputModelClient';
 
 export const registerTestInfrastructure = (): void => {
   register(tokenEvaluationJobsRepository, {
@@ -35,5 +37,8 @@ export const registerTestInfrastructure = (): void => {
   });
   register(tokenAccessCodeRepository, {
     useFactory: () => inject(tokenFakeAccessCodeRepository),
+  });
+  register(tokenSyntheticOutputModelClient, {
+    useFactory: () => inject(tokenFakeSyntheticOutputModelClient),
   });
 };

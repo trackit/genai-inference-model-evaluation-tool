@@ -36,6 +36,7 @@ export interface GenerateSyntheticOutputsInput {
   datasetId: string;
   convertedDatasetArtifactKey: string;
   taskType: PreprocessingTaskType;
+  modelId?: string;
 }
 
 export interface SyntheticOutputRow {
@@ -51,6 +52,12 @@ export interface SyntheticOutputRow {
 
 export interface GenerateSyntheticOutputsOutput {
   syntheticDatasetArtifactKey: string;
+  generatedCount: number;
+  failedCount: number;
+}
+
+export interface GenerateSyntheticOutputsResult {
+  rows: SyntheticOutputRow[];
   generatedCount: number;
   failedCount: number;
 }

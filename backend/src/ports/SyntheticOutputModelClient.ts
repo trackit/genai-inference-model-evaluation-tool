@@ -1,3 +1,5 @@
+import { createInjectionToken } from '@trackit.io/di-container';
+
 export interface SyntheticOutputModelClient {
   generate(
     request: SyntheticOutputModelRequest,
@@ -13,3 +15,8 @@ export interface SyntheticOutputModelResult {
   output: string;
   modelId?: string;
 }
+
+export const tokenSyntheticOutputModelClient =
+  createInjectionToken<SyntheticOutputModelClient>(
+    'SyntheticOutputModelClient',
+  );
