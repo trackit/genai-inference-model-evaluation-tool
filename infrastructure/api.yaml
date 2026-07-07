@@ -124,6 +124,12 @@ Resources:
       LogGroupName: !Sub '/aws/lambda/${RunSyntheticPreprocessingFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
+  GetDatasetPreviewFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GetDatasetPreviewFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
   RequestAccessCodeFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -348,6 +354,44 @@ Resources:
           - .js=.mjs
         EntryPoints:
           - src/handlers/RunSyntheticPreprocessing/RunSyntheticPreprocessing.ts
+
+  GetDatasetPreviewFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: GetDatasetPreview.handler
+      Timeout: 60
+      MemorySize: 512
+      Tags:
+        Name: !Sub '${AWS::StackName}-get-dataset-preview-function'
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucketName
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref DatasetBucketName
+      Events:
+        GetDatasetPreviewApi:
+          Type: HttpApi
+          Properties:
+            Path: /datasets/{id}/preview
+            Method: GET
+            ApiId: !Ref Api
+            Auth:
+              Authorizer: AccessCodeAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/GetDatasetPreview/GetDatasetPreview.ts
 
   EvaluationLaunchFunction:
     Type: AWS::Serverless::Function

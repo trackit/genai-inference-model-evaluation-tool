@@ -5,6 +5,7 @@ const STEPS = [
   { label: 'Weights', description: 'Set metric priorities' },
   { label: 'Models', description: 'Choose candidates' },
   { label: 'Dataset', description: 'Upload & validate' },
+  { label: 'Confirm', description: 'Preview & Launch' },
 ];
 
 interface StepIndicatorProps {
