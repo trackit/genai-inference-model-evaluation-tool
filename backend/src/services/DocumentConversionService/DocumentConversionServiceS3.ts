@@ -1,10 +1,10 @@
-import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { DatasetFileType } from '../../models/Dataset';
-import { DocumentId, ExtractedDocument } from '../../models/DocumentConversion';
+import { DocumentConversionResult, DocumentId, ExtractedDocument } from '../../models/DocumentConversion';
 import { DocumentConversionService } from '../../ports/DocumentConversionService';
 import { tokenClientS3 } from '../DatasetService/DatasetServiceS3';
 import { documentS3Key } from '../../utils/s3Keys';
@@ -22,6 +22,22 @@ export class DocumentConversionServiceImpl implements DocumentConversionService 
     const text = await this.extractText(rawContent, fileType);
 
     return { documentId, text: text.trim() };
+  }
+
+  async storeConversionJsonl(datasetId: string, jsonl: string): Promise<DocumentConversionResult> {
+    const documentConversionResult: DocumentConversionResult = { S3key: `datasets/${datasetId}/${datasetId}-converted.jsonl` };
+
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: documentConversionResult.S3key,
+        Body: jsonl,
+        ContentType: 'application/jsonl',
+        ServerSideEncryption: 'AES256',
+      }),
+    );
+
+    return documentConversionResult;
   }
 
   private async fetchRawContent(

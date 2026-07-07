@@ -1,5 +1,5 @@
 import { DatasetFileType } from '../models/Dataset';
-import { DocumentId, ExtractedDocument } from '../models/DocumentConversion';
+import { DocumentConversionResult, DocumentId, ExtractedDocument } from '../models/DocumentConversion';
 
 export interface DocumentConversionService {
   /**
@@ -11,4 +11,10 @@ export interface DocumentConversionService {
     documentId: DocumentId,
     fileType: DatasetFileType,
   ): Promise<ExtractedDocument>;
+
+  /**
+   * Stores generated JSONL for a converted document dataset 
+   * and returns the S3 key which is datasets/{datasetId}-converted.jsonl.
+   */
+  storeConversionJsonl(datasetId: string, jsonl: string): Promise<DocumentConversionResult>;
 }

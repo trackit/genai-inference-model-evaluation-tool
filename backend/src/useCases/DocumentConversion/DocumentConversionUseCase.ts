@@ -7,10 +7,9 @@ import {
     DocumentConversionRequest,
     DocumentConversionResult,
     ExtractedDocument,
+    TaskType,
 } from '../../models/DocumentConversion';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
-import { tokenClientS3 } from '../../services/DatasetService/DatasetServiceS3';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 export type DocumentConversionUseCase = {
     execute(request: DocumentConversionRequest): Promise<DocumentConversionResult>;
@@ -34,15 +33,28 @@ export function chunkDocuments(
     });
 }
 
-export function buildConversionJsonl(chunks: DocumentChunk[]): string {
+export function buildConversionJsonl(
+    chunks: DocumentChunk[],
+    taskType: TaskType,
+): string {
     return chunks
-        .map((chunk) =>
-            JSON.stringify({
+        .map((chunk) => {
+            const record: Record<string, string> = {
                 document_id: chunk.documentId,
                 chunk_id: chunk.chunkId,
                 text: chunk.text,
-            }),
-        )
+            };
+
+            if (taskType === TaskType.SUMMARIZATION) {
+                record.summary = '';
+            }
+
+            if (taskType === TaskType.CLASSIFICATION) {
+                record.label = '';
+            }
+
+            return JSON.stringify(record);
+        })
         .join('\n');
 }
 
@@ -72,28 +84,21 @@ function chunkDocumentByChapter(document: ExtractedDocument): DocumentChunk[] {
 
 export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase {
     private readonly documentConversionService = inject(tokenDocumentConversionService);
-    private readonly s3Client = inject(tokenClientS3);
 
     async execute(request: DocumentConversionRequest): Promise<DocumentConversionResult> {
         this.validateRequest(request);
 
         const extracted = await this.fetchAndParseAll(request);
         const chunks = chunkDocuments(extracted, request.chunkingStrategy);
-        const jsonl = buildConversionJsonl(chunks);
+        const jsonl = buildConversionJsonl(chunks, request.taskType);
 
-        const s3Key = `datasets/${request.datasetId}-converted.jsonl`;
+        const storedJsonlKey: DocumentConversionResult =
+            await this.documentConversionService.storeConversionJsonl(
+                request.datasetId,
+                jsonl,
+            );
 
-        await this.s3Client.send(
-            new PutObjectCommand({
-                Bucket: process.env.DATASET_BUCKET!,
-                Key: s3Key,
-                Body: jsonl,
-                ContentType: 'application/jsonl',
-                ServerSideEncryption: 'AES256',
-            }),
-        );
-
-        return { S3key: s3Key };
+        return storedJsonlKey;
     }
 
     private async fetchAndParseAll(
@@ -146,6 +151,14 @@ export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase 
                 BasicErrorType.BAD_REQUEST,
                 'INVALID_CHUNKING_STRATEGY',
                 `chunkingStrategy must be one of: ${Object.values(ChunkingStrategy).join(', ')}`,
+            );
+        }
+
+        if (!Object.values(TaskType).includes(request.taskType)) {
+            throw new BasicError(
+                BasicErrorType.BAD_REQUEST,
+                'INVALID_TASK_TYPE',
+                `taskType must be one of: ${Object.values(TaskType).join(', ')}`,
             );
         }
     }

@@ -1,7 +1,11 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
 import { DatasetFileType } from '../../models/Dataset';
-import { DocumentId, ExtractedDocument } from '../../models/DocumentConversion';
+import {
+  DocumentConversionResult,
+  DocumentId,
+  ExtractedDocument,
+} from '../../models/DocumentConversion';
 import { DocumentConversionService } from '../../ports/DocumentConversionService';
 
 export type SeededDocument = {
@@ -31,6 +35,13 @@ export class FakeDocumentConversionService implements DocumentConversionService 
     }
 
     return { documentId, text: doc.text };
+  }
+
+  async storeConversionJsonl(
+    datasetId: string,
+    jsonl: string,
+  ): Promise<DocumentConversionResult> {
+    return { S3key: `datasets/${datasetId}-converted.jsonl` };
   }
 }
 

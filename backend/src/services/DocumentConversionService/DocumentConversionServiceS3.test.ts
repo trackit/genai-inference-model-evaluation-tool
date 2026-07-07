@@ -1,4 +1,4 @@
-import { GetObjectCommand, GetObjectCommandOutput } from '@aws-sdk/client-s3';
+import { GetObjectCommand, GetObjectCommandOutput, PutObjectCommand } from '@aws-sdk/client-s3';
 import { inject, reset } from '@trackit.io/di-container';
 import { mockClient } from 'aws-sdk-client-mock';
 import { Readable } from 'stream';
@@ -202,6 +202,37 @@ describe('DocumentConversionServiceS3', () => {
           service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'jsonl'),
         ).rejects.toThrow('Unsupported file type for parsing: "jsonl"');
       });
+    });
+  });
+
+  describe('storeConversionJsonl', () => {
+    it('uploads JSONL to the dataset bucket with the correct metadata', async () => {
+      const { service, s3Mock } = setup();
+      const jsonl = '{"document_id":"doc-1","chunk_id":"doc-1-0","text":"hello"}\n';
+      s3Mock.on(PutObjectCommand).resolves({});
+
+      const result = await service.storeConversionJsonl(DATASET_ID, jsonl);
+
+      expect(result.S3key).toBe(`datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`);
+      const calls = s3Mock.commandCalls(PutObjectCommand);
+      expect(calls).toHaveLength(1);
+      expect(calls[0].args[0].input).toMatchObject({
+        Bucket: 'test-bucket',
+        Key: `datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`,
+        Body: jsonl,
+        ContentType: 'application/jsonl',
+        ServerSideEncryption: 'AES256',
+      });
+    });
+
+    it('returns the S3 key even when upload resolves with empty output', async () => {
+      const { service, s3Mock } = setup();
+      const jsonl = '{"document_id":"doc-2","chunk_id":"doc-2-0","text":"world"}\n';
+      s3Mock.on(PutObjectCommand).resolves({});
+
+      const result = await service.storeConversionJsonl(DATASET_ID, jsonl);
+
+      expect(result.S3key).toBe(`datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`);
     });
   });
 });

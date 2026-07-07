@@ -5,7 +5,11 @@ import type {
 } from 'aws-lambda';
 
 import { BasicError, BasicErrorType } from '../../errors';
-import { ChunkingStrategy, DocumentConversionRequest } from '../../models/DocumentConversion';
+import {
+  ChunkingStrategy,
+  DocumentConversionRequest,
+  TaskType,
+} from '../../models/DocumentConversion';
 import { tokenDocumentConversionUseCase } from '../../useCases/DocumentConversion/DocumentConversionUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
 
@@ -51,8 +55,12 @@ export class DocumentConversionAdapter {
       );
     }
 
-    const { datasetId, documents, chunkingStrategy } =
-      payload as DocumentConversionRequest;
+    const {
+      datasetId,
+      documents,
+      chunkingStrategy,
+      taskType,
+    } = payload as DocumentConversionRequest;
 
     if (!datasetId) {
       throw new BasicError(
@@ -70,9 +78,22 @@ export class DocumentConversionAdapter {
       );
     }
 
+    if (!taskType || !Object.values(TaskType).includes(taskType)) {
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'INVALID_TASK_TYPE',
+        `taskType must be one of: ${Object.values(TaskType).join(', ')}`,
+      );
+    }
+
     const chunkingStrategyToUse =
       chunkingStrategy ?? ChunkingStrategy.CHAPTER;
 
-    return { datasetId, documents, chunkingStrategy: chunkingStrategyToUse };
+    return {
+      datasetId,
+      documents,
+      chunkingStrategy: chunkingStrategyToUse,
+      taskType,
+    };
   }
 }

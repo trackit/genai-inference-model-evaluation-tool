@@ -3,12 +3,18 @@ export enum ChunkingStrategy {
   CHAPTER = 'CHAPTER',
 }
 
+export enum TaskType {
+  CLASSIFICATION = 'Classification',
+  SUMMARIZATION = 'Summarization',
+}
+
 export type DocumentId = string;
 
 export interface DocumentConversionRequest {
   datasetId: string;
   documents: DocumentId[];
   chunkingStrategy: ChunkingStrategy;
+  taskType: TaskType;
 }
 
 export type DocumentChunk = {
