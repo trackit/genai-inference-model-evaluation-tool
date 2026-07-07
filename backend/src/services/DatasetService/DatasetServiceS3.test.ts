@@ -34,9 +34,9 @@ describe('DatasetServiceImpl', () => {
       notFound.name = 'NoSuchKey';
 
       s3ClientMock
-        .on(GetObjectCommand, { Key: 'datasets/dataset-id.csv' })
+        .on(GetObjectCommand, { Key: 'datasets/dataset-id/dataset-id.csv' })
         .rejects(notFound)
-        .on(GetObjectCommand, { Key: 'datasets/dataset-id.jsonl' })
+        .on(GetObjectCommand, { Key: 'datasets/dataset-id/dataset-id.jsonl' })
         .resolves({
           Body: {
             transformToString: async () => '{"document":"Question 1"}',

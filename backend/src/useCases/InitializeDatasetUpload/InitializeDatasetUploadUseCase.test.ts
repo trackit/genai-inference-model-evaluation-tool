@@ -21,10 +21,10 @@ describe('InitializeDatasetUploadUseCase', () => {
     expect(result.uploads).toHaveLength(1);
     expect(datasetService.presignedMaxBytes).toEqual([sizeBytes]);
     expect(result.uploads[0].upload_url).toBe(
-      `https://fake-s3.test/datasets/${result.dataset_id}.csv`,
+      `https://fake-s3.test/datasets/${result.dataset_id}/${result.dataset_id}.csv`,
     );
     expect(result.uploads[0].fields).toEqual({
-      key: `datasets/${result.dataset_id}.csv`,
+      key: `datasets/${result.dataset_id}/${result.dataset_id}.csv`,
       Policy: 'fake-policy',
     });
     expect(result.dataset_id).toMatch(
@@ -39,7 +39,7 @@ describe('InitializeDatasetUploadUseCase', () => {
     ]);
 
     expect(result.uploads[0].fields.key).toBe(
-      `datasets/${result.dataset_id}.jsonl`,
+      `datasets/${result.dataset_id}/${result.dataset_id}.jsonl`,
     );
   });
 

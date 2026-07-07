@@ -44,7 +44,7 @@ export function datasetS3Key(
   datasetId: string,
   fileType: 'csv' | 'jsonl',
 ): string {
-  return `datasets/${datasetId}.${fileType}`;
+  return `datasets/${datasetId}/${datasetId}.${fileType}`;
 }
 
 export function documentS3Key(

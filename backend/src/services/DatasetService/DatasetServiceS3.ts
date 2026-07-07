@@ -104,7 +104,7 @@ export class DatasetServiceImpl implements DatasetService {
     fileExtension: 'csv' | 'jsonl';
   }> {
     try {
-      const csvKey = `datasets/${datasetId}.csv`;
+      const csvKey = `datasets/${datasetId}/${datasetId}.csv`;
       const csvResponse = await this.s3Client.send(
         new GetObjectCommand({
           Bucket: this.bucketName,
@@ -116,7 +116,7 @@ export class DatasetServiceImpl implements DatasetService {
     } catch (error: unknown) {
       if (isS3NotFound(error)) {
         try {
-          const jsonlKey = `datasets/${datasetId}.jsonl`;
+          const jsonlKey = `datasets/${datasetId}/${datasetId}.jsonl`;
           const jsonlResponse = await this.s3Client.send(
             new GetObjectCommand({
               Bucket: this.bucketName,
