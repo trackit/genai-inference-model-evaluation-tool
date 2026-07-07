@@ -1,5 +1,3 @@
-// TODO: remove this contract once chunk service will be ready
-
 export const PREPROCESSING_TASK_TYPES = [
   'summarization',
   'classification',
@@ -23,47 +21,42 @@ export interface ChunkDocumentsInput {
 }
 
 export interface ChunkDocumentsOutput {
-  chunkArtifactKey: string;
+  convertedDatasetArtifactKey: string;
 }
 
-export interface DocumentChunkMetadata {
-  section_title?: string;
-  page_start?: number;
-  page_end?: number;
-}
-
-export interface DocumentChunk {
+export interface ConvertedDatasetRow {
   chunk_id: string;
   document_id: string;
-  source_filename: string;
-  chunk_index: number;
   text: string;
-  metadata?: DocumentChunkMetadata;
+  summary?: string;
+  class?: string;
 }
 
 export interface GenerateSyntheticOutputsInput {
-  chunkArtifactKey: string;
+  datasetId: string;
+  convertedDatasetArtifactKey: string;
   taskType: PreprocessingTaskType;
 }
 
 export interface SyntheticOutputRow {
   chunk_id: string;
-  task_type: PreprocessingTaskType;
-  output: string;
+  document_id: string;
+  text: string;
+  summary?: string;
+  class?: string;
   status: 'completed' | 'failed';
   error_message?: string;
   model_id?: string;
 }
 
 export interface GenerateSyntheticOutputsOutput {
-  syntheticOutputArtifactKey: string;
+  syntheticDatasetArtifactKey: string;
   generatedCount: number;
   failedCount: number;
 }
 
 export interface StructuredDatasetGenerationInput {
-  chunkArtifactKey: string;
-  syntheticOutputArtifactKey: string;
+  syntheticDatasetArtifactKey: string;
 }
 
 export interface StructuredDatasetGenerationOutput {

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import type { DocumentChunk } from './Preprocessing';
+import type { ConvertedDatasetRow } from './Preprocessing';
 import { CHUNKING_STRATEGIES, PREPROCESSING_TASK_TYPES } from './Preprocessing';
 
 describe('Preprocessing contracts', () => {
@@ -13,33 +13,27 @@ describe('Preprocessing contracts', () => {
     expect(CHUNKING_STRATEGIES).toEqual(['document', 'chapter']);
   });
 
-  it('keeps the mock chunk artifact aligned with the DocumentChunk shape', () => {
-    const chunks = readMockChunks();
+  it('keeps the mock converted artifact aligned with the ConvertedDatasetRow shape', () => {
+    const rows = readMockConvertedRows();
 
-    expect(chunks).toHaveLength(3);
-    expect(chunks[0]).toMatchObject({
-      chunk_id: 'chunk-001',
-      document_id: 'doc-001',
-      source_filename: 'quarterly-report.pdf',
-      chunk_index: 0,
-      metadata: {
-        section_title: 'Executive Summary',
-        page_start: 1,
-        page_end: 1,
-      },
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toEqual({
+      document_id: 'demo-dataset',
+      chunk_id: 'demo-dataset-0',
+      text: 'Revenue increased by 18 percent in Q2 due to growth in enterprise subscriptions and improved renewal rates.',
+      summary: '',
     });
 
-    for (const chunk of chunks) {
-      expect(chunk.chunk_id).toMatch(/^chunk-/);
-      expect(chunk.document_id).toMatch(/^doc-/);
-      expect(chunk.source_filename).toMatch(/\.(pdf|doc)$/);
-      expect(Number.isInteger(chunk.chunk_index)).toBe(true);
-      expect(chunk.text.trim().length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.document_id).toBe('demo-dataset');
+      expect(row.chunk_id).toMatch(/^demo-dataset-\d+$/);
+      expect(row.text.trim().length).toBeGreaterThan(0);
+      expect(row.summary).toBe('');
     }
   });
 });
 
-function readMockChunks(): DocumentChunk[] {
+function readMockConvertedRows(): ConvertedDatasetRow[] {
   const fixture = readFileSync(
     new URL('../test/fixtures/preprocessing-chunks.jsonl', import.meta.url),
     'utf8',
@@ -48,5 +42,5 @@ function readMockChunks(): DocumentChunk[] {
   return fixture
     .trim()
     .split('\n')
-    .map((line) => JSON.parse(line) as DocumentChunk);
+    .map((line) => JSON.parse(line) as ConvertedDatasetRow);
 }
