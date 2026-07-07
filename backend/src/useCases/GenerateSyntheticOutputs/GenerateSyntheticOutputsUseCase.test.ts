@@ -1,4 +1,4 @@
-import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { inject, reset } from '@trackit.io/di-container';
 import { mockClient } from 'aws-sdk-client-mock';
 import { describe, expect, it } from 'vitest';
@@ -29,7 +29,10 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 
     expect(result.generatedCount).toBe(2);
     expect(result.failedCount).toBe(0);
-    expect(result.rows).toEqual([
+    expect(result.syntheticDatasetArtifactKey).toBe(
+      'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+    );
+    expect(expectWrittenSyntheticRows(s3ClientMock)).toEqual([
       {
         document_id: 'demo-dataset',
         chunk_id: 'demo-dataset-0',
@@ -71,10 +74,12 @@ describe('GenerateSyntheticOutputsUseCase', () => {
     });
 
     expect(result).toMatchObject({
+      syntheticDatasetArtifactKey:
+        'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
       generatedCount: 1,
       failedCount: 0,
     });
-    expect(result.rows[0]).toEqual({
+    expect(expectWrittenSyntheticRows(s3ClientMock)[0]).toEqual({
       document_id: 'demo-dataset',
       chunk_id: 'demo-dataset-0',
       text: 'Refunds are available after billing errors.',
@@ -106,7 +111,7 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 
     expect(result.generatedCount).toBe(1);
     expect(result.failedCount).toBe(1);
-    expect(result.rows[1]).toMatchObject({
+    expect(expectWrittenSyntheticRows(s3ClientMock)[1]).toMatchObject({
       chunk_id: 'demo-dataset-1',
       summary: '',
       status: 'failed',
@@ -132,7 +137,7 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 
     expect(result.generatedCount).toBe(0);
     expect(result.failedCount).toBe(1);
-    expect(result.rows[0]).toMatchObject({
+    expect(expectWrittenSyntheticRows(s3ClientMock)[0]).toMatchObject({
       class: '',
       status: 'failed',
       error_message: 'Synthetic output cannot be empty',
@@ -164,12 +169,34 @@ function setup() {
   reset();
   registerTestInfrastructure();
   process.env.DATASET_BUCKET = 'test-bucket';
+  const s3ClientMock = mockClient(inject(tokenClientS3));
+  s3ClientMock.on(PutObjectCommand).resolves({});
 
   return {
     fakeModelClient: inject(tokenFakeSyntheticOutputModelClient),
-    s3ClientMock: mockClient(inject(tokenClientS3)),
+    s3ClientMock,
     useCase: new GenerateSyntheticOutputsUseCaseImpl(),
   };
+}
+
+function expectWrittenSyntheticRows(
+  s3ClientMock: ReturnType<typeof mockClient>,
+): unknown[] {
+  const putObjectInput =
+    s3ClientMock.commandCalls(PutObjectCommand)[0].args[0].input;
+
+  expect(putObjectInput).toMatchObject({
+    Bucket: 'test-bucket',
+    Key: 'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+    ContentType: 'application/jsonl',
+    ServerSideEncryption: 'AES256',
+  });
+
+  return String(putObjectInput.Body)
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as unknown);
 }
 
 function summarizationConvertedArtifact(): string {

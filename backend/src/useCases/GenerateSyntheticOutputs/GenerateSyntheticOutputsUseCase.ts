@@ -4,30 +4,33 @@ import { BasicError, BasicErrorType } from '../../errors';
 import {
   ConvertedDatasetRow,
   GenerateSyntheticOutputsInput,
-  GenerateSyntheticOutputsResult,
+  GenerateSyntheticOutputsOutput,
   PreprocessingTaskType,
   SyntheticOutputRow,
 } from '../../models/Preprocessing';
 import { tokenSyntheticOutputModelClient } from '../../ports/SyntheticOutputModelClient';
 import { tokenPreprocessingChunkReader } from '../../services/PreprocessingChunkReader/PreprocessingChunkReader';
+import { tokenSyntheticDatasetWriter } from '../../services/SyntheticDatasetWriter/SyntheticDatasetWriter';
 import { tokenSyntheticOutputPromptBuilder } from '../../services/SyntheticOutputPromptBuilder/SyntheticOutputPromptBuilder';
 
 export type GenerateSyntheticOutputsUseCase = {
   generateSyntheticOutputs(
     input: GenerateSyntheticOutputsInput,
-  ): Promise<GenerateSyntheticOutputsResult>;
+  ): Promise<GenerateSyntheticOutputsOutput>;
 };
 
 export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOutputsUseCase {
   private readonly convertedRowReader = inject(tokenPreprocessingChunkReader);
   private readonly promptBuilder = inject(tokenSyntheticOutputPromptBuilder);
   private readonly modelClient = inject(tokenSyntheticOutputModelClient);
+  private readonly syntheticDatasetWriter = inject(tokenSyntheticDatasetWriter);
 
   async generateSyntheticOutputs({
+    datasetId,
     convertedDatasetArtifactKey,
     taskType,
     modelId,
-  }: GenerateSyntheticOutputsInput): Promise<GenerateSyntheticOutputsResult> {
+  }: GenerateSyntheticOutputsInput): Promise<GenerateSyntheticOutputsOutput> {
     const convertedRows = await this.convertedRowReader.readConvertedRows(
       convertedDatasetArtifactKey,
     );
@@ -39,10 +42,13 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
       rows.push(await this.generateRow(convertedRow, taskType, modelId));
     }
 
+    const { syntheticDatasetArtifactKey } =
+      await this.syntheticDatasetWriter.writeSyntheticDataset(datasetId, rows);
+
     return {
-      rows,
-      generatedCount: rows.filter((row) => row.status === 'completed').length,
-      failedCount: rows.filter((row) => row.status === 'failed').length,
+      syntheticDatasetArtifactKey,
+      generatedCount: countRowsByStatus(rows, 'completed'),
+      failedCount: countRowsByStatus(rows, 'failed'),
     };
   }
 
@@ -114,4 +120,11 @@ function buildGeneratedField(
   output: string,
 ): Pick<SyntheticOutputRow, 'summary' | 'class'> {
   return taskType === 'summarization' ? { summary: output } : { class: output };
+}
+
+function countRowsByStatus(
+  rows: SyntheticOutputRow[],
+  status: SyntheticOutputRow['status'],
+): number {
+  return rows.filter((row) => row.status === status).length;
 }
