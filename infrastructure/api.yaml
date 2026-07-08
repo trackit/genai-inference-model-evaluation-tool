@@ -314,6 +314,7 @@ Resources:
       Environment:
         Variables:
           DATASET_BUCKET: !Ref DatasetBucketName
+          SYNTHETIC_OUTPUT_MODEL_ID: us.amazon.nova-micro-v1:0
       Policies:
         - Statement:
             - Effect: Allow
@@ -321,6 +322,10 @@ Resources:
                 - s3:GetObject
                 - s3:PutObject
               Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets/*'
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
       Events:
         RunSyntheticPreprocessingApi:
           Type: HttpApi
