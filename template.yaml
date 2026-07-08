@@ -83,7 +83,7 @@ Resources:
   DatasetBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub 'bedrock-eval-datasets-${AWS::AccountId}-${AWS::Region}'
+      BucketName: !Sub 'bedrock-eval-datasets-${Owner}-${AWS::AccountId}-${AWS::Region}'
       Tags:
         - Key: Project
           Value: !Ref Project
