@@ -63,6 +63,7 @@ export interface GenerateSyntheticOutputsResult {
 }
 
 export interface StructuredDatasetGenerationInput {
+  datasetId: string;
   syntheticDatasetArtifactKey: string;
 }
 
