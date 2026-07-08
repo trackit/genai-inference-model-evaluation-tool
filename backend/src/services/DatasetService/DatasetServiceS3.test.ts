@@ -81,6 +81,7 @@ describe('DatasetServiceImpl', () => {
       await service.writeUploadManifest('dataset-id', manifest);
 
       const call = s3ClientMock.commandCalls(PutObjectCommand)[0];
+      expect(s3ClientMock.commandCalls(PutObjectCommand)).toHaveLength(1);
       expect(call.args[0].input).toMatchObject({
         Bucket: 'test-bucket',
         Key: 'datasets/dataset-id/.upload-manifest.json',

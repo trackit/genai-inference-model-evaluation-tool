@@ -6,15 +6,29 @@ import {
 } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
+import { z } from 'zod';
 import { DatasetService } from '../../ports/DatasetService';
 
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { DocumentUploadManifest, MIN_FILE_BYTES } from '../../models/Dataset';
 
+const DocumentUploadManifestSchema = z.object({
+  max_total_bytes: z.number().int().positive(),
+  files: z.array(
+    z.object({
+      document_id: z.string().min(1),
+      filename: z.string().min(1),
+      file_type: z.enum(['csv', 'jsonl', 'pdf', 'doc', 'docx']),
+      s3_key: z.string().min(1),
+      size_bytes: z.number().int().min(MIN_FILE_BYTES),
+    }),
+  ),
+});
+
 export class DatasetServiceImpl implements DatasetService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
   private readonly s3Client = inject(tokenClientS3);
-  private readonly EXPIRY_TIME = 1800;
+  private readonly PRESIGNED_POST_EXPIRY_SECONDS = 1800;
 
   async generatePresignedPost(
     location: string,
@@ -36,7 +50,7 @@ export class DatasetServiceImpl implements DatasetService {
         'Content-Type': contentType,
         'x-amz-server-side-encryption': 'AES256',
       },
-      Expires: this.EXPIRY_TIME,
+      Expires: this.PRESIGNED_POST_EXPIRY_SECONDS,
     });
 
     return { url, fields };
@@ -68,7 +82,26 @@ export class DatasetServiceImpl implements DatasetService {
         }),
       );
       const body = await response.Body!.transformToString();
-      return JSON.parse(body) as DocumentUploadManifest;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(body);
+      } catch {
+        throw new BasicError(
+          BasicErrorType.UNPROCESSABLE_ENTITY,
+          'INVALID_MANIFEST',
+          'Upload manifest is not valid JSON',
+        );
+      }
+      const result = DocumentUploadManifestSchema.safeParse(parsed);
+      if (!result.success) {
+        throw new BasicError(
+          BasicErrorType.UNPROCESSABLE_ENTITY,
+          'INVALID_MANIFEST',
+          'Upload manifest has invalid structure',
+          result.error.message,
+        );
+      }
+      return result.data;
     } catch (error: unknown) {
       if (isS3NotFound(error)) {
         return null;
