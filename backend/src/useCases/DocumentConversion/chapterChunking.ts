@@ -2,15 +2,46 @@ import { DocumentChunk, ExtractedDocument } from '../../models/DocumentConversio
 
 const MAX_HEADING_LENGTH = 120;
 
+const NUMBER_WORDS =
+  'one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|' +
+  'fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty';
+
 const CHAPTER_HEADING_PATTERNS = [
-  /^(chapter|section|part)\s+[\dIVXLC]+[.:]?\s*(.*)$/i,
-  /^[\d]{1,2}(\.[\d]{1,2}){0,3}[.:]?\s+[A-Z]/,
+  // "Chapter 1", "CHAPTER 2: Getting Started", "Section 3. Results", "Part IV", "Appendix A"
+  /^(chapter|section|part|appendix)\s+([\dIVXLC]+|[A-Z])[.:]?\s*(.*)$/i,
+  // "Chapter One", "Chapter Twenty: Conclusion"
+  new RegExp(`^(chapter|section|part)\\s+(${NUMBER_WORDS})\\b[.:]?\\s*(.*)$`, 'i'),
+  // "1. Introduction", "1.2 Methods"
+  /^\d{1,2}(\.\d{1,2}){0,3}[.:]?\s+[A-Z]/,
+  // "I. Overview"
   /^[IVXLC]+\.\s+[A-Z]/,
 ];
+
+/**
+ * Table-of-contents lines mimic real headings ("Chapter 1 .......... 5") but
+ * are just an index entry, not the start of actual chapter content.
+ */
+function isTableOfContentsEntry(line: string): boolean {
+  return /[.\s]{4,}\d{1,4}$/.test(line);
+}
+
+/**
+ * A narrative sentence that happens to start with a number and a capitalized
+ * word ("12 Monkeys Escaped From The Zoo.") can otherwise match the numbered
+ * heading pattern. Real headings rarely end in terminal sentence punctuation,
+ * except when explicitly prefixed by a heading keyword ("Chapter 2: Setup.").
+ */
+function looksLikeSentence(line: string): boolean {
+  return /[.!?]$/.test(line) && !/^(chapter|section|part|appendix)\b/i.test(line);
+}
 
 export function isChapterOrSectionHeading(line: string): boolean {
   const trimmed = line.trim();
   if (!trimmed || trimmed.length > MAX_HEADING_LENGTH) {
+    return false;
+  }
+
+  if (isTableOfContentsEntry(trimmed) || looksLikeSentence(trimmed)) {
     return false;
   }
 
@@ -53,7 +84,19 @@ function splitByChapterHeadings(text: string): string[] | null {
     chunks.push(finalChunk);
   }
 
-  return chunks.length > 0 ? chunks : null;
+  const meaningfulChunks = chunks.filter((chunk) => !isTableOfContentsBlock(chunk));
+
+  return meaningfulChunks.length > 0 ? meaningfulChunks : null;
+}
+
+/**
+ * A chunk made up entirely of ToC-style lines (e.g. a table of contents block
+ * sitting before the first real heading) carries no real content and would
+ * make a poor/noisy dataset sample, so it's dropped rather than kept as a chunk.
+ */
+function isTableOfContentsBlock(chunkText: string): boolean {
+  const nonEmptyLines = chunkText.split('\n').map((line) => line.trim()).filter(Boolean);
+  return nonEmptyLines.length > 0 && nonEmptyLines.every(isTableOfContentsEntry);
 }
 
 function splitByParagraphs(text: string): string[] {

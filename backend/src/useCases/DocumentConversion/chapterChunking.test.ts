@@ -14,6 +14,10 @@ describe('isChapterOrSectionHeading', () => {
   '1. Introduction',
   '1.2 Methods',
   'I. Overview',
+  'Chapter One',
+  'Chapter Twenty: Conclusion',
+  'Appendix A',
+  'Appendix A: Glossary',
   ])('detects "%s" as a heading', (line) => {
     expect(isChapterOrSectionHeading(line)).toBe(true);
   });
@@ -23,6 +27,9 @@ describe('isChapterOrSectionHeading', () => {
     '1. this starts lowercase and is likely a list item',
     '',
     'A'.repeat(121),
+    '12 Monkeys Escaped From The Zoo.',
+    'Chapter 1 .......... 5',
+    'Section 3    12',
   ])('does not treat "%s" as a heading', (line) => {
     expect(isChapterOrSectionHeading(line)).toBe(false);
   });
@@ -79,6 +86,41 @@ describe('chunkDocumentByChapter', () => {
     expect(chunks).toHaveLength(2);
     expect(chunks[0].text).toBe('Document preamble text.');
     expect(chunks[1].text).toContain('Chapter 1: Body');
+  });
+
+  it('ignores table-of-contents lines when splitting on headings', () => {
+    const chunks = chunkDocumentByChapter({
+      document_id,
+      text: [
+        'Chapter 1 .......... 5',
+        'Chapter 2 .......... 12',
+        'Chapter 1: Introduction',
+        'This chapter explains the background.',
+        'Chapter 2: Methods',
+        'This chapter explains the approach.',
+      ].join('\n'),
+    });
+
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0].text).not.toContain('..........');
+    expect(chunks[0].text).toContain('Chapter 1: Introduction');
+    expect(chunks[1].text).toContain('Chapter 2: Methods');
+  });
+
+  it('splits on word-form and appendix headings', () => {
+    const chunks = chunkDocumentByChapter({
+      document_id,
+      text: [
+        'Chapter One: The Beginning',
+        'Opening content.',
+        'Appendix A: Glossary',
+        'Definitions go here.',
+      ].join('\n'),
+    });
+
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0].text).toContain('Chapter One: The Beginning');
+    expect(chunks[1].text).toContain('Appendix A: Glossary');
   });
 
   it('falls back to paragraph splitting when no headings are detected', () => {

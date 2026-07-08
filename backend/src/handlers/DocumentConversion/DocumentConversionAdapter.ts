@@ -72,7 +72,7 @@ export class DocumentConversionAdapter {
       throw new BasicError(
         BasicErrorType.BAD_REQUEST,
         'INVALID_DOCUMENTS',
-        'documents must be a non-empty array of objects with documentId and file_type',
+        'documents must be a non-empty array of objects with document_id and file_type',
       );
     }
 
@@ -90,7 +90,7 @@ export class DocumentConversionAdapter {
           throw new BasicError(
             BasicErrorType.BAD_REQUEST,
             'INVALID_DOCUMENTS',
-            'documents must be objects with documentId and file_type'
+            'documents must be objects with document_id and file_type'
           );
         }
 
