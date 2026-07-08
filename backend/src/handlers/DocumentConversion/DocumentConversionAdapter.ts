@@ -9,6 +9,9 @@ import {
   ChunkingStrategy,
   DocumentConversionRequest,
   TaskType,
+  DocumentRequestEntry,
+  isSupportedDocumentFileType,
+  SUPPORTED_DOCUMENT_FILE_TYPES,
 } from '../../models/DocumentConversion';
 import { tokenDocumentConversionUseCase } from '../../useCases/DocumentConversion/DocumentConversionUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
@@ -29,13 +32,15 @@ export class DocumentConversionAdapter {
     const request = this.parseRequest(event);
     const result = await this.useCase.execute(request);
 
-    return {
-      S3key: result.S3key,
-    };
+    return result;
   }
 
   private parseRequest(event: APIGatewayProxyEventV2): DocumentConversionRequest {
-    if (!event.body) {
+    const rawBody = event.isBase64Encoded
+      ? Buffer.from(event.body || '', 'base64').toString('utf8')
+      : event.body;
+
+    if (!rawBody) {
       throw new BasicError(
         BasicErrorType.BAD_REQUEST,
         'MISSING_BODY',
@@ -43,10 +48,10 @@ export class DocumentConversionAdapter {
       );
     }
 
-    let payload: unknown;
+    let payload: DocumentConversionRequest;
 
     try {
-      payload = JSON.parse(event.body);
+      payload = JSON.parse(rawBody);
     } catch {
       throw new BasicError(
         BasicErrorType.BAD_REQUEST,
@@ -55,45 +60,62 @@ export class DocumentConversionAdapter {
       );
     }
 
-    const {
-      datasetId,
-      documents,
-      chunkingStrategy,
-      taskType,
-    } = payload as DocumentConversionRequest;
-
-    if (!datasetId) {
+    if (!payload.dataset_id) {
       throw new BasicError(
         BasicErrorType.BAD_REQUEST,
         'MISSING_DATASET_ID',
-        'datasetId is required',
+        'dataset_id is required',
       );
     }
 
-    if (!Array.isArray(documents) || documents.length === 0) {
+    if (!Array.isArray(payload.documents) || payload.documents.length === 0) {
       throw new BasicError(
         BasicErrorType.BAD_REQUEST,
         'INVALID_DOCUMENTS',
-        'documents must be a non-empty array of document UUIDs',
+        'documents must be a non-empty array of objects with documentId and file_type',
       );
     }
 
-    if (!taskType || !Object.values(TaskType).includes(taskType)) {
+    if (!payload.task_type || !Object.values(TaskType).includes(payload.task_type)) {
       throw new BasicError(
         BasicErrorType.BAD_REQUEST,
         'INVALID_TASK_TYPE',
-        `taskType must be one of: ${Object.values(TaskType).join(', ')}`,
+        `task_type must be one of: ${Object.values(TaskType).join(', ')}`,
       );
     }
 
-    const chunkingStrategyToUse =
-      chunkingStrategy ?? ChunkingStrategy.CHAPTER;
+    const normalizedDocs: DocumentRequestEntry[] = (payload.documents).map(
+      (documentEntry: DocumentRequestEntry) => {
+        if (!documentEntry || typeof documentEntry !== 'object' || Array.isArray(documentEntry)) {
+          throw new BasicError(
+            BasicErrorType.BAD_REQUEST,
+            'INVALID_DOCUMENTS',
+            'documents must be objects with documentId and file_type'
+          );
+        }
+
+        if (
+          !documentEntry.file_type ||
+          !isSupportedDocumentFileType(documentEntry.file_type)
+        ) {
+          throw new BasicError(
+            BasicErrorType.BAD_REQUEST,
+            'INVALID_FILE_TYPE',
+            `file_type must be one of: ${SUPPORTED_DOCUMENT_FILE_TYPES.join(', ')}`,
+          );
+        }
+
+        return documentEntry;
+      },
+    );
+
+    const chunkingStrategyToUse = payload.chunking_strategy ?? ChunkingStrategy.CHAPTER;
 
     return {
-      datasetId,
-      documents,
-      chunkingStrategy: chunkingStrategyToUse,
-      taskType,
+      dataset_id: payload.dataset_id,
+      documents: normalizedDocs,
+      chunking_strategy: chunkingStrategyToUse,
+      task_type: payload.task_type,
     };
   }
 }

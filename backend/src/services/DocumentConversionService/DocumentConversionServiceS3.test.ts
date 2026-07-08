@@ -135,7 +135,7 @@ describe('DocumentConversionServiceS3', () => {
 
         const result = await service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'pdf');
 
-        expect(result.documentId).toBe(DOCUMENT_ID);
+        expect(result.document_id).toBe(DOCUMENT_ID);
         expect(result.text).toContain('Hello PDF');
       });
 
@@ -174,7 +174,7 @@ describe('DocumentConversionServiceS3', () => {
 
           const result = await service.fetchAndParse(DATASET_ID, DOCUMENT_ID, fileType);
 
-          expect(result.documentId).toBe(DOCUMENT_ID);
+          expect(result.document_id).toBe(DOCUMENT_ID);
           expect(result.text).toContain('This is a sample document for DOC and DOCX parsing.');
         }
       );
@@ -208,12 +208,12 @@ describe('DocumentConversionServiceS3', () => {
   describe('storeConversionJsonl', () => {
     it('uploads JSONL to the dataset bucket with the correct metadata', async () => {
       const { service, s3Mock } = setup();
-      const jsonl = '{"document_id":"doc-1","chunk_id":"doc-1-0","text":"hello"}\n';
+      const jsonl = '{"document_id":"doc-1","chunk_id":"doc-1-0","document":"hello"}\n';
       s3Mock.on(PutObjectCommand).resolves({});
 
       const result = await service.storeConversionJsonl(DATASET_ID, jsonl);
 
-      expect(result.S3key).toBe(`datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`);
+      expect(result.converted_dataset_file_key).toBe(`datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`);
       const calls = s3Mock.commandCalls(PutObjectCommand);
       expect(calls).toHaveLength(1);
       expect(calls[0].args[0].input).toMatchObject({
@@ -227,12 +227,12 @@ describe('DocumentConversionServiceS3', () => {
 
     it('returns the S3 key even when upload resolves with empty output', async () => {
       const { service, s3Mock } = setup();
-      const jsonl = '{"document_id":"doc-2","chunk_id":"doc-2-0","text":"world"}\n';
+      const jsonl = '{"document_id":"doc-2","chunk_id":"doc-2-0","document":"world"}\n';
       s3Mock.on(PutObjectCommand).resolves({});
 
       const result = await service.storeConversionJsonl(DATASET_ID, jsonl);
 
-      expect(result.S3key).toBe(`datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`);
+      expect(result.converted_dataset_file_key).toBe(`datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`);
     });
   });
 });

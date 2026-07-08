@@ -1,3 +1,5 @@
+import { DatasetFileType } from "./Dataset";
+
 export enum ChunkingStrategy {
   DOCUMENT = 'DOCUMENT',
   CHAPTER = 'CHAPTER',
@@ -8,26 +10,39 @@ export enum TaskType {
   SUMMARIZATION = 'Summarization',
 }
 
-export type DocumentId = string;
+export type DocumentRequestEntry = {
+  document_id: string;
+  file_type: DatasetFileType;
+};
+
+export const SUPPORTED_DOCUMENT_FILE_TYPES = ['pdf', 'doc', 'docx'] as const;
+export type SupportedDocumentFileType =
+  (typeof SUPPORTED_DOCUMENT_FILE_TYPES)[number];
+
+export function isSupportedDocumentFileType(
+  fileType: DatasetFileType,
+): fileType is SupportedDocumentFileType {
+  return (SUPPORTED_DOCUMENT_FILE_TYPES as readonly string[]).includes(fileType);
+}
 
 export interface DocumentConversionRequest {
-  datasetId: string;
-  documents: DocumentId[];
-  chunkingStrategy: ChunkingStrategy;
-  taskType: TaskType;
+  dataset_id: string;
+  documents: DocumentRequestEntry[];
+  chunking_strategy: ChunkingStrategy;
+  task_type: TaskType;
 }
 
 export type DocumentChunk = {
-  documentId: DocumentId;
-  chunkId: string;
+  document_id: string;
+  chunk_id: string;
   text: string;
 };
 
 export interface DocumentConversionResult {
-  S3key: string;
+  converted_dataset_file_key: string;
 }
 
 export interface ExtractedDocument {
-  documentId: DocumentId;
+  document_id: string;
   text: string;
 }
