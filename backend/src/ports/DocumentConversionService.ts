@@ -6,8 +6,8 @@ import {
 
 export interface DocumentConversionService {
   /**
-   * Fetches a document from S3 by its key and extracts plain text from it.
-   * The S3 key is constructed as documents/{datasetId}/{documentId}.{ext}.
+   * Fetches a document by its key and extracts plain text from it.
+   * The key is constructed as documents/{datasetId}/{documentId}.{ext}.
    */
   fetchAndParse(
     dataset_id: string,
@@ -17,7 +17,7 @@ export interface DocumentConversionService {
 
   /**
    * Stores generated JSONL for a converted document dataset
-   * and returns the S3 key which is datasets/{datasetId}/{datasetId}-converted.jsonl.
+   * and returns the key which is datasets/{datasetId}/{datasetId}-converted.jsonl.
    */
   storeConversionJsonl(
     datasetId: string,
