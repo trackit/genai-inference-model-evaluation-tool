@@ -5,6 +5,7 @@ import { Dataset } from '../models/Dataset';
 import {
   extractDatasetMetadata,
   fileContentType,
+  parseFileType,
   validateDatasetSize,
   validateDeclaredTotalSize,
 } from './datasetValidation';
@@ -57,6 +58,14 @@ describe('datasetValidation', () => {
 
       expect(() => validateDatasetSize(dataset)).toThrow(
         'Dataset must contain at least 10 samples. Found 2 samples',
+      );
+    });
+  });
+
+  describe('parseFileType', () => {
+    it('rejects unsupported extensions', () => {
+      expect(() => parseFileType('dataset.txt')).toThrow(
+        'Invalid file format. Supported: CSV, JSONL, PDF, DOC, DOCX',
       );
     });
   });

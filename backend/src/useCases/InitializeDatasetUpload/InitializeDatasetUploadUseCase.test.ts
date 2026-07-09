@@ -150,16 +150,6 @@ describe('InitializeDatasetUploadUseCase', () => {
       code: 'NO_FILES',
     });
   });
-  it('rejects unsupported extensions', async () => {
-    const { useCase } = setup();
-    await expect(
-      useCase.initDatasetUpload([
-        { filename: 'dataset.txt', size_bytes: 1024 },
-      ]),
-    ).rejects.toThrow(
-      'Invalid file format. Supported: CSV, JSONL, PDF, DOC, DOCX',
-    );
-  });
 });
 
 const setup = () => {
