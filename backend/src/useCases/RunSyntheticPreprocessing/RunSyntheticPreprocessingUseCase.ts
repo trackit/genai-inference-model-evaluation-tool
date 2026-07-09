@@ -1,12 +1,12 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { BasicError, BasicErrorType } from '../../errors';
+import { PreprocessingTaskType } from '../../models/Preprocessing';
+import { tokenGenerateStructuredDatasetUseCase } from '../GenerateStructuredDataset/GenerateStructuredDatasetUseCase';
 import {
   GenerateSyntheticOutputsInput,
-  PreprocessingTaskType,
-} from '../../models/Preprocessing';
-import { tokenGenerateStructuredDatasetUseCase } from '../GenerateStructuredDataset/GenerateStructuredDatasetUseCase';
-import { tokenGenerateSyntheticOutputsUseCase } from '../GenerateSyntheticOutputs/GenerateSyntheticOutputsUseCase';
+  tokenGenerateSyntheticOutputsUseCase,
+} from '../GenerateSyntheticOutputs/GenerateSyntheticOutputsUseCase';
 
 export interface RunSyntheticPreprocessingRequest {
   datasetId: string;

@@ -3,14 +3,25 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { BasicError, BasicErrorType } from '../../errors';
 import {
   ConvertedDatasetRow,
-  GenerateSyntheticOutputsInput,
-  GenerateSyntheticOutputsOutput,
   PreprocessingTaskType,
   SyntheticOutputRow,
 } from '../../models/Preprocessing';
 import { tokenSyntheticOutputModelClient } from '../../ports/SyntheticOutputModelClient';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 import { tokenSyntheticOutputPromptBuilder } from '../../services/SyntheticOutputPromptBuilder/SyntheticOutputPromptBuilder';
+
+export interface GenerateSyntheticOutputsInput {
+  datasetId: string;
+  convertedDatasetArtifactKey: string;
+  taskType: PreprocessingTaskType;
+  modelId?: string;
+}
+
+export interface GenerateSyntheticOutputsOutput {
+  syntheticDatasetArtifactKey: string;
+  generatedCount: number;
+  failedCount: number;
+}
 
 export type GenerateSyntheticOutputsUseCase = {
   generateSyntheticOutputs(

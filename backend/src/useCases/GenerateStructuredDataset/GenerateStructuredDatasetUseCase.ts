@@ -2,12 +2,19 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { BasicError, BasicErrorType } from '../../errors';
 import { DatasetSample } from '../../models/Dataset';
-import {
-  StructuredDatasetGenerationInput,
-  StructuredDatasetGenerationOutput,
-  SyntheticOutputRow,
-} from '../../models/Preprocessing';
+import { SyntheticOutputRow } from '../../models/Preprocessing';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
+
+export interface StructuredDatasetGenerationInput {
+  datasetId: string;
+  syntheticDatasetArtifactKey: string;
+}
+
+export interface StructuredDatasetGenerationOutput {
+  datasetId: string;
+  structuredDatasetArtifactKey: string;
+  sampleCount: number;
+}
 
 export type GenerateStructuredDatasetUseCase = {
   generateStructuredDataset(
