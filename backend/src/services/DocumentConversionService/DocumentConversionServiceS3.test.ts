@@ -162,22 +162,48 @@ describe('DocumentConversionServiceS3', () => {
       });
     });
 
-    describe('DOC/DOCX parsing', () => {
-      it.each([['doc'], ['docx']] as const)(
-        'extracts text from a valid %s',
-        async (fileType) => {
-          const { service, s3Mock } = setup();
-          const docBuffer = readFileSync(new URL(`../../test/fixtures/sample.${fileType}`, import.meta.url));
-          s3Mock.on(GetObjectCommand).resolves({
-            Body: mockS3Body(docBuffer),
-          });
+    describe('DOCX parsing', () => {
+      it('extracts text from a valid docx via Mammoth', async () => {
+        const { service, s3Mock } = setup();
+        const docxBuffer = readFileSync(new URL('../../test/fixtures/sample.docx', import.meta.url));
+        s3Mock.on(GetObjectCommand).resolves({
+          Body: mockS3Body(docxBuffer),
+        });
 
-          const result = await service.fetchAndParse(DATASET_ID, DOCUMENT_ID, fileType);
+        const result = await service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'docx');
 
-          expect(result.document_id).toBe(DOCUMENT_ID);
-          expect(result.text).toContain('This is a sample document for DOC and DOCX parsing.');
-        }
-      );
+        expect(result.document_id).toBe(DOCUMENT_ID);
+        expect(result.text).toContain('This is a sample document for DOC and DOCX parsing.');
+      });
+    });
+
+    describe('DOC parsing', () => {
+      it('extracts text from a genuine legacy .doc via word-extractor', async () => {
+        // Mammoth cannot read legacy OLE-based .doc files at all, so .doc goes
+        // through word-extractor instead. This fixture is a real binary .doc
+        // (not a docx renamed) — see test/fixtures/README.md.
+        const { service, s3Mock } = setup();
+        const docBuffer = readFileSync(new URL('../../test/fixtures/sample.doc', import.meta.url));
+        s3Mock.on(GetObjectCommand).resolves({
+          Body: mockS3Body(docBuffer),
+        });
+
+        const result = await service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'doc');
+
+        expect(result.document_id).toBe(DOCUMENT_ID);
+        expect(result.text).toContain('This is a test of reviewing');
+      });
+
+      it('throws for a corrupt/non-OLE .doc buffer', async () => {
+        const { service, s3Mock } = setup();
+        s3Mock.on(GetObjectCommand).resolves({
+          Body: mockS3Body(Buffer.from('not a real doc file')),
+        });
+
+        await expect(
+          service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'doc'),
+        ).rejects.toThrow();
+      });
     });
 
     describe('unsupported file types', () => {

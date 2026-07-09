@@ -1,9 +1,10 @@
 Document conversion fixtures.
 
 `sample.docx` is a minimal WordprocessingML document used by Mammoth parsing tests.
-`sample.doc` intentionally contains the same DOCX package bytes with a `.doc`
-extension so tests can exercise the service's current `fileType = 'doc'` branch.
 
-Mammoth does not parse legacy binary Word `.doc` files. If the product must support
-true `.doc` uploads, the implementation should use a converter that handles that
-format before passing content to Mammoth.
+`sample.doc` is a genuine OLE Compound File (legacy binary Word 97-2003 format),
+sourced from the `word-extractor` project's own MIT-licensed test fixtures
+(https://github.com/morungos/node-word-extractor, `__tests__/data/test01.doc`).
+Mammoth cannot parse this format at all, so `.doc` files are extracted with
+`word-extractor` instead (see `DocumentConversionServiceS3.ts`); `.docx` files
+continue to go through Mammoth.

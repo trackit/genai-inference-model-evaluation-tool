@@ -1,6 +1,7 @@
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
+import WordExtractor from 'word-extractor';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { DatasetFileType } from '../../models/Dataset';
@@ -12,6 +13,7 @@ import { documentS3Key } from '../../utils/s3Keys';
 export class DocumentConversionServiceImpl implements DocumentConversionService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
   private readonly s3Client = inject(tokenClientS3);
+  private readonly wordExtractor = new WordExtractor();
 
   async fetchAndParse(
     dataset_id: string,
@@ -65,7 +67,11 @@ export class DocumentConversionServiceImpl implements DocumentConversionService 
         return result.text;
       }
 
-      case 'doc':
+      case 'doc': {
+        const document = await this.wordExtractor.extract(raw_content);
+        return document.getBody();
+      }
+
       case 'docx': {
         const result = await mammoth.extractRawText({ buffer: raw_content });
         return result.value;
