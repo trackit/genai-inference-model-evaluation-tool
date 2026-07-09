@@ -1,10 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
 import { inject, reset } from '@trackit.io/di-container';
+import { randomUUID } from 'crypto';
+import { describe, expect, it, vi } from 'vitest';
 import { ChunkingStrategy, TaskType } from '../../models/DocumentConversion';
 import { JsonlParserImpl } from '../../parsers/JsonlParser/JsonlParser';
 import { tokenFakeDocumentConversionService } from '../../services/DocumentConversionService/FakeDocumentConversionService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
-import { randomUUID } from 'crypto';
 import { tokenDocumentConversionUseCase } from './DocumentConversionUseCase';
 
 const setup = () => {
@@ -37,7 +37,10 @@ describe('DocumentConversionUseCase execute', () => {
       text: 'Only one paragraph',
     });
 
-    const storeSpy = vi.spyOn(documentConversionService, 'storeConversionJsonl');
+    const storeSpy = vi.spyOn(
+      documentConversionService,
+      'storeConversionJsonl',
+    );
 
     const result = await useCase.execute({
       dataset_id: dataset_id,
@@ -49,7 +52,9 @@ describe('DocumentConversionUseCase execute', () => {
       task_type: TaskType.SUMMARIZATION,
     });
 
-    expect(result.converted_dataset_file_key).toBe(`datasets/${dataset_id}/${dataset_id}-converted.jsonl`);
+    expect(result.converted_dataset_file_key).toBe(
+      `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
+    );
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(fetchSpy).toHaveBeenCalledWith(dataset_id, document_id1, 'pdf');
     expect(fetchSpy).toHaveBeenCalledWith(dataset_id, document_id2, 'pdf');
@@ -107,7 +112,10 @@ describe('DocumentConversionUseCase execute', () => {
       text: 'Only one paragraph',
     });
 
-    const storeSpy = vi.spyOn(documentConversionService, 'storeConversionJsonl');
+    const storeSpy = vi.spyOn(
+      documentConversionService,
+      'storeConversionJsonl',
+    );
 
     const result = await useCase.execute({
       dataset_id: dataset_id,
@@ -119,7 +127,9 @@ describe('DocumentConversionUseCase execute', () => {
       task_type: TaskType.CLASSIFICATION,
     });
 
-    expect(result.converted_dataset_file_key).toBe(`datasets/${dataset_id}/${dataset_id}-converted.jsonl`);
+    expect(result.converted_dataset_file_key).toBe(
+      `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
+    );
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(fetchSpy).toHaveBeenCalledWith(dataset_id, document_id1, 'pdf');
     expect(fetchSpy).toHaveBeenCalledWith(dataset_id, document_id2, 'pdf');
@@ -154,9 +164,9 @@ describe('DocumentConversionUseCase execute', () => {
       useCase.execute({
         dataset_id: 'not-a-uuid',
         documents: [
-        { document_id: randomUUID(), file_type: 'pdf' },
-        { document_id: randomUUID(), file_type: 'pdf' },
-      ],
+          { document_id: randomUUID(), file_type: 'pdf' },
+          { document_id: randomUUID(), file_type: 'pdf' },
+        ],
         chunking_strategy: ChunkingStrategy.CHAPTER,
         task_type: TaskType.SUMMARIZATION,
       }),
@@ -185,9 +195,9 @@ describe('DocumentConversionUseCase execute', () => {
       useCase.execute({
         dataset_id: randomUUID(),
         documents: [
-        { document_id: randomUUID(), file_type: 'pdf' },
-        { document_id: randomUUID(), file_type: 'pdf' },
-      ],
+          { document_id: randomUUID(), file_type: 'pdf' },
+          { document_id: randomUUID(), file_type: 'pdf' },
+        ],
         chunking_strategy: 'INVALID' as ChunkingStrategy,
         task_type: TaskType.SUMMARIZATION,
       }),
@@ -211,7 +221,10 @@ describe('DocumentConversionUseCase execute', () => {
       ].join('\n'),
     });
 
-    const storeSpy = vi.spyOn(documentConversionService, 'storeConversionJsonl');
+    const storeSpy = vi.spyOn(
+      documentConversionService,
+      'storeConversionJsonl',
+    );
 
     await useCase.execute({
       dataset_id,
@@ -221,7 +234,10 @@ describe('DocumentConversionUseCase execute', () => {
     });
 
     const storedJsonl = storeSpy.mock.calls[0][1] as string;
-    const jsonObjects = storedJsonl.split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    const jsonObjects = storedJsonl
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
 
     expect(jsonObjects).toEqual([
       {
@@ -250,7 +266,10 @@ describe('DocumentConversionUseCase execute', () => {
       text: 'First paragraph.\n\n\nSecond paragraph.\n\nThird paragraph.',
     });
 
-    const storeSpy = vi.spyOn(documentConversionService, 'storeConversionJsonl');
+    const storeSpy = vi.spyOn(
+      documentConversionService,
+      'storeConversionJsonl',
+    );
 
     await useCase.execute({
       dataset_id,
@@ -296,7 +315,10 @@ describe('DocumentConversionUseCase execute', () => {
       text: 'A single paragraph without blank lines.',
     });
 
-    const storeSpy = vi.spyOn(documentConversionService, 'storeConversionJsonl');
+    const storeSpy = vi.spyOn(
+      documentConversionService,
+      'storeConversionJsonl',
+    );
 
     await useCase.execute({
       dataset_id,
@@ -330,7 +352,10 @@ describe('DocumentConversionUseCase execute', () => {
       text: '\n\nOnly one paragraph with padding.\n\n',
     });
 
-    const storeSpy = vi.spyOn(documentConversionService, 'storeConversionJsonl');
+    const storeSpy = vi.spyOn(
+      documentConversionService,
+      'storeConversionJsonl',
+    );
 
     await useCase.execute({
       dataset_id,
@@ -340,7 +365,10 @@ describe('DocumentConversionUseCase execute', () => {
     });
 
     const storedJsonl = storeSpy.mock.calls[0][1] as string;
-    const jsonObjects = storedJsonl.split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    const jsonObjects = storedJsonl
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
 
     expect(jsonObjects).toEqual([
       {
@@ -365,7 +393,10 @@ describe('DocumentConversionUseCase execute', () => {
       text: 'Docx body content',
     });
 
-    const storeSpy = vi.spyOn(documentConversionService, 'storeConversionJsonl');
+    const storeSpy = vi.spyOn(
+      documentConversionService,
+      'storeConversionJsonl',
+    );
 
     await useCase.execute({
       dataset_id,
@@ -378,7 +409,10 @@ describe('DocumentConversionUseCase execute', () => {
     expect(fetchSpy).toHaveBeenCalledWith(dataset_id, document_id, 'docx');
 
     const storedJsonl = storeSpy.mock.calls[0][1] as string;
-    const jsonObjects = storedJsonl.split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    const jsonObjects = storedJsonl
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
 
     expect(jsonObjects).toEqual([
       {

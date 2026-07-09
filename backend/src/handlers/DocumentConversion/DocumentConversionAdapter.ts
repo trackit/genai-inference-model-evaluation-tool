@@ -8,10 +8,10 @@ import { BasicError, BasicErrorType } from '../../errors';
 import {
   ChunkingStrategy,
   DocumentConversionRequest,
-  TaskType,
   DocumentRequestEntry,
   isSupportedDocumentFileType,
   SUPPORTED_DOCUMENT_FILE_TYPES,
+  TaskType,
 } from '../../models/DocumentConversion';
 import { tokenDocumentConversionUseCase } from '../../useCases/DocumentConversion/DocumentConversionUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
@@ -35,7 +35,9 @@ export class DocumentConversionAdapter {
     return result;
   }
 
-  private parseRequest(event: APIGatewayProxyEventV2): DocumentConversionRequest {
+  private parseRequest(
+    event: APIGatewayProxyEventV2,
+  ): DocumentConversionRequest {
     const rawBody = event.isBase64Encoded
       ? Buffer.from(event.body || '', 'base64').toString('utf8')
       : event.body;
@@ -76,7 +78,10 @@ export class DocumentConversionAdapter {
       );
     }
 
-    if (!payload.task_type || !Object.values(TaskType).includes(payload.task_type)) {
+    if (
+      !payload.task_type ||
+      !Object.values(TaskType).includes(payload.task_type)
+    ) {
       throw new BasicError(
         BasicErrorType.BAD_REQUEST,
         'INVALID_TASK_TYPE',
@@ -84,13 +89,17 @@ export class DocumentConversionAdapter {
       );
     }
 
-    const normalizedDocs: DocumentRequestEntry[] = (payload.documents).map(
+    const normalizedDocs: DocumentRequestEntry[] = payload.documents.map(
       (documentEntry: DocumentRequestEntry) => {
-        if (!documentEntry || typeof documentEntry !== 'object' || Array.isArray(documentEntry)) {
+        if (
+          !documentEntry ||
+          typeof documentEntry !== 'object' ||
+          Array.isArray(documentEntry)
+        ) {
           throw new BasicError(
             BasicErrorType.BAD_REQUEST,
             'INVALID_DOCUMENTS',
-            'documents must be objects with document_id and file_type'
+            'documents must be objects with document_id and file_type',
           );
         }
 
@@ -109,7 +118,8 @@ export class DocumentConversionAdapter {
       },
     );
 
-    const chunkingStrategyToUse = payload.chunking_strategy ?? ChunkingStrategy.CHAPTER;
+    const chunkingStrategyToUse =
+      payload.chunking_strategy ?? ChunkingStrategy.CHAPTER;
 
     return {
       dataset_id: payload.dataset_id,

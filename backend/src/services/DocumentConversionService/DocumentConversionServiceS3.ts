@@ -1,14 +1,17 @@
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createInjectionToken, inject } from '@trackit.io/di-container';
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 import WordExtractor from 'word-extractor';
-import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { DatasetFileType } from '../../models/Dataset';
-import { DocumentConversionResult, ExtractedDocument } from '../../models/DocumentConversion';
+import {
+  DocumentConversionResult,
+  ExtractedDocument,
+} from '../../models/DocumentConversion';
 import { DocumentConversionService } from '../../ports/DocumentConversionService';
-import { tokenClientS3 } from '../DatasetService/DatasetServiceS3';
 import { documentS3Key } from '../../utils/s3Keys';
+import { tokenClientS3 } from '../DatasetService/DatasetServiceS3';
 
 export class DocumentConversionServiceImpl implements DocumentConversionService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
@@ -20,14 +23,23 @@ export class DocumentConversionServiceImpl implements DocumentConversionService 
     document_id: string,
     file_type: DatasetFileType,
   ): Promise<ExtractedDocument> {
-    const rawContent = await this.fetchRawContent(dataset_id, document_id, file_type);
+    const rawContent = await this.fetchRawContent(
+      dataset_id,
+      document_id,
+      file_type,
+    );
     const text = await this.extractText(rawContent, file_type);
 
     return { document_id, text: text.trim() };
   }
 
-  async storeConversionJsonl(dataset_id: string, jsonl: string): Promise<DocumentConversionResult> {
-    const documentConversionResult: DocumentConversionResult = { converted_dataset_file_key: `datasets/${dataset_id}/${dataset_id}-converted.jsonl` };
+  async storeConversionJsonl(
+    dataset_id: string,
+    jsonl: string,
+  ): Promise<DocumentConversionResult> {
+    const documentConversionResult: DocumentConversionResult = {
+      converted_dataset_file_key: `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
+    };
 
     await this.s3Client.send(
       new PutObjectCommand({

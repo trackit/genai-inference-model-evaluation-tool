@@ -7,17 +7,17 @@ import {
 
 describe('isChapterOrSectionHeading', () => {
   it.each([
-  'Chapter 1',
-  'CHAPTER 2: Getting Started',
-  'Section 3. Results',
-  'Part IV',
-  '1. Introduction',
-  '1.2 Methods',
-  'I. Overview',
-  'Chapter One',
-  'Chapter Twenty: Conclusion',
-  'Appendix A',
-  'Appendix A: Glossary',
+    'Chapter 1',
+    'CHAPTER 2: Getting Started',
+    'Section 3. Results',
+    'Part IV',
+    '1. Introduction',
+    '1.2 Methods',
+    'I. Overview',
+    'Chapter One',
+    'Chapter Twenty: Conclusion',
+    'Appendix A',
+    'Appendix A: Glossary',
   ])('detects "%s" as a heading', (line) => {
     expect(isChapterOrSectionHeading(line)).toBe(true);
   });

@@ -1,4 +1,4 @@
-import { DatasetFileType } from "./Dataset";
+import { DatasetFileType } from './Dataset';
 
 export enum ChunkingStrategy {
   DOCUMENT = 'DOCUMENT',
@@ -22,7 +22,9 @@ export type SupportedDocumentFileType =
 export function isSupportedDocumentFileType(
   fileType: DatasetFileType,
 ): fileType is SupportedDocumentFileType {
-  return (SUPPORTED_DOCUMENT_FILE_TYPES as readonly string[]).includes(fileType);
+  return (SUPPORTED_DOCUMENT_FILE_TYPES as readonly string[]).includes(
+    fileType,
+  );
 }
 
 export interface DocumentConversionRequest {

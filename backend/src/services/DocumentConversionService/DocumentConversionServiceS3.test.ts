@@ -1,8 +1,12 @@
-import { GetObjectCommand, GetObjectCommandOutput, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  GetObjectCommandOutput,
+  PutObjectCommand,
+} from '@aws-sdk/client-s3';
 import { inject, reset } from '@trackit.io/di-container';
 import { mockClient } from 'aws-sdk-client-mock';
-import { Readable } from 'stream';
 import { readFileSync } from 'node:fs';
+import { Readable } from 'stream';
 import { describe, expect, it } from 'vitest';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { tokenClientS3 } from '../DatasetService/DatasetServiceS3';
@@ -92,20 +96,27 @@ describe('DocumentConversionServiceS3', () => {
             Body: mockS3Body(buildMinimalPdf('test')),
           });
 
-          await service.fetchAndParse(DATASET_ID, DOCUMENT_ID, fileType).catch(() => {
-            // doc/docx will fail to parse a PDF buffer — that's expected here
-          });
+          await service
+            .fetchAndParse(DATASET_ID, DOCUMENT_ID, fileType)
+            .catch(() => {
+              // doc/docx will fail to parse a PDF buffer — that's expected here
+            });
 
-          const key = s3Mock.commandCalls(GetObjectCommand)[0].args[0].input.Key;
-          expect(key).toBe(`documents/${DATASET_ID}/${DOCUMENT_ID}.${fileType}`);
+          const key =
+            s3Mock.commandCalls(GetObjectCommand)[0].args[0].input.Key;
+          expect(key).toBe(
+            `documents/${DATASET_ID}/${DOCUMENT_ID}.${fileType}`,
+          );
         },
       );
 
       it('propagates S3 errors', async () => {
         const { service, s3Mock } = setup();
-        s3Mock.on(GetObjectCommand).rejects(
-          Object.assign(new Error('Access Denied'), { name: 'AccessDenied' }),
-        );
+        s3Mock
+          .on(GetObjectCommand)
+          .rejects(
+            Object.assign(new Error('Access Denied'), { name: 'AccessDenied' }),
+          );
 
         await expect(
           service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'pdf'),
@@ -133,7 +144,11 @@ describe('DocumentConversionServiceS3', () => {
           Body: mockS3Body(buildMinimalPdf('Hello PDF')),
         });
 
-        const result = await service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'pdf');
+        const result = await service.fetchAndParse(
+          DATASET_ID,
+          DOCUMENT_ID,
+          'pdf',
+        );
 
         expect(result.document_id).toBe(DOCUMENT_ID);
         expect(result.text).toContain('Hello PDF');
@@ -145,7 +160,11 @@ describe('DocumentConversionServiceS3', () => {
           Body: mockS3Body(buildMinimalPdf('trimmed')),
         });
 
-        const result = await service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'pdf');
+        const result = await service.fetchAndParse(
+          DATASET_ID,
+          DOCUMENT_ID,
+          'pdf',
+        );
 
         expect(result.text).toBe(result.text.trim());
       });
@@ -165,15 +184,23 @@ describe('DocumentConversionServiceS3', () => {
     describe('DOCX parsing', () => {
       it('extracts text from a valid docx via Mammoth', async () => {
         const { service, s3Mock } = setup();
-        const docxBuffer = readFileSync(new URL('../../test/fixtures/sample.docx', import.meta.url));
+        const docxBuffer = readFileSync(
+          new URL('../../test/fixtures/sample.docx', import.meta.url),
+        );
         s3Mock.on(GetObjectCommand).resolves({
           Body: mockS3Body(docxBuffer),
         });
 
-        const result = await service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'docx');
+        const result = await service.fetchAndParse(
+          DATASET_ID,
+          DOCUMENT_ID,
+          'docx',
+        );
 
         expect(result.document_id).toBe(DOCUMENT_ID);
-        expect(result.text).toContain('This is a sample document for DOC and DOCX parsing.');
+        expect(result.text).toContain(
+          'This is a sample document for DOC and DOCX parsing.',
+        );
       });
     });
 
@@ -183,12 +210,18 @@ describe('DocumentConversionServiceS3', () => {
         // through word-extractor instead. This fixture is a real binary .doc
         // (not a docx renamed) — see test/fixtures/README.md.
         const { service, s3Mock } = setup();
-        const docBuffer = readFileSync(new URL('../../test/fixtures/sample.doc', import.meta.url));
+        const docBuffer = readFileSync(
+          new URL('../../test/fixtures/sample.doc', import.meta.url),
+        );
         s3Mock.on(GetObjectCommand).resolves({
           Body: mockS3Body(docBuffer),
         });
 
-        const result = await service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'doc');
+        const result = await service.fetchAndParse(
+          DATASET_ID,
+          DOCUMENT_ID,
+          'doc',
+        );
 
         expect(result.document_id).toBe(DOCUMENT_ID);
         expect(result.text).toContain('This is a test of reviewing');
@@ -234,12 +267,15 @@ describe('DocumentConversionServiceS3', () => {
   describe('storeConversionJsonl', () => {
     it('uploads JSONL to the dataset bucket with the correct metadata', async () => {
       const { service, s3Mock } = setup();
-      const jsonl = '{"document_id":"doc-1","chunk_id":"doc-1-0","document":"hello"}\n';
+      const jsonl =
+        '{"document_id":"doc-1","chunk_id":"doc-1-0","document":"hello"}\n';
       s3Mock.on(PutObjectCommand).resolves({});
 
       const result = await service.storeConversionJsonl(DATASET_ID, jsonl);
 
-      expect(result.converted_dataset_file_key).toBe(`datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`);
+      expect(result.converted_dataset_file_key).toBe(
+        `datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`,
+      );
       const calls = s3Mock.commandCalls(PutObjectCommand);
       expect(calls).toHaveLength(1);
       expect(calls[0].args[0].input).toMatchObject({
@@ -253,12 +289,15 @@ describe('DocumentConversionServiceS3', () => {
 
     it('returns the S3 key even when upload resolves with empty output', async () => {
       const { service, s3Mock } = setup();
-      const jsonl = '{"document_id":"doc-2","chunk_id":"doc-2-0","document":"world"}\n';
+      const jsonl =
+        '{"document_id":"doc-2","chunk_id":"doc-2-0","document":"world"}\n';
       s3Mock.on(PutObjectCommand).resolves({});
 
       const result = await service.storeConversionJsonl(DATASET_ID, jsonl);
 
-      expect(result.converted_dataset_file_key).toBe(`datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`);
+      expect(result.converted_dataset_file_key).toBe(
+        `datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`,
+      );
     });
   });
 });

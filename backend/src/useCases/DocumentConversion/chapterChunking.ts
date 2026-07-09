@@ -1,4 +1,7 @@
-import { DocumentChunk, ExtractedDocument } from '../../models/DocumentConversion';
+import {
+  DocumentChunk,
+  ExtractedDocument,
+} from '../../models/DocumentConversion';
 
 const MAX_HEADING_LENGTH = 120;
 
@@ -10,7 +13,10 @@ const CHAPTER_HEADING_PATTERNS = [
   // "Chapter 1", "CHAPTER 2: Getting Started", "Section 3. Results", "Part IV", "Appendix A"
   /^(chapter|section|part|appendix)\s+([\dIVXLC]+|[A-Z])[.:]?\s*(.*)$/i,
   // "Chapter One", "Chapter Twenty: Conclusion"
-  new RegExp(`^(chapter|section|part)\\s+(${NUMBER_WORDS})\\b[.:]?\\s*(.*)$`, 'i'),
+  new RegExp(
+    `^(chapter|section|part)\\s+(${NUMBER_WORDS})\\b[.:]?\\s*(.*)$`,
+    'i',
+  ),
   // "1. Introduction", "1.2 Methods"
   /^\d{1,2}(\.\d{1,2}){0,3}[.:]?\s+[A-Z]/,
   // "I. Overview"
@@ -32,7 +38,9 @@ function isTableOfContentsEntry(line: string): boolean {
  * except when explicitly prefixed by a heading keyword ("Chapter 2: Setup.").
  */
 function looksLikeSentence(line: string): boolean {
-  return /[.!?]$/.test(line) && !/^(chapter|section|part|appendix)\b/i.test(line);
+  return (
+    /[.!?]$/.test(line) && !/^(chapter|section|part|appendix)\b/i.test(line)
+  );
 }
 
 export function isChapterOrSectionHeading(line: string): boolean {
@@ -84,7 +92,9 @@ function splitByChapterHeadings(text: string): string[] | null {
     chunks.push(finalChunk);
   }
 
-  const meaningfulChunks = chunks.filter((chunk) => !isTableOfContentsBlock(chunk));
+  const meaningfulChunks = chunks.filter(
+    (chunk) => !isTableOfContentsBlock(chunk),
+  );
 
   return meaningfulChunks.length > 0 ? meaningfulChunks : null;
 }
@@ -95,8 +105,13 @@ function splitByChapterHeadings(text: string): string[] | null {
  * make a poor/noisy dataset sample, so it's dropped rather than kept as a chunk.
  */
 function isTableOfContentsBlock(chunkText: string): boolean {
-  const nonEmptyLines = chunkText.split('\n').map((line) => line.trim()).filter(Boolean);
-  return nonEmptyLines.length > 0 && nonEmptyLines.every(isTableOfContentsEntry);
+  const nonEmptyLines = chunkText
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return (
+    nonEmptyLines.length > 0 && nonEmptyLines.every(isTableOfContentsEntry)
+  );
 }
 
 function splitByParagraphs(text: string): string[] {
@@ -108,7 +123,9 @@ function splitByParagraphs(text: string): string[] {
   return paragraphs.length > 0 ? paragraphs : [text];
 }
 
-export function chunkDocumentByChapter(document: ExtractedDocument): DocumentChunk[] {
+export function chunkDocumentByChapter(
+  document: ExtractedDocument,
+): DocumentChunk[] {
   const normalizedText = document.text.replace(/\r\n/g, '\n').trim();
   const chapterTexts =
     splitByChapterHeadings(normalizedText) ?? splitByParagraphs(normalizedText);
