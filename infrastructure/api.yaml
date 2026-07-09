@@ -314,7 +314,7 @@ Resources:
       Environment:
         Variables:
           DATASET_BUCKET: !Ref DatasetBucketName
-          SYNTHETIC_OUTPUT_MODEL_ID: us.amazon.nova-micro-v1:0
+          SYNTHETIC_OUTPUT_MODEL_ID: us.meta.llama4-maverick-17b-instruct-v1:0
       Policies:
         - Statement:
             - Effect: Allow
