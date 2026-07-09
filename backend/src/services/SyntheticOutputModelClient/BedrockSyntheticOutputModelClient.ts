@@ -12,7 +12,8 @@ import type {
   SyntheticOutputModelResult,
 } from '../../ports/SyntheticOutputModelClient';
 
-const DEFAULT_SYNTHETIC_OUTPUT_MODEL_ID = 'us.amazon.nova-micro-v1:0';
+const DEFAULT_SYNTHETIC_OUTPUT_MODEL_ID =
+  'us.meta.llama4-maverick-17b-instruct-v1:0';
 const MAX_OUTPUT_TOKENS = 512;
 const TEMPERATURE = 0.2;
 

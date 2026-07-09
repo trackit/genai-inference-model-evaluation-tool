@@ -79,7 +79,7 @@ describe('BedrockSyntheticOutputModelClient', () => {
 
     await expect(client.generate({ prompt: 'Prompt' })).resolves.toEqual({
       output: 'default output',
-      modelId: 'us.amazon.nova-micro-v1:0',
+      modelId: 'us.meta.llama4-maverick-17b-instruct-v1:0',
     });
   });
 
