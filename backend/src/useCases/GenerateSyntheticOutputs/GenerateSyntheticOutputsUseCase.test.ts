@@ -1,21 +1,18 @@
-import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { inject, reset } from '@trackit.io/di-container';
-import { mockClient } from 'aws-sdk-client-mock';
 import { describe, expect, it } from 'vitest';
 
-import { tokenClientS3 } from '../../services/DatasetService/DatasetServiceS3';
+import {
+  FakeDatasetService,
+  tokenFakeDatasetService,
+} from '../../services/DatasetService/FakeDatasetService';
 import { tokenFakeSyntheticOutputModelClient } from '../../services/SyntheticOutputModelClient/FakeSyntheticOutputModelClient';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { GenerateSyntheticOutputsUseCaseImpl } from './GenerateSyntheticOutputsUseCase';
 
 describe('GenerateSyntheticOutputsUseCase', () => {
   it('generates summaries for converted dataset rows', async () => {
-    const { fakeModelClient, s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).resolves({
-      Body: {
-        transformToString: async () => summarizationConvertedArtifact(),
-      } as never,
-    });
+    const { fakeDatasetService, fakeModelClient, useCase } = setup();
+    seedConvertedArtifact(fakeDatasetService, summarizationConvertedArtifact());
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueOutput('Summary two');
 
@@ -32,7 +29,7 @@ describe('GenerateSyntheticOutputsUseCase', () => {
     expect(result.syntheticDatasetArtifactKey).toBe(
       'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
     );
-    expect(expectWrittenSyntheticRows(s3ClientMock)).toEqual([
+    expect(expectWrittenSyntheticRows(fakeDatasetService)).toEqual([
       {
         document_id: 'demo-dataset',
         chunk_id: 'demo-dataset-0',
@@ -58,12 +55,11 @@ describe('GenerateSyntheticOutputsUseCase', () => {
   });
 
   it('generates normalized class labels for classification converted rows', async () => {
-    const { fakeModelClient, s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).resolves({
-      Body: {
-        transformToString: async () => classificationConvertedArtifact(),
-      } as never,
-    });
+    const { fakeDatasetService, fakeModelClient, useCase } = setup();
+    seedConvertedArtifact(
+      fakeDatasetService,
+      classificationConvertedArtifact(),
+    );
     fakeModelClient.queueOutput('Classification label: Support Policy.');
 
     const result = await useCase.generateSyntheticOutputs({
@@ -79,7 +75,7 @@ describe('GenerateSyntheticOutputsUseCase', () => {
       generatedCount: 1,
       failedCount: 0,
     });
-    expect(expectWrittenSyntheticRows(s3ClientMock)[0]).toEqual({
+    expect(expectWrittenSyntheticRows(fakeDatasetService)[0]).toEqual({
       document_id: 'demo-dataset',
       chunk_id: 'demo-dataset-0',
       text: 'Refunds are available after billing errors.',
@@ -93,12 +89,8 @@ describe('GenerateSyntheticOutputsUseCase', () => {
   });
 
   it('records failed rows when model generation fails', async () => {
-    const { fakeModelClient, s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).resolves({
-      Body: {
-        transformToString: async () => summarizationConvertedArtifact(),
-      } as never,
-    });
+    const { fakeDatasetService, fakeModelClient, useCase } = setup();
+    seedConvertedArtifact(fakeDatasetService, summarizationConvertedArtifact());
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueError(new Error('model failed'));
 
@@ -111,7 +103,7 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 
     expect(result.generatedCount).toBe(1);
     expect(result.failedCount).toBe(1);
-    expect(expectWrittenSyntheticRows(s3ClientMock)[1]).toMatchObject({
+    expect(expectWrittenSyntheticRows(fakeDatasetService)[1]).toMatchObject({
       chunk_id: 'demo-dataset-1',
       summary: '',
       status: 'failed',
@@ -120,12 +112,11 @@ describe('GenerateSyntheticOutputsUseCase', () => {
   });
 
   it('records failed rows when normalized model output is empty', async () => {
-    const { fakeModelClient, s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).resolves({
-      Body: {
-        transformToString: async () => classificationConvertedArtifact(),
-      } as never,
-    });
+    const { fakeDatasetService, fakeModelClient, useCase } = setup();
+    seedConvertedArtifact(
+      fakeDatasetService,
+      classificationConvertedArtifact(),
+    );
     fakeModelClient.queueOutput('   ');
 
     const result = await useCase.generateSyntheticOutputs({
@@ -137,7 +128,7 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 
     expect(result.generatedCount).toBe(0);
     expect(result.failedCount).toBe(1);
-    expect(expectWrittenSyntheticRows(s3ClientMock)[0]).toMatchObject({
+    expect(expectWrittenSyntheticRows(fakeDatasetService)[0]).toMatchObject({
       class: '',
       status: 'failed',
       error_message: 'Synthetic output cannot be empty',
@@ -145,12 +136,11 @@ describe('GenerateSyntheticOutputsUseCase', () => {
   });
 
   it('rejects converted rows that do not match the requested task type', async () => {
-    const { s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).resolves({
-      Body: {
-        transformToString: async () => classificationConvertedArtifact(),
-      } as never,
-    });
+    const { fakeDatasetService, useCase } = setup();
+    seedConvertedArtifact(
+      fakeDatasetService,
+      classificationConvertedArtifact(),
+    );
 
     await expect(
       useCase.generateSyntheticOutputs({
@@ -168,31 +158,37 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 function setup() {
   reset();
   registerTestInfrastructure();
-  process.env.DATASET_BUCKET = 'test-bucket';
-  const s3ClientMock = mockClient(inject(tokenClientS3));
-  s3ClientMock.on(PutObjectCommand).resolves({});
 
   return {
+    fakeDatasetService: inject(tokenFakeDatasetService),
     fakeModelClient: inject(tokenFakeSyntheticOutputModelClient),
-    s3ClientMock,
     useCase: new GenerateSyntheticOutputsUseCaseImpl(),
   };
 }
 
-function expectWrittenSyntheticRows(
-  s3ClientMock: ReturnType<typeof mockClient>,
-): unknown[] {
-  const putObjectInput =
-    s3ClientMock.commandCalls(PutObjectCommand)[0].args[0].input;
+function seedConvertedArtifact(
+  fakeDatasetService: FakeDatasetService,
+  body: string,
+): void {
+  fakeDatasetService.artifacts.push({
+    key: 'datasets/demo-dataset/demo-dataset-converted.jsonl',
+    body,
+    contentType: 'application/jsonl',
+  });
+}
 
-  expect(putObjectInput).toMatchObject({
-    Bucket: 'test-bucket',
-    Key: 'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
-    ContentType: 'application/jsonl',
-    ServerSideEncryption: 'AES256',
+function expectWrittenSyntheticRows(
+  fakeDatasetService: FakeDatasetService,
+): unknown[] {
+  const artifact = fakeDatasetService.artifacts.find(
+    (a) => a.key === 'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+  );
+  expect(artifact).toMatchObject({
+    key: 'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+    contentType: 'application/jsonl',
   });
 
-  return String(putObjectInput.Body)
+  return String(artifact?.body)
     .trim()
     .split('\n')
     .filter(Boolean)

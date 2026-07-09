@@ -1,21 +1,17 @@
-import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { inject, reset } from '@trackit.io/di-container';
-import { mockClient } from 'aws-sdk-client-mock';
 import { describe, expect, it } from 'vitest';
 
-import { tokenClientS3 } from '../../services/DatasetService/DatasetServiceS3';
+import {
+  FakeDatasetService,
+  tokenFakeDatasetService,
+} from '../../services/DatasetService/FakeDatasetService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { GenerateStructuredDatasetUseCaseImpl } from './GenerateStructuredDatasetUseCase';
 
 describe('GenerateStructuredDatasetUseCase', () => {
   it('creates an evaluator-ready summarization dataset', async () => {
-    const { s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).resolves({
-      Body: {
-        transformToString: async () => summarizationSyntheticArtifact(),
-      } as never,
-    });
-    s3ClientMock.on(PutObjectCommand).resolves({});
+    const { fakeDatasetService, useCase } = setup();
+    seedSyntheticArtifact(fakeDatasetService, summarizationSyntheticArtifact());
 
     const result = await useCase.generateStructuredDataset({
       datasetId: 'demo-dataset',
@@ -28,7 +24,7 @@ describe('GenerateStructuredDatasetUseCase', () => {
       structuredDatasetArtifactKey: 'datasets/demo-dataset.jsonl',
       sampleCount: 2,
     });
-    expect(expectWrittenStructuredRows(s3ClientMock)).toEqual([
+    expect(expectWrittenStructuredRows(fakeDatasetService)).toEqual([
       {
         document: 'First document chunk',
         summary: 'Summary one',
@@ -41,13 +37,11 @@ describe('GenerateStructuredDatasetUseCase', () => {
   });
 
   it('creates an evaluator-ready classification dataset', async () => {
-    const { s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).resolves({
-      Body: {
-        transformToString: async () => classificationSyntheticArtifact(),
-      } as never,
-    });
-    s3ClientMock.on(PutObjectCommand).resolves({});
+    const { fakeDatasetService, useCase } = setup();
+    seedSyntheticArtifact(
+      fakeDatasetService,
+      classificationSyntheticArtifact(),
+    );
 
     await useCase.generateStructuredDataset({
       datasetId: 'demo-dataset',
@@ -55,20 +49,15 @@ describe('GenerateStructuredDatasetUseCase', () => {
         'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
     });
 
-    expect(expectWrittenStructuredRows(s3ClientMock)[0]).toEqual({
+    expect(expectWrittenStructuredRows(fakeDatasetService)[0]).toEqual({
       document: 'Refunds are available after billing errors.',
       class: 'support_policy',
     });
   });
 
   it('rejects failed synthetic rows before writing the final dataset', async () => {
-    const { s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).resolves({
-      Body: {
-        transformToString: async () => failedSyntheticArtifact(),
-      } as never,
-    });
-    s3ClientMock.on(PutObjectCommand).resolves({});
+    const { fakeDatasetService, useCase } = setup();
+    seedSyntheticArtifact(fakeDatasetService, failedSyntheticArtifact());
 
     await expect(
       useCase.generateStructuredDataset({
@@ -79,23 +68,25 @@ describe('GenerateStructuredDatasetUseCase', () => {
     ).rejects.toMatchObject({
       code: 'SYNTHETIC_OUTPUT_INCOMPLETE',
     });
-    expect(s3ClientMock.commandCalls(PutObjectCommand)).toHaveLength(0);
+    expect(
+      fakeDatasetService.artifacts.some(
+        (a) => a.key === 'datasets/demo-dataset.jsonl',
+      ),
+    ).toBe(false);
   });
 
   it('rejects empty generated summaries', async () => {
-    const { s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).resolves({
-      Body: {
-        transformToString: async () =>
-          JSON.stringify({
-            document_id: 'demo-dataset',
-            chunk_id: 'demo-dataset-0',
-            text: 'Chunk text',
-            summary: '',
-            status: 'completed',
-          }),
-      } as never,
-    });
+    const { fakeDatasetService, useCase } = setup();
+    seedSyntheticArtifact(
+      fakeDatasetService,
+      JSON.stringify({
+        document_id: 'demo-dataset',
+        chunk_id: 'demo-dataset-0',
+        text: 'Chunk text',
+        summary: '',
+        status: 'completed',
+      }),
+    );
 
     await expect(
       useCase.generateStructuredDataset({
@@ -112,28 +103,36 @@ describe('GenerateStructuredDatasetUseCase', () => {
 function setup() {
   reset();
   registerTestInfrastructure();
-  process.env.DATASET_BUCKET = 'test-bucket';
 
   return {
-    s3ClientMock: mockClient(inject(tokenClientS3)),
+    fakeDatasetService: inject(tokenFakeDatasetService),
     useCase: new GenerateStructuredDatasetUseCaseImpl(),
   };
 }
 
-function expectWrittenStructuredRows(
-  s3ClientMock: ReturnType<typeof mockClient>,
-): unknown[] {
-  const putObjectInput =
-    s3ClientMock.commandCalls(PutObjectCommand)[0].args[0].input;
+function seedSyntheticArtifact(
+  fakeDatasetService: FakeDatasetService,
+  body: string,
+): void {
+  fakeDatasetService.artifacts.push({
+    key: 'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+    body,
+    contentType: 'application/jsonl',
+  });
+}
 
-  expect(putObjectInput).toMatchObject({
-    Bucket: 'test-bucket',
-    Key: 'datasets/demo-dataset.jsonl',
-    ContentType: 'application/jsonl',
-    ServerSideEncryption: 'AES256',
+function expectWrittenStructuredRows(
+  fakeDatasetService: FakeDatasetService,
+): unknown[] {
+  const artifact = fakeDatasetService.artifacts.find(
+    (a) => a.key === 'datasets/demo-dataset.jsonl',
+  );
+  expect(artifact).toMatchObject({
+    key: 'datasets/demo-dataset.jsonl',
+    contentType: 'application/jsonl',
   });
 
-  return String(putObjectInput.Body)
+  return String(artifact?.body)
     .trim()
     .split('\n')
     .filter(Boolean)

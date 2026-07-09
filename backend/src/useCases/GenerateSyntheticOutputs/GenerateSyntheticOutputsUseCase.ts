@@ -9,8 +9,7 @@ import {
   SyntheticOutputRow,
 } from '../../models/Preprocessing';
 import { tokenSyntheticOutputModelClient } from '../../ports/SyntheticOutputModelClient';
-import { tokenPreprocessingChunkReader } from '../../services/PreprocessingChunkReader/PreprocessingChunkReader';
-import { tokenSyntheticDatasetWriter } from '../../services/SyntheticDatasetWriter/SyntheticDatasetWriter';
+import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 import { tokenSyntheticOutputPromptBuilder } from '../../services/SyntheticOutputPromptBuilder/SyntheticOutputPromptBuilder';
 
 export type GenerateSyntheticOutputsUseCase = {
@@ -20,10 +19,9 @@ export type GenerateSyntheticOutputsUseCase = {
 };
 
 export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOutputsUseCase {
-  private readonly convertedRowReader = inject(tokenPreprocessingChunkReader);
+  private readonly datasetService = inject(tokenDatasetService);
   private readonly promptBuilder = inject(tokenSyntheticOutputPromptBuilder);
   private readonly modelClient = inject(tokenSyntheticOutputModelClient);
-  private readonly syntheticDatasetWriter = inject(tokenSyntheticDatasetWriter);
 
   async generateSyntheticOutputs({
     datasetId,
@@ -31,7 +29,7 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
     taskType,
     modelId,
   }: GenerateSyntheticOutputsInput): Promise<GenerateSyntheticOutputsOutput> {
-    const convertedRows = await this.convertedRowReader.readConvertedRows(
+    const convertedRows = await this.datasetService.readConvertedDatasetRows(
       convertedDatasetArtifactKey,
     );
 
@@ -43,7 +41,7 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
     }
 
     const { syntheticDatasetArtifactKey } =
-      await this.syntheticDatasetWriter.writeSyntheticDataset(datasetId, rows);
+      await this.datasetService.writeSyntheticDataset(datasetId, rows);
 
     return {
       syntheticDatasetArtifactKey,

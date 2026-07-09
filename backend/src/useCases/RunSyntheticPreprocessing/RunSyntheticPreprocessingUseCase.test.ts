@@ -1,36 +1,18 @@
-import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { inject, reset } from '@trackit.io/di-container';
-import { mockClient } from 'aws-sdk-client-mock';
 import { describe, expect, it } from 'vitest';
 
-import { tokenClientS3 } from '../../services/DatasetService/DatasetServiceS3';
+import {
+  FakeDatasetService,
+  tokenFakeDatasetService,
+} from '../../services/DatasetService/FakeDatasetService';
 import { tokenFakeSyntheticOutputModelClient } from '../../services/SyntheticOutputModelClient/FakeSyntheticOutputModelClient';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { RunSyntheticPreprocessingUseCaseImpl } from './RunSyntheticPreprocessingUseCase';
 
 describe('RunSyntheticPreprocessingUseCase', () => {
   it('generates synthetic output and final structured dataset artifacts', async () => {
-    const { fakeModelClient, s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).callsFake(async (input) => {
-      if (input.Key === 'datasets/demo-dataset/demo-dataset-converted.jsonl') {
-        return {
-          Body: {
-            transformToString: async () => convertedArtifact(),
-          },
-        };
-      }
-      if (input.Key === 'datasets/demo-dataset/demo-dataset-synthetic.jsonl') {
-        const syntheticBody = s3ClientMock.commandCalls(PutObjectCommand)[0]
-          .args[0].input.Body as string;
-        return {
-          Body: {
-            transformToString: async () => syntheticBody,
-          },
-        };
-      }
-      throw new Error(`Unexpected key: ${input.Key}`);
-    });
-    s3ClientMock.on(PutObjectCommand).resolves({});
+    const { fakeDatasetService, fakeModelClient, useCase } = setup();
+    seedConvertedArtifact(fakeDatasetService);
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueOutput('Summary two');
 
@@ -51,27 +33,18 @@ describe('RunSyntheticPreprocessingUseCase', () => {
       failedCount: 0,
       sampleCount: 2,
     });
-    expect(s3ClientMock.commandCalls(PutObjectCommand)).toHaveLength(2);
+    expect(fakeDatasetService.artifacts).toHaveLength(3);
     expect(
-      s3ClientMock.commandCalls(PutObjectCommand)[1].args[0].input,
-    ).toEqual(
-      expect.objectContaining({
-        Key: 'datasets/demo-dataset.jsonl',
-        Body:
-          '{"document":"First document chunk","summary":"Summary one"}\n' +
-          '{"document":"Second document chunk","summary":"Summary two"}\n',
-      }),
+      artifactBody(fakeDatasetService, 'datasets/demo-dataset.jsonl'),
+    ).toBe(
+      '{"document":"First document chunk","summary":"Summary one"}\n' +
+        '{"document":"Second document chunk","summary":"Summary two"}\n',
     );
   });
 
   it('does not write the final structured dataset when generation has failures', async () => {
-    const { fakeModelClient, s3ClientMock, useCase } = setup();
-    s3ClientMock.on(GetObjectCommand).resolves({
-      Body: {
-        transformToString: async () => convertedArtifact(),
-      } as never,
-    });
-    s3ClientMock.on(PutObjectCommand).resolves({});
+    const { fakeDatasetService, fakeModelClient, useCase } = setup();
+    seedConvertedArtifact(fakeDatasetService);
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueError(new Error('model failed'));
 
@@ -86,27 +59,43 @@ describe('RunSyntheticPreprocessingUseCase', () => {
       code: 'SYNTHETIC_GENERATION_FAILED',
     });
 
-    expect(s3ClientMock.commandCalls(PutObjectCommand)).toHaveLength(1);
     expect(
-      s3ClientMock.commandCalls(PutObjectCommand)[0].args[0].input,
-    ).toEqual(
-      expect.objectContaining({
-        Key: 'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
-      }),
-    );
+      fakeDatasetService.artifacts.some(
+        (a) => a.key === 'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+      ),
+    ).toBe(true);
+    expect(
+      fakeDatasetService.artifacts.some(
+        (a) => a.key === 'datasets/demo-dataset.jsonl',
+      ),
+    ).toBe(false);
   });
 });
 
 function setup() {
   reset();
   registerTestInfrastructure();
-  process.env.DATASET_BUCKET = 'test-bucket';
 
   return {
+    fakeDatasetService: inject(tokenFakeDatasetService),
     fakeModelClient: inject(tokenFakeSyntheticOutputModelClient),
-    s3ClientMock: mockClient(inject(tokenClientS3)),
     useCase: new RunSyntheticPreprocessingUseCaseImpl(),
   };
+}
+
+function seedConvertedArtifact(fakeDatasetService: FakeDatasetService): void {
+  fakeDatasetService.artifacts.push({
+    key: 'datasets/demo-dataset/demo-dataset-converted.jsonl',
+    body: convertedArtifact(),
+    contentType: 'application/jsonl',
+  });
+}
+
+function artifactBody(
+  fakeDatasetService: FakeDatasetService,
+  key: string,
+): string | undefined {
+  return fakeDatasetService.artifacts.find((a) => a.key === key)?.body;
 }
 
 function convertedArtifact(): string {

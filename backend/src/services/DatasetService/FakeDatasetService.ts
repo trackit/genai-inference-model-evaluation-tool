@@ -1,7 +1,15 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
-import { DatasetFileType, DocumentUploadManifest } from '../../models/Dataset';
+import {
+  DatasetFileType,
+  DatasetSample,
+  DocumentUploadManifest,
+} from '../../models/Dataset';
+import {
+  ConvertedDatasetRow,
+  SyntheticOutputRow,
+} from '../../models/Preprocessing';
 import { DatasetService } from '../../ports/DatasetService';
 import {
   convertedDatasetS3Key,
@@ -29,6 +37,11 @@ export type StoredConvertedDataset = {
 
 export class FakeDatasetService implements DatasetService {
   public readonly uploads: StoredDatasetUpload[] = [];
+  public readonly artifacts: Array<{
+    key: string;
+    body: string;
+    contentType: string;
+  }> = [];
   public readonly manifests = new Map<string, DocumentUploadManifest>();
   public readonly documentObjects = new Map<string, number>();
   public readonly presignedMaxBytes: number[] = [];
@@ -132,6 +145,55 @@ export class FakeDatasetService implements DatasetService {
     }
     return size;
   }
+
+  async readConvertedDatasetRows(
+    convertedDatasetArtifactKey: string,
+  ): Promise<ConvertedDatasetRow[]> {
+    const content = this.readArtifactContent(convertedDatasetArtifactKey);
+    return parseJsonlRows<ConvertedDatasetRow>(content);
+  }
+
+  async writeSyntheticDataset(
+    datasetId: string,
+    rows: SyntheticOutputRow[],
+  ): Promise<{ syntheticDatasetArtifactKey: string }> {
+    const syntheticDatasetArtifactKey = `datasets/${datasetId}/${datasetId}-synthetic.jsonl`;
+    this.writeArtifactContent(
+      syntheticDatasetArtifactKey,
+      serializeJsonlRows(rows),
+    );
+
+    return { syntheticDatasetArtifactKey };
+  }
+
+  async readSyntheticDatasetRows(
+    syntheticDatasetArtifactKey: string,
+  ): Promise<SyntheticOutputRow[]> {
+    const content = this.readArtifactContent(syntheticDatasetArtifactKey);
+    return parseJsonlRows<SyntheticOutputRow>(content);
+  }
+
+  async writeStructuredDataset(
+    datasetId: string,
+    samples: DatasetSample[],
+  ): Promise<{ structuredDatasetArtifactKey: string }> {
+    const structuredDatasetArtifactKey = `datasets/${datasetId}.jsonl`;
+    this.writeArtifactContent(
+      structuredDatasetArtifactKey,
+      serializeJsonlRows(
+        samples.map((sample) => ({
+          document: sample.document,
+          ...(sample.summary !== undefined && { summary: sample.summary }),
+          ...(sample.class_label !== undefined && {
+            class: sample.class_label,
+          }),
+        })),
+      ),
+    );
+
+    return { structuredDatasetArtifactKey };
+  }
+
   async storeConversionJsonl(
     datasetId: string,
     jsonl: string,
@@ -166,6 +228,34 @@ export class FakeDatasetService implements DatasetService {
     }
     return stored.content;
   }
+
+  private readArtifactContent(key: string): string {
+    const artifact = this.artifacts.find((a) => a.key === key);
+    if (!artifact) {
+      throw new BasicError(
+        BasicErrorType.NOT_FOUND,
+        'DATASET_ARTIFACT_NOT_FOUND',
+        'Dataset artifact not found',
+        `No dataset artifact found at key: ${key}`,
+      );
+    }
+
+    return artifact.body;
+  }
+
+  private writeArtifactContent(key: string, body: string): void {
+    const artifact = {
+      key,
+      body,
+      contentType: 'application/jsonl',
+    };
+    const index = this.artifacts.findIndex((a) => a.key === key);
+    if (index >= 0) {
+      this.artifacts[index] = artifact;
+    } else {
+      this.artifacts.push(artifact);
+    }
+  }
 }
 
 export const tokenFakeDatasetService = createInjectionToken<FakeDatasetService>(
@@ -174,3 +264,16 @@ export const tokenFakeDatasetService = createInjectionToken<FakeDatasetService>(
     useClass: FakeDatasetService,
   },
 );
+
+function parseJsonlRows<T>(content: string): T[] {
+  return content
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as T);
+}
+
+function serializeJsonlRows(rows: unknown[]): string {
+  if (rows.length === 0) return '';
+  return `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`;
+}

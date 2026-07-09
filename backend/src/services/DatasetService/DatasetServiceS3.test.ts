@@ -30,7 +30,7 @@ describe('DatasetServiceImpl', () => {
         Body: {
           transformToString: async () => 'document\n"Question 1"',
         } as never,
-      });
+      } as never);
 
       const result = await service.retrieveDataset('dataset-id');
 
@@ -51,7 +51,7 @@ describe('DatasetServiceImpl', () => {
           Body: {
             transformToString: async () => '{"document":"Question 1"}',
           } as never,
-        });
+        } as never);
 
       const result = await service.retrieveDataset('dataset-id');
 
@@ -156,6 +156,143 @@ describe('DatasetServiceImpl', () => {
           documentS3Key('dataset-id', 'missing', 'pdf'),
         ),
       ).rejects.toThrow(BasicError);
+    });
+  });
+
+  describe('preprocessing dataset artifacts', () => {
+    it('reads converted dataset rows from a converted artifact key', async () => {
+      const { service, s3ClientMock } = setup();
+      s3ClientMock.on(GetObjectCommand).resolves({
+        Body: {
+          transformToString: async () => summarizationConvertedArtifact(),
+        } as never,
+      } as never);
+
+      const rows = await service.readConvertedDatasetRows(
+        'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      );
+
+      expect(rows).toEqual([
+        {
+          document_id: 'demo-dataset',
+          chunk_id: 'demo-dataset-0',
+          text: 'First document chunk',
+          summary: '',
+        },
+      ]);
+      expect(
+        s3ClientMock.commandCalls(GetObjectCommand)[0].args[0].input,
+      ).toMatchObject({
+        Bucket: 'test-bucket',
+        Key: 'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      });
+    });
+
+    it('writes synthetic dataset rows to the expected artifact key', async () => {
+      const { service, s3ClientMock } = setup();
+      s3ClientMock.on(PutObjectCommand).resolves({} as never);
+
+      const result = await service.writeSyntheticDataset('demo-dataset', [
+        {
+          document_id: 'demo-dataset',
+          chunk_id: 'demo-dataset-0',
+          text: 'First document chunk',
+          summary: 'Summary one',
+          status: 'completed',
+          model_id: 'test-model',
+        },
+      ]);
+
+      expect(result.syntheticDatasetArtifactKey).toBe(
+        'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+      );
+      expect(
+        s3ClientMock.commandCalls(PutObjectCommand)[0].args[0].input,
+      ).toMatchObject({
+        Bucket: 'test-bucket',
+        Key: 'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+        Body: '{"document_id":"demo-dataset","chunk_id":"demo-dataset-0","text":"First document chunk","summary":"Summary one","status":"completed","model_id":"test-model"}\n',
+        ContentType: 'application/jsonl',
+        ServerSideEncryption: 'AES256',
+      });
+    });
+
+    it('reads synthetic dataset rows from a synthetic artifact key', async () => {
+      const { service, s3ClientMock } = setup();
+      s3ClientMock.on(GetObjectCommand).resolves({
+        Body: {
+          transformToString: async () => summarizationSyntheticArtifact(),
+        } as never,
+      } as never);
+
+      const rows = await service.readSyntheticDatasetRows(
+        'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+      );
+
+      expect(rows[0]).toEqual({
+        document_id: 'demo-dataset',
+        chunk_id: 'demo-dataset-0',
+        text: 'First document chunk',
+        summary: 'Summary one',
+        status: 'completed',
+      });
+    });
+
+    it('writes structured dataset samples to the final evaluator key', async () => {
+      const { service, s3ClientMock } = setup();
+      s3ClientMock.on(PutObjectCommand).resolves({} as never);
+
+      const result = await service.writeStructuredDataset('demo-dataset', [
+        {
+          document: 'First document chunk',
+          summary: 'Summary one',
+        },
+      ]);
+
+      expect(result.structuredDatasetArtifactKey).toBe(
+        'datasets/demo-dataset.jsonl',
+      );
+      expect(
+        s3ClientMock.commandCalls(PutObjectCommand)[0].args[0].input,
+      ).toMatchObject({
+        Bucket: 'test-bucket',
+        Key: 'datasets/demo-dataset.jsonl',
+        Body: '{"document":"First document chunk","summary":"Summary one"}\n',
+        ContentType: 'application/jsonl',
+        ServerSideEncryption: 'AES256',
+      });
+    });
+
+    it('maps missing converted artifacts to converted-artifact errors', async () => {
+      const { service, s3ClientMock } = setup();
+      const notFound = new Error('Not found');
+      notFound.name = 'NoSuchKey';
+      s3ClientMock.on(GetObjectCommand).rejects(notFound);
+
+      await expect(
+        service.readConvertedDatasetRows(
+          'datasets/missing/missing-converted.jsonl',
+        ),
+      ).rejects.toMatchObject({
+        code: 'CONVERTED_DATASET_ARTIFACT_NOT_FOUND',
+      });
+    });
+
+    it('rejects invalid converted JSONL rows', async () => {
+      const { service, s3ClientMock } = setup();
+      s3ClientMock.on(GetObjectCommand).resolves({
+        Body: {
+          transformToString: async () => '{"chunk_id":"missing-fields"}',
+        } as never,
+      } as never);
+
+      await expect(
+        service.readConvertedDatasetRows(
+          'datasets/demo-dataset/demo-dataset-converted.jsonl',
+        ),
+      ).rejects.toMatchObject({
+        code: 'INVALID_CONVERTED_DATASET_ARTIFACT_FORMAT',
+      });
     });
   });
 
@@ -301,10 +438,29 @@ const setup = () => {
   registerTestInfrastructure();
   process.env.DATASET_BUCKET = 'test-bucket';
 
-  const s3ClientMock = mockClient(inject(tokenClientS3));
+  const s3ClientMock = mockClient(inject(tokenClientS3) as never);
 
   return {
     service: new DatasetServiceImpl(),
     s3ClientMock,
   };
 };
+
+function summarizationConvertedArtifact(): string {
+  return JSON.stringify({
+    document_id: 'demo-dataset',
+    chunk_id: 'demo-dataset-0',
+    text: 'First document chunk',
+    summary: '',
+  });
+}
+
+function summarizationSyntheticArtifact(): string {
+  return JSON.stringify({
+    document_id: 'demo-dataset',
+    chunk_id: 'demo-dataset-0',
+    text: 'First document chunk',
+    summary: 'Summary one',
+    status: 'completed',
+  });
+}

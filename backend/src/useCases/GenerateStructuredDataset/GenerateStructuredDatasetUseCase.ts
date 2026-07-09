@@ -7,8 +7,7 @@ import {
   StructuredDatasetGenerationOutput,
   SyntheticOutputRow,
 } from '../../models/Preprocessing';
-import { tokenStructuredDatasetWriter } from '../../services/StructuredDatasetWriter/StructuredDatasetWriter';
-import { tokenSyntheticDatasetReader } from '../../services/SyntheticDatasetReader/SyntheticDatasetReader';
+import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 
 export type GenerateStructuredDatasetUseCase = {
   generateStructuredDataset(
@@ -17,24 +16,18 @@ export type GenerateStructuredDatasetUseCase = {
 };
 
 export class GenerateStructuredDatasetUseCaseImpl implements GenerateStructuredDatasetUseCase {
-  private readonly syntheticDatasetReader = inject(tokenSyntheticDatasetReader);
-  private readonly structuredDatasetWriter = inject(
-    tokenStructuredDatasetWriter,
-  );
+  private readonly datasetService = inject(tokenDatasetService);
 
   async generateStructuredDataset({
     datasetId,
     syntheticDatasetArtifactKey,
   }: StructuredDatasetGenerationInput): Promise<StructuredDatasetGenerationOutput> {
-    const syntheticRows = await this.syntheticDatasetReader.readSyntheticRows(
+    const syntheticRows = await this.datasetService.readSyntheticDatasetRows(
       syntheticDatasetArtifactKey,
     );
     const samples = syntheticRows.map(toDatasetSample);
     const { structuredDatasetArtifactKey } =
-      await this.structuredDatasetWriter.writeStructuredDataset(
-        datasetId,
-        samples,
-      );
+      await this.datasetService.writeStructuredDataset(datasetId, samples);
 
     return {
       datasetId,
