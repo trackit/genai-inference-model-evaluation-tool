@@ -250,7 +250,7 @@ describe('DatasetServiceImpl', () => {
       ]);
 
       expect(result.structuredDatasetArtifactKey).toBe(
-        'datasets/demo-dataset.jsonl',
+        'datasets/demo-dataset/demo-dataset.jsonl',
       );
       expect(
         s3ClientMock.commandCalls(PutObjectCommand)[0].args[0].input,

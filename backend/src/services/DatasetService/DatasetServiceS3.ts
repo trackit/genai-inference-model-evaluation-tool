@@ -359,7 +359,7 @@ export class DatasetServiceImpl implements DatasetService {
       );
     }
 
-    const structuredDatasetArtifactKey = `datasets/${datasetId}.jsonl`;
+    const structuredDatasetArtifactKey = `datasets/${datasetId}/${datasetId}.jsonl`;
     await this.writeArtifact(
       structuredDatasetArtifactKey,
       serializeSamples(samples),

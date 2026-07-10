@@ -28,7 +28,7 @@ describe('RunSyntheticPreprocessingUseCase', () => {
       datasetId: 'demo-dataset',
       syntheticDatasetArtifactKey:
         'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
-      structuredDatasetArtifactKey: 'datasets/demo-dataset.jsonl',
+      structuredDatasetArtifactKey: 'datasets/demo-dataset/demo-dataset.jsonl',
       generatedCount: 2,
       failedCount: 0,
       sampleCount: 2,

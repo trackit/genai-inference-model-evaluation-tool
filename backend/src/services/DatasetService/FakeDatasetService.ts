@@ -177,7 +177,7 @@ export class FakeDatasetService implements DatasetService {
     datasetId: string,
     samples: DatasetSample[],
   ): Promise<{ structuredDatasetArtifactKey: string }> {
-    const structuredDatasetArtifactKey = `datasets/${datasetId}.jsonl`;
+    const structuredDatasetArtifactKey = `datasets/${datasetId}/${datasetId}.jsonl`;
     this.writeArtifactContent(
       structuredDatasetArtifactKey,
       serializeJsonlRows(

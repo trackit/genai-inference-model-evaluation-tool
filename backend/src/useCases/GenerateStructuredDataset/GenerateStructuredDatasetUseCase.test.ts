@@ -21,7 +21,7 @@ describe('GenerateStructuredDatasetUseCase', () => {
 
     expect(result).toEqual({
       datasetId: 'demo-dataset',
-      structuredDatasetArtifactKey: 'datasets/demo-dataset.jsonl',
+      structuredDatasetArtifactKey: 'datasets/demo-dataset/demo-dataset.jsonl',
       sampleCount: 2,
     });
     expect(expectWrittenStructuredRows(fakeDatasetService)).toEqual([
