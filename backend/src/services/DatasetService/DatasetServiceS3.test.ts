@@ -176,7 +176,7 @@ describe('DatasetServiceImpl', () => {
         {
           document_id: 'demo-dataset',
           chunk_id: 'demo-dataset-0',
-          text: 'First document chunk',
+          document: 'First document chunk',
           summary: '',
         },
       ]);
@@ -450,7 +450,7 @@ function summarizationConvertedArtifact(): string {
   return JSON.stringify({
     document_id: 'demo-dataset',
     chunk_id: 'demo-dataset-0',
-    text: 'First document chunk',
+    document: 'First document chunk',
     summary: '',
   });
 }

@@ -92,7 +92,7 @@ function formatConvertedDatasetRowContext(row: ConvertedDatasetRow): string {
     '<converted_dataset_row>',
     ...contextLines,
     '',
-    row.text.trim(),
+    row.document.trim(),
     '</converted_dataset_row>',
   ].join('\n');
 }

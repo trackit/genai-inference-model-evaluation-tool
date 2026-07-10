@@ -78,14 +78,18 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
       });
 
       return {
-        ...convertedRow,
+        chunk_id: convertedRow.chunk_id,
+        document_id: convertedRow.document_id,
+        text: convertedRow.document,
         ...buildGeneratedField(taskType, normalizedOutput),
         status: 'completed',
         model_id: result.modelId,
       };
     } catch (error: unknown) {
       return {
-        ...convertedRow,
+        chunk_id: convertedRow.chunk_id,
+        document_id: convertedRow.document_id,
+        text: convertedRow.document,
         ...buildGeneratedField(taskType, ''),
         status: 'failed',
         error_message:

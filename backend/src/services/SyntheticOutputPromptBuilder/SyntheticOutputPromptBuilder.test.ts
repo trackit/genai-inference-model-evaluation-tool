@@ -91,7 +91,8 @@ function convertedDatasetRow(
   return {
     document_id: 'demo-dataset',
     chunk_id: 'demo-dataset-0',
-    text: 'Revenue increased by 18 percent in Q2 due to growth in enterprise subscriptions.',
+    document:
+      'Revenue increased by 18 percent in Q2 due to growth in enterprise subscriptions.',
     ...targetField,
   };
 }

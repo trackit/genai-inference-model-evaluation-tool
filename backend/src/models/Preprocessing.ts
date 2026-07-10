@@ -12,7 +12,7 @@ export type ChunkingStrategy = (typeof CHUNKING_STRATEGIES)[number];
 export interface ConvertedDatasetRow {
   chunk_id: string;
   document_id: string;
-  text: string;
+  document: string;
   summary?: string;
   class?: string;
 }

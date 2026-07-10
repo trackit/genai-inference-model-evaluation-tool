@@ -486,7 +486,7 @@ function validateConvertedDatasetRow(
   const row: ConvertedDatasetRow = {
     chunk_id: readRequiredConvertedString(value, 'chunk_id', lineNumber),
     document_id: readRequiredConvertedString(value, 'document_id', lineNumber),
-    text: readRequiredConvertedString(value, 'text', lineNumber),
+    document: readRequiredConvertedString(value, 'document', lineNumber),
   };
 
   if (value.summary !== undefined) {

@@ -103,13 +103,13 @@ function convertedArtifact(): string {
     JSON.stringify({
       document_id: 'demo-dataset',
       chunk_id: 'demo-dataset-0',
-      text: 'First document chunk',
+      document: 'First document chunk',
       summary: '',
     }),
     JSON.stringify({
       document_id: 'demo-dataset',
       chunk_id: 'demo-dataset-1',
-      text: 'Second document chunk',
+      document: 'Second document chunk',
       summary: '',
     }),
   ].join('\n');
