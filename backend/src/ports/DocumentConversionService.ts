@@ -1,6 +1,5 @@
 import { DatasetFileType } from '../models/Dataset';
 import {
-  DocumentConversionResult,
   ExtractedDocument,
 } from '../models/DocumentConversion';
 
@@ -15,12 +14,4 @@ export interface DocumentConversionService {
     file_type: DatasetFileType,
   ): Promise<ExtractedDocument>;
 
-  /**
-   * Stores generated JSONL for a converted document dataset
-   * and returns the key which is datasets/{datasetId}/{datasetId}-converted.jsonl.
-   */
-  storeConversionJsonl(
-    datasetId: string,
-    jsonl: string,
-  ): Promise<DocumentConversionResult>;
 }

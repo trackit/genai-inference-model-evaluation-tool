@@ -4,21 +4,33 @@ import { BasicError, BasicErrorType } from '../../errors';
 import {
   ChunkingStrategy,
   DocumentChunk,
-  DocumentConversionRequest,
-  DocumentConversionResult,
+  DocumentRequestEntry,
   ExtractedDocument,
-  isSupportedDocumentFileType,
   SUPPORTED_DOCUMENT_FILE_TYPES,
+  SupportedDocumentFileType,
   TaskType,
 } from '../../models/DocumentConversion';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
-import { chunkDocumentByChapter } from './chapterChunking';
+import { chunkDocumentByChapter } from '../../utils/helpers/chapterChunking';
+import { DatasetFileType } from 'backend/src/models/Dataset';
+import { tokenDatasetService } from 'backend/src/services/DatasetService/DatasetServiceS3';
 
 export type DocumentConversionUseCase = {
   execute(
     request: DocumentConversionRequest,
   ): Promise<DocumentConversionResult>;
 };
+
+export interface DocumentConversionRequest {
+  dataset_id: string;
+  documents: DocumentRequestEntry[];
+  chunking_strategy: ChunkingStrategy;
+  task_type: TaskType;
+}
+
+export interface DocumentConversionResult {
+  converted_dataset_file_key: string;
+}
 
 export function chunkDocuments(
   extracted: ExtractedDocument[],
@@ -65,9 +77,8 @@ export function buildConversionJsonl(
 }
 
 export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase {
-  private readonly documentConversionService = inject(
-    tokenDocumentConversionService,
-  );
+  private readonly documentConversionService = inject(tokenDocumentConversionService);
+  private readonly datasetService = inject(tokenDatasetService);
 
   async execute(
     request: DocumentConversionRequest,
@@ -79,7 +90,7 @@ export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase 
     const jsonl = buildConversionJsonl(chunks, request.task_type);
 
     const storedJsonlKey: DocumentConversionResult =
-      await this.documentConversionService.storeConversionJsonl(
+      await this.datasetService.storeConversionJsonl(
         request.dataset_id,
         jsonl,
       );
@@ -172,3 +183,11 @@ export const tokenDocumentConversionUseCase =
   createInjectionToken<DocumentConversionUseCase>('DocumentConversionUseCase', {
     useClass: DocumentConversionUseCaseImpl,
   });
+
+function isSupportedDocumentFileType(
+  fileType: DatasetFileType,
+): fileType is SupportedDocumentFileType {
+  return (SUPPORTED_DOCUMENT_FILE_TYPES as readonly string[]).includes(
+    fileType,
+  );
+}

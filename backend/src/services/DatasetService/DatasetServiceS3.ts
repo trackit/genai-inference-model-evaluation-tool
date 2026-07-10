@@ -9,6 +9,9 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { z } from 'zod';
 import { DatasetService } from '../../ports/DatasetService';
 
+import { DatasetFileType } from 'backend/src/models/Dataset';
+import { DocumentConversionResult } from 'backend/src/useCases/DocumentConversion/DocumentConversionUseCase';
+import { documentS3Key } from 'backend/src/utils/s3Keys';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { DocumentUploadManifest, MIN_FILE_BYTES } from '../../models/Dataset';
 
@@ -173,6 +176,41 @@ export class DatasetServiceImpl implements DatasetService {
       }
       throw error;
     }
+  }
+
+  async storeConversionJsonl(
+    dataset_id: string,
+    jsonl: string,
+  ): Promise<DocumentConversionResult> {
+    const documentConversionResult: DocumentConversionResult = {
+      converted_dataset_file_key: `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
+    };
+
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: documentConversionResult.converted_dataset_file_key,
+        Body: jsonl,
+        ContentType: 'application/jsonl',
+        ServerSideEncryption: 'AES256',
+      }),
+    );
+
+    return documentConversionResult;
+  }
+
+  async fetchRawContent(
+    dataset_id: string,
+    document_id: string,
+    file_type: DatasetFileType,
+  ): Promise<Buffer> {
+    const key = documentS3Key(dataset_id, document_id, file_type);
+
+    const response = await this.s3Client.send(
+      new GetObjectCommand({ Bucket: this.bucketName, Key: key }),
+    );
+
+    return Buffer.from(await response.Body!.transformToByteArray());
   }
 }
 

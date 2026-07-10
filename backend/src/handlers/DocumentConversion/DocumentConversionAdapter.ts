@@ -3,18 +3,47 @@ import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
 } from 'aws-lambda';
+import { z } from 'zod';
 
-import { BasicError, BasicErrorType } from '../../errors';
 import {
   ChunkingStrategy,
-  DocumentConversionRequest,
-  DocumentRequestEntry,
-  isSupportedDocumentFileType,
   SUPPORTED_DOCUMENT_FILE_TYPES,
   TaskType,
 } from '../../models/DocumentConversion';
-import { tokenDocumentConversionUseCase } from '../../useCases/DocumentConversion/DocumentConversionUseCase';
+import { DocumentConversionRequest, tokenDocumentConversionUseCase } from '../../useCases/DocumentConversion/DocumentConversionUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
+import { parseApiEvent } from '../api/parseApiEvent';
+
+const documentEntrySchema = z.object({
+  document_id: z.string({
+    error: 'document_id is required',
+  }),
+  file_type: z.enum(SUPPORTED_DOCUMENT_FILE_TYPES, {
+    error: `file_type must be one of: ${SUPPORTED_DOCUMENT_FILE_TYPES.join(', ')}`,
+  }),
+});
+
+const documentConversionBodySchema = z.object({
+  dataset_id: z.string({
+    error: 'dataset_id is required',
+  }),
+  documents: z
+    .array(documentEntrySchema, {
+      error:
+        'documents must be a non-empty array of objects with document_id and file_type',
+    })
+    .min(
+      1,
+      'documents must be a non-empty array of objects with document_id and file_type',
+    ),
+  task_type: z.enum(TaskType, {
+    error: `task_type must be one of: ${Object.values(TaskType).join(', ')}`,
+  }),
+  chunking_strategy: z
+    .enum(ChunkingStrategy)
+    .optional()
+    .default(ChunkingStrategy.CHAPTER),
+});
 
 export class DocumentConversionAdapter {
   private readonly useCase = inject(tokenDocumentConversionUseCase);
@@ -38,94 +67,10 @@ export class DocumentConversionAdapter {
   private parseRequest(
     event: APIGatewayProxyEventV2,
   ): DocumentConversionRequest {
-    const rawBody = event.isBase64Encoded
-      ? Buffer.from(event.body || '', 'base64').toString('utf8')
-      : event.body;
+    const { body } = parseApiEvent(event, {
+      bodySchema: documentConversionBodySchema,
+    });
 
-    if (!rawBody) {
-      throw new BasicError(
-        BasicErrorType.BAD_REQUEST,
-        'MISSING_BODY',
-        'Request body is required',
-      );
-    }
-
-    let payload: DocumentConversionRequest;
-
-    try {
-      payload = JSON.parse(rawBody);
-    } catch {
-      throw new BasicError(
-        BasicErrorType.BAD_REQUEST,
-        'INVALID_BODY',
-        'Request body must be valid JSON',
-      );
-    }
-
-    if (!payload.dataset_id) {
-      throw new BasicError(
-        BasicErrorType.BAD_REQUEST,
-        'MISSING_DATASET_ID',
-        'dataset_id is required',
-      );
-    }
-
-    if (!Array.isArray(payload.documents) || payload.documents.length === 0) {
-      throw new BasicError(
-        BasicErrorType.BAD_REQUEST,
-        'INVALID_DOCUMENTS',
-        'documents must be a non-empty array of objects with document_id and file_type',
-      );
-    }
-
-    if (
-      !payload.task_type ||
-      !Object.values(TaskType).includes(payload.task_type)
-    ) {
-      throw new BasicError(
-        BasicErrorType.BAD_REQUEST,
-        'INVALID_TASK_TYPE',
-        `task_type must be one of: ${Object.values(TaskType).join(', ')}`,
-      );
-    }
-
-    const normalizedDocs: DocumentRequestEntry[] = payload.documents.map(
-      (documentEntry: DocumentRequestEntry) => {
-        if (
-          !documentEntry ||
-          typeof documentEntry !== 'object' ||
-          Array.isArray(documentEntry)
-        ) {
-          throw new BasicError(
-            BasicErrorType.BAD_REQUEST,
-            'INVALID_DOCUMENTS',
-            'documents must be objects with document_id and file_type',
-          );
-        }
-
-        if (
-          !documentEntry.file_type ||
-          !isSupportedDocumentFileType(documentEntry.file_type)
-        ) {
-          throw new BasicError(
-            BasicErrorType.BAD_REQUEST,
-            'INVALID_FILE_TYPE',
-            `file_type must be one of: ${SUPPORTED_DOCUMENT_FILE_TYPES.join(', ')}`,
-          );
-        }
-
-        return documentEntry;
-      },
-    );
-
-    const chunkingStrategyToUse =
-      payload.chunking_strategy ?? ChunkingStrategy.CHAPTER;
-
-    return {
-      dataset_id: payload.dataset_id,
-      documents: normalizedDocs,
-      chunking_strategy: chunkingStrategyToUse,
-      task_type: payload.task_type,
-    };
+    return body;
   }
 }

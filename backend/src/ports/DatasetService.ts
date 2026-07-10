@@ -1,4 +1,5 @@
-import { DocumentUploadManifest } from '../models/Dataset';
+import { DatasetFileType, DocumentUploadManifest } from '../models/Dataset';
+import { DocumentConversionResult } from '../useCases/DocumentConversion/DocumentConversionUseCase';
 
 export interface DatasetService {
   generatePresignedPost(
@@ -23,4 +24,19 @@ export interface DatasetService {
     content: string;
     fileExtension: 'csv' | 'jsonl';
   }>;
+
+  /**
+   * Stores generated JSONL for a converted document dataset
+   * and returns the key which is datasets/{datasetId}/{datasetId}-converted.jsonl.
+   */
+  storeConversionJsonl(
+    datasetId: string,
+    jsonl: string,
+  ): Promise<DocumentConversionResult>;
+
+  fetchRawContent(
+    dataset_id: string,
+    document_id: string,
+    file_type: DatasetFileType,
+  ): Promise<Buffer>;
 }
