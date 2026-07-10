@@ -132,6 +132,10 @@ describe('DatasetUpload', () => {
       />,
     );
 
+    fireEvent.click(
+      screen.getByRole('button', { name: /documents \(pdf \/ doc \/ docx\)/i }),
+    );
+
     const input = document.querySelector(
       'input[type="file"]',
     ) as HTMLInputElement;
@@ -150,20 +154,36 @@ describe('DatasetUpload', () => {
     expect(onChange).toHaveBeenLastCalledWith([]);
   });
 
-  it('shows validation error for mixed dataset/document selection', () => {
+  it('shows validation error when structured mode has multiple files', () => {
     const csvFile = new File(['a,b'], 'samples.csv', { type: 'text/csv' });
-    const pdfFile = new File(['doc'], 'report.pdf', {
-      type: 'application/pdf',
+    const jsonlFile = new File(['{}'], 'samples.jsonl', {
+      type: 'application/jsonl',
     });
 
     renderWithProviders(
-      <DatasetUpload {...defaultProps} files={[csvFile, pdfFile]} />,
+      <DatasetUpload {...defaultProps} files={[csvFile, jsonlFile]} />,
     );
 
     expect(
-      screen.getByText('CSV/JSONL datasets must be uploaded alone'),
+      screen.getByText('Upload one CSV or JSONL file'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+  });
+
+  it('clears incompatible files when switching dataset format', () => {
+    const onChange = vi.fn();
+    const file = new File(['a,b'], 'samples.csv', { type: 'text/csv' });
+
+    renderWithProviders(
+      <DatasetUpload {...defaultProps} files={[file]} onChange={onChange} />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /documents \(pdf \/ doc \/ docx\)/i }),
+    );
+
+    expect(onChange).toHaveBeenCalledWith([]);
+    expect(resetMock).toHaveBeenCalled();
   });
 
   it('uploads selected files on explicit upload click', async () => {
@@ -207,7 +227,6 @@ describe('DatasetUpload', () => {
         dataset_type: 'documents',
         dataset_id: 'dataset-1',
         file_count: 2,
-        total_size_bytes: file1.size + file2.size,
         documents: [],
       },
       error: null,
@@ -215,6 +234,10 @@ describe('DatasetUpload', () => {
 
     renderWithProviders(
       <DatasetUpload {...defaultProps} files={[file1, file2]} />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /documents \(pdf \/ doc \/ docx\)/i }),
     );
 
     expect(screen.getByText(/2 files uploaded/)).toBeInTheDocument();
@@ -241,7 +264,6 @@ describe('DatasetUpload', () => {
         dataset_type: 'documents',
         dataset_id: 'dataset-1',
         file_count: 1,
-        total_size_bytes: file.size,
         documents: [],
       },
       error: null,
@@ -255,6 +277,9 @@ describe('DatasetUpload', () => {
       />,
     );
 
+    fireEvent.click(
+      screen.getByRole('button', { name: /documents \(pdf \/ doc \/ docx\)/i }),
+    );
     fireEvent.click(screen.getByRole('button', { name: /classification/i }));
 
     await waitFor(() => {

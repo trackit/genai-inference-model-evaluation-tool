@@ -85,6 +85,34 @@ const TASK_TYPES: {
 ];
 
 type FormatTab = 'csv' | 'jsonl';
+type DatasetMode = 'structured' | 'documents';
+
+const DATASET_MODES: {
+  id: DatasetMode;
+  label: string;
+  description: string;
+  accept: string;
+  multiple: boolean;
+  hint: string;
+}[] = [
+  {
+    id: 'structured',
+    label: 'Structured (CSV / JSONL)',
+    description: 'Single tabular file with document rows and optional labels.',
+    accept: '.csv,.jsonl',
+    multiple: false,
+    hint: 'One CSV or JSONL file · up to 200 MB',
+  },
+  {
+    id: 'documents',
+    label: 'Documents (PDF / DOC / DOCX)',
+    description:
+      'Multiple unstructured files that form your evaluation dataset.',
+    accept: '.pdf,.doc,.docx',
+    multiple: true,
+    hint: 'One or more PDF, DOC, or DOCX files · up to 200 MB total',
+  },
+];
 
 function resolveDetectedTask(data: {
   has_summary: boolean;
@@ -95,7 +123,7 @@ function resolveDetectedTask(data: {
   return undefined;
 }
 
-function getValidationError(files: File[]): string | null {
+function getValidationError(files: File[], mode: DatasetMode): string | null {
   const extensions = files.map((file) =>
     file.name.toLowerCase().split('.').pop(),
   );
@@ -108,16 +136,22 @@ function getValidationError(files: File[]): string | null {
     return 'Total size must not exceed 200 MB';
   }
 
-  if (
-    extensions.some(
-      (extension) => !isDataset(extension) && !isDocument(extension),
-    )
-  ) {
-    return 'Unsupported file type. Supported: CSV, JSONL, PDF, DOC, DOCX';
+  if (mode === 'structured') {
+    if (files.length > 1) {
+      return 'Upload one CSV or JSONL file';
+    }
+    if (files.length === 1 && !isDataset(extensions[0])) {
+      return 'Structured datasets must be CSV or JSONL';
+    }
+    return null;
   }
 
-  if (extensions.some(isDataset) && files.length > 1) {
-    return 'CSV/JSONL datasets must be uploaded alone';
+  if (files.length === 0) {
+    return null;
+  }
+
+  if (extensions.some((extension) => !isDocument(extension))) {
+    return 'Document datasets must be PDF, DOC, or DOCX only';
   }
 
   return null;
@@ -129,13 +163,12 @@ function formatBytes(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function isStructuredFile(file: File): boolean {
+function fileMatchesMode(file: File, mode: DatasetMode): boolean {
   const extension = file.name.toLowerCase().split('.').pop();
-  return extension === 'csv' || extension === 'jsonl';
-}
-
-function isStructuredUpload(files: File[]): boolean {
-  return files.length === 1 && isStructuredFile(files[0]);
+  if (mode === 'structured') {
+    return extension === 'csv' || extension === 'jsonl';
+  }
+  return extension === 'pdf' || extension === 'doc' || extension === 'docx';
 }
 
 function detectedTaskFromUpload(
@@ -143,6 +176,47 @@ function detectedTaskFromUpload(
 ): TaskType | undefined {
   if (!data || data.dataset_type !== 'structured') return undefined;
   return resolveDetectedTask(data);
+}
+
+function DatasetModeButtons({
+  selected,
+  onSelect,
+}: {
+  selected: DatasetMode;
+  onSelect: (mode: DatasetMode) => void;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {DATASET_MODES.map((mode) => {
+        const isActive = mode.id === selected;
+        return (
+          <button
+            key={mode.id}
+            type="button"
+            onClick={() => onSelect(mode.id)}
+            className={cn(
+              'rounded-lg border px-4 py-3 text-left transition-all',
+              isActive
+                ? 'border-primary bg-primary/5'
+                : 'border-border bg-surface hover:border-primary/40',
+            )}
+          >
+            <p
+              className={cn(
+                'text-sm font-medium',
+                isActive ? 'text-primary' : 'text-foreground',
+              )}
+            >
+              {mode.label}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {mode.description}
+            </p>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function TaskTypeButtons({
@@ -188,14 +262,17 @@ export function DatasetUpload({
   onMetricsChange,
 }: DatasetUploadProps) {
   const [dragOver, setDragOver] = useState(false);
+  const [datasetMode, setDatasetMode] = useState<DatasetMode>('structured');
   const [activeTask, setActiveTask] = useState<TaskType>('summarization');
   const [selectedDocumentTask, setSelectedDocumentTask] =
     useState<TaskType | null>(null);
   const [formatTab, setFormatTab] = useState<FormatTab>('csv');
   const uploadMutation = useUploadDataset();
-  const validationError = getValidationError(files);
-  const showStructuredGuidance =
-    files.length === 0 || isStructuredUpload(files);
+  const activeDatasetMode = DATASET_MODES.find(
+    (mode) => mode.id === datasetMode,
+  )!;
+  const validationError = getValidationError(files, datasetMode);
+  const showStructuredGuidance = datasetMode === 'structured';
   const isDocumentUploadSuccess =
     uploadMutation.isSuccess &&
     uploadMutation.data?.dataset_type === 'documents';
@@ -210,7 +287,19 @@ export function DatasetUpload({
     if (newFiles.length === 0) return;
     uploadMutation.reset();
     setSelectedDocumentTask(null);
-    onChange([...files, ...newFiles]);
+    onChange(
+      datasetMode === 'structured'
+        ? newFiles.slice(0, 1)
+        : [...files, ...newFiles],
+    );
+  };
+
+  const handleDatasetModeChange = (mode: DatasetMode) => {
+    if (mode === datasetMode) return;
+    uploadMutation.reset();
+    setSelectedDocumentTask(null);
+    setDatasetMode(mode);
+    onChange(files.filter((file) => fileMatchesMode(file, mode)));
   };
 
   const handleRemoveFile = (index: number) => {
@@ -262,14 +351,10 @@ export function DatasetUpload({
     >
       <h1 className="text-2xl font-semibold tracking-tight">Upload Dataset</h1>
       <p className="text-sm text-muted-foreground mt-1 mb-6">
-        Upload CSV/JSONL datasets or multiple PDF/DOC/DOCX files.
-        {showStructuredGuidance ? (
+        {datasetMode === 'structured' ? (
           <>
-            {' '}
-            For structured datasets, Summarization requires{' '}
-            <span className="font-mono text-foreground/80">
-              document
-            </span> and{' '}
+            Upload one CSV or JSONL file. Summarization requires{' '}
+            <span className="font-mono text-foreground/80">document</span> and{' '}
             <span className="font-mono text-foreground/80">summary</span>;
             classification requires{' '}
             <span className="font-mono text-foreground/80">document</span> and{' '}
@@ -278,8 +363,8 @@ export function DatasetUpload({
           </>
         ) : (
           <>
-            {' '}
-            For document uploads, choose the task type after upload completes.
+            Upload one or more PDF, DOC, or DOCX files. Choose the task type
+            after upload completes.
           </>
         )}
       </p>
@@ -405,6 +490,16 @@ export function DatasetUpload({
         </>
       )}
 
+      <div className="mb-4">
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
+          Dataset format
+        </p>
+        <DatasetModeButtons
+          selected={datasetMode}
+          onSelect={handleDatasetModeChange}
+        />
+      </div>
+
       {/* ── Upload zone ── */}
       <div
         onDragOver={(e) => {
@@ -420,8 +515,8 @@ export function DatasetUpload({
       >
         <input
           type="file"
-          multiple
-          accept=".csv,.jsonl,.pdf,.doc,.docx"
+          multiple={activeDatasetMode.multiple}
+          accept={activeDatasetMode.accept}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           disabled={uploadMutation.isPending}
           onChange={(e) => {
@@ -434,8 +529,7 @@ export function DatasetUpload({
           Drop files here or click to browse
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          CSV/JSONL (single file) or PDF/DOC/DOCX (multiple files) · up to 200
-          MB total
+          {activeDatasetMode.hint}
         </p>
       </div>
 
