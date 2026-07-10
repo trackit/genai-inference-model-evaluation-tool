@@ -1,7 +1,5 @@
 import { DatasetFileType } from '../models/Dataset';
-import {
-  ExtractedDocument,
-} from '../models/DocumentConversion';
+import { ExtractedDocument } from '../models/DocumentConversion';
 
 export interface DocumentConversionService {
   /**
@@ -13,5 +11,4 @@ export interface DocumentConversionService {
     document_id: string,
     file_type: DatasetFileType,
   ): Promise<ExtractedDocument>;
-
 }

@@ -10,7 +10,10 @@ import {
   SUPPORTED_DOCUMENT_FILE_TYPES,
   TaskType,
 } from '../../models/DocumentConversion';
-import { DocumentConversionRequest, tokenDocumentConversionUseCase } from '../../useCases/DocumentConversion/DocumentConversionUseCase';
+import {
+  DocumentConversionRequest,
+  tokenDocumentConversionUseCase,
+} from '../../useCases/DocumentConversion/DocumentConversionUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
 import { parseApiEvent } from '../api/parseApiEvent';
 
