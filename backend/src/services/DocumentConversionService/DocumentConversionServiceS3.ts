@@ -6,14 +6,9 @@ import WordExtractor from 'word-extractor';
 import { DatasetFileType } from '../../models/Dataset';
 import { ExtractedDocument } from '../../models/DocumentConversion';
 import { DocumentConversionService } from '../../ports/DocumentConversionService';
-import {
-  tokenClientS3,
-  tokenDatasetService,
-} from '../DatasetService/DatasetServiceS3';
+import { tokenDatasetService } from '../DatasetService/DatasetServiceS3';
 
 export class DocumentConversionServiceImpl implements DocumentConversionService {
-  private readonly bucketName = process.env.DATASET_BUCKET!;
-  private readonly s3Client = inject(tokenClientS3);
   private readonly datasetService = inject(tokenDatasetService);
   private readonly wordExtractor = new WordExtractor();
 

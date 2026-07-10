@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { ChunkingStrategy, TaskType } from '../../models/DocumentConversion';
 import { JsonlParserImpl } from '../../parsers/JsonlParser/JsonlParser';
+import { tokenFakeDatasetService } from '../../services/DatasetService/FakeDatasetService';
 import { tokenFakeDocumentConversionService } from '../../services/DocumentConversionService/FakeDocumentConversionService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { tokenDocumentConversionUseCase } from './DocumentConversionUseCase';
@@ -14,12 +15,13 @@ const setup = () => {
   return {
     useCase: inject(tokenDocumentConversionUseCase),
     documentConversionService: inject(tokenFakeDocumentConversionService),
+    datasetService: inject(tokenFakeDatasetService),
   };
 };
 
 describe('DocumentConversionUseCase execute', () => {
   it('fetches, chunks, and generates JSONL with CHAPTER strategy', async () => {
-    const { useCase, documentConversionService } = setup();
+    const { useCase, documentConversionService, datasetService } = setup();
     const fetchSpy = vi.spyOn(documentConversionService, 'fetchAndParse');
 
     const dataset_id = randomUUID();
@@ -37,10 +39,7 @@ describe('DocumentConversionUseCase execute', () => {
       text: 'Only one paragraph',
     });
 
-    const storeSpy = vi.spyOn(
-      documentConversionService,
-      'storeConversionJsonl',
-    );
+    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
     const result = await useCase.execute({
       dataset_id: dataset_id,
@@ -95,7 +94,7 @@ describe('DocumentConversionUseCase execute', () => {
   });
 
   it('fetches, chunks, and generates JSONL with DOCUMENT strategy', async () => {
-    const { useCase, documentConversionService } = setup();
+    const { useCase, documentConversionService, datasetService } = setup();
     const fetchSpy = vi.spyOn(documentConversionService, 'fetchAndParse');
 
     const dataset_id = randomUUID();
@@ -112,10 +111,7 @@ describe('DocumentConversionUseCase execute', () => {
       text: 'Only one paragraph',
     });
 
-    const storeSpy = vi.spyOn(
-      documentConversionService,
-      'storeConversionJsonl',
-    );
+    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
     const result = await useCase.execute({
       dataset_id: dataset_id,
@@ -205,7 +201,7 @@ describe('DocumentConversionUseCase execute', () => {
   });
 
   it('chunks a document by chapter headings when present', async () => {
-    const { useCase, documentConversionService } = setup();
+    const { useCase, documentConversionService, datasetService } = setup();
     const dataset_id = randomUUID();
     const document_id = randomUUID();
 
@@ -221,10 +217,7 @@ describe('DocumentConversionUseCase execute', () => {
       ].join('\n'),
     });
 
-    const storeSpy = vi.spyOn(
-      documentConversionService,
-      'storeConversionJsonl',
-    );
+    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
     await useCase.execute({
       dataset_id,
@@ -256,7 +249,7 @@ describe('DocumentConversionUseCase execute', () => {
   });
 
   it('chunks a document by chapter with multiple blank lines', async () => {
-    const { useCase, documentConversionService } = setup();
+    const { useCase, documentConversionService, datasetService } = setup();
     const dataset_id = randomUUID();
     const document_id = randomUUID();
 
@@ -266,10 +259,7 @@ describe('DocumentConversionUseCase execute', () => {
       text: 'First paragraph.\n\n\nSecond paragraph.\n\nThird paragraph.',
     });
 
-    const storeSpy = vi.spyOn(
-      documentConversionService,
-      'storeConversionJsonl',
-    );
+    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
     await useCase.execute({
       dataset_id,
@@ -305,7 +295,7 @@ describe('DocumentConversionUseCase execute', () => {
   });
 
   it('creates a single chunk for CHAPTER when no paragraph separators exist', async () => {
-    const { useCase, documentConversionService } = setup();
+    const { useCase, documentConversionService, datasetService } = setup();
     const dataset_id = randomUUID();
     const document_id = randomUUID();
 
@@ -315,10 +305,7 @@ describe('DocumentConversionUseCase execute', () => {
       text: 'A single paragraph without blank lines.',
     });
 
-    const storeSpy = vi.spyOn(
-      documentConversionService,
-      'storeConversionJsonl',
-    );
+    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
     await useCase.execute({
       dataset_id,
@@ -342,7 +329,7 @@ describe('DocumentConversionUseCase execute', () => {
   });
 
   it('trims extracted text for DOCUMENT strategy', async () => {
-    const { useCase, documentConversionService } = setup();
+    const { useCase, documentConversionService, datasetService } = setup();
     const dataset_id = randomUUID();
     const document_id = randomUUID();
 
@@ -352,10 +339,7 @@ describe('DocumentConversionUseCase execute', () => {
       text: '\n\nOnly one paragraph with padding.\n\n',
     });
 
-    const storeSpy = vi.spyOn(
-      documentConversionService,
-      'storeConversionJsonl',
-    );
+    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
     await useCase.execute({
       dataset_id,
@@ -381,7 +365,7 @@ describe('DocumentConversionUseCase execute', () => {
   });
 
   it('parses docx documents end-to-end', async () => {
-    const { useCase, documentConversionService } = setup();
+    const { useCase, documentConversionService, datasetService } = setup();
     const fetchSpy = vi.spyOn(documentConversionService, 'fetchAndParse');
 
     const dataset_id = randomUUID();
@@ -393,10 +377,7 @@ describe('DocumentConversionUseCase execute', () => {
       text: 'Docx body content',
     });
 
-    const storeSpy = vi.spyOn(
-      documentConversionService,
-      'storeConversionJsonl',
-    );
+    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
     await useCase.execute({
       dataset_id,

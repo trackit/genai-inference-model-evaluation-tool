@@ -1,5 +1,7 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
+import { DatasetFileType } from 'backend/src/models/Dataset';
+import { DocumentConversionResult } from 'backend/src/useCases/DocumentConversion/DocumentConversionUseCase';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { DocumentUploadManifest } from '../../models/Dataset';
 import { DatasetService } from '../../ports/DatasetService';
@@ -10,11 +12,19 @@ export type StoredDatasetUpload = {
   fileExtension: 'csv' | 'jsonl';
 };
 
+export type StoredRawContent = {
+  datasetId: string;
+  documentId: string;
+  fileType: DatasetFileType;
+  content: Buffer;
+};
+
 export class FakeDatasetService implements DatasetService {
   public readonly uploads: StoredDatasetUpload[] = [];
   public readonly manifests = new Map<string, DocumentUploadManifest>();
   public readonly documentObjects = new Map<string, number>();
   public readonly presignedMaxBytes: number[] = [];
+  public readonly rawContents: StoredRawContent[] = [];
 
   async upload(
     datasetId: string,
@@ -88,6 +98,39 @@ export class FakeDatasetService implements DatasetService {
       );
     }
     return size;
+  }
+  async storeConversionJsonl(
+    dataset_id: string,
+    jsonl: string,
+  ): Promise<DocumentConversionResult> {
+    void jsonl;
+    return {
+      converted_dataset_file_key: `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
+    };
+  }
+
+  async fetchRawContent(
+    dataset_id: string,
+    document_id: string,
+    file_type: DatasetFileType,
+  ): Promise<Buffer> {
+    const stored = this.rawContents.find(
+      (r) =>
+        r.datasetId === dataset_id &&
+        r.documentId === document_id &&
+        r.fileType === file_type,
+    );
+
+    if (!stored) {
+      throw new BasicError(
+        BasicErrorType.NOT_FOUND,
+        'RAW_CONTENT_NOT_FOUND',
+        'Raw document content not found',
+        `No raw content found for dataset "${dataset_id}", document "${document_id}", file_type "${file_type}"`,
+      );
+    }
+
+    return stored.content;
   }
 }
 

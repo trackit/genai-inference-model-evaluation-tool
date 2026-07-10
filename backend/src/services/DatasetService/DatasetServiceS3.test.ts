@@ -12,6 +12,8 @@ import { MAX_DATASET_BYTES } from '../../models/Dataset';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { DatasetServiceImpl, tokenClientS3 } from './DatasetServiceS3';
 
+const DATASET_ID = 'a1b2c3d4-0000-0000-0000-000000000001';
+
 describe('DatasetServiceImpl', () => {
   describe('retrieveDataset', () => {
     it('returns csv content when the csv object exists', async () => {
@@ -142,6 +144,117 @@ describe('DatasetServiceImpl', () => {
       await expect(
         service.getUploadedObjectSize('datasets/dataset-id/missing.pdf'),
       ).rejects.toThrow(BasicError);
+    });
+  });
+  describe('storeConversionJsonl', () => {
+    it('uploads JSONL to the dataset bucket with the correct metadata', async () => {
+      const { service, s3ClientMock } = setup();
+      const jsonl =
+        '{"document_id":"doc-1","chunk_id":"doc-1-0","document":"hello"}\n';
+      s3ClientMock.on(PutObjectCommand).resolves({});
+
+      const result = await service.storeConversionJsonl(DATASET_ID, jsonl);
+
+      expect(result.converted_dataset_file_key).toBe(
+        `datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`,
+      );
+      const calls = s3ClientMock.commandCalls(PutObjectCommand);
+      expect(calls).toHaveLength(1);
+      expect(calls[0].args[0].input).toMatchObject({
+        Bucket: 'test-bucket',
+        Key: `datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`,
+        Body: jsonl,
+        ContentType: 'application/jsonl',
+        ServerSideEncryption: 'AES256',
+      });
+    });
+
+    it('returns the S3 key even when upload resolves with empty output', async () => {
+      const { service, s3ClientMock } = setup();
+      const jsonl =
+        '{"document_id":"doc-2","chunk_id":"doc-2-0","document":"world"}\n';
+      s3ClientMock.on(PutObjectCommand).resolves({});
+
+      const result = await service.storeConversionJsonl(DATASET_ID, jsonl);
+
+      expect(result.converted_dataset_file_key).toBe(
+        `datasets/${DATASET_ID}/${DATASET_ID}-converted.jsonl`,
+      );
+    });
+  });
+
+  describe('fetchRawContent', () => {
+    it('fetches raw content from S3 and returns a Buffer', async () => {
+      const { service, s3ClientMock } = setup();
+
+      const content = Buffer.from('raw document content');
+
+      s3ClientMock.on(GetObjectCommand).resolves({
+        Body: {
+          transformToByteArray: async () => new Uint8Array(content),
+        } as never,
+      });
+
+      const result = await service.fetchRawContent(
+        DATASET_ID,
+        'document-id',
+        'pdf',
+      );
+
+      expect(result).toEqual(content);
+
+      const calls = s3ClientMock.commandCalls(GetObjectCommand);
+
+      expect(calls).toHaveLength(1);
+
+      expect(calls[0].args[0].input).toMatchObject({
+        Bucket: 'test-bucket',
+        Key: `datasets/${DATASET_ID}/document-id.pdf`,
+      });
+    });
+
+    it.each([['pdf'], ['doc'], ['docx']] as const)(
+      'builds the correct key for %s file type',
+      async (fileType) => {
+        const { service, s3ClientMock } = setup();
+
+        s3ClientMock.on(GetObjectCommand).resolves({
+          Body: {
+            transformToByteArray: async () =>
+              new Uint8Array(Buffer.from('content')),
+          } as never,
+        });
+
+        await service.fetchRawContent(DATASET_ID, 'document-id', fileType);
+
+        const call = s3ClientMock.commandCalls(GetObjectCommand)[0];
+
+        expect(call.args[0].input.Key).toBe(
+          `datasets/${DATASET_ID}/document-id.${fileType}`,
+        );
+      },
+    );
+
+    it('propagates S3 errors', async () => {
+      const { service, s3ClientMock } = setup();
+
+      s3ClientMock.on(GetObjectCommand).rejects(new Error('Access denied'));
+
+      await expect(
+        service.fetchRawContent(DATASET_ID, 'document-id', 'pdf'),
+      ).rejects.toThrow('Access denied');
+    });
+
+    it('throws when S3 Body is missing', async () => {
+      const { service, s3ClientMock } = setup();
+
+      s3ClientMock.on(GetObjectCommand).resolves({
+        Body: undefined,
+      });
+
+      await expect(
+        service.fetchRawContent(DATASET_ID, 'document-id', 'pdf'),
+      ).rejects.toThrow();
     });
   });
 });
