@@ -223,7 +223,7 @@ function TaskTypeButtons({
   selected,
   onSelect,
 }: {
-  selected: TaskType;
+  selected: TaskType | null;
   onSelect: (task: TaskType) => void;
 }) {
   return (
@@ -647,7 +647,7 @@ export function DatasetUpload({
             Task type
           </p>
           <TaskTypeButtons
-            selected={selectedDocumentTask ?? 'summarization'}
+            selected={selectedDocumentTask}
             onSelect={handleSelectDocumentTask}
           />
           {!selectedDocumentTask && (
