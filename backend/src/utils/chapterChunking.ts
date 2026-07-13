@@ -1,7 +1,4 @@
-import {
-  DocumentChunk,
-  ExtractedDocument,
-} from '../../models/DocumentConversion';
+import { DocumentChunk, ExtractedDocument } from '../models/DocumentConversion';
 
 const MAX_HEADING_LENGTH = 120;
 

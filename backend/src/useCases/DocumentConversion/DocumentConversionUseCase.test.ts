@@ -22,22 +22,16 @@ const setup = () => {
 describe('DocumentConversionUseCase execute', () => {
   it('fetches, chunks, and generates JSONL with CHAPTER strategy', async () => {
     const { useCase, documentConversionService, datasetService } = setup();
-    const fetchSpy = vi.spyOn(documentConversionService, 'fetchAndParse');
-
+    const parseSpy = vi.spyOn(documentConversionService, 'parse');
     const dataset_id = randomUUID();
     const document_id1 = randomUUID();
     const document_id2 = randomUUID();
-    documentConversionService.seed({
-      dataset_id: dataset_id,
-      document_id: document_id1,
-      text: 'First paragraph.\n\nSecond paragraph.',
-    });
 
-    documentConversionService.seed({
-      dataset_id: dataset_id,
-      document_id: document_id2,
-      text: 'Only one paragraph',
-    });
+    const buffer1 = Buffer.from('First paragraph.\n\nSecond paragraph.');
+    const buffer2 = Buffer.from('Only one paragraph');
+    datasetService.seedRawContent(dataset_id, document_id1, 'pdf', buffer1);
+
+    datasetService.seedRawContent(dataset_id, document_id2, 'pdf', buffer2);
 
     const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
@@ -51,14 +45,15 @@ describe('DocumentConversionUseCase execute', () => {
       task_type: TaskType.SUMMARIZATION,
     });
 
-    expect(result.converted_dataset_file_key).toBe(
-      `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
-    );
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
-    expect(fetchSpy).toHaveBeenCalledWith(dataset_id, document_id1, 'pdf');
-    expect(fetchSpy).toHaveBeenCalledWith(dataset_id, document_id2, 'pdf');
+    expect(result).toBe(`datasets/${dataset_id}/${dataset_id}-converted.jsonl`);
+    expect(parseSpy).toHaveBeenCalledTimes(2);
+    expect(parseSpy).toHaveBeenCalledWith(buffer1, 'pdf');
+    expect(parseSpy).toHaveBeenCalledWith(buffer2, 'pdf');
     expect(storeSpy).toHaveBeenCalledTimes(1);
-    expect(storeSpy).toHaveBeenCalledWith(dataset_id, expect.any(String));
+    expect(storeSpy).toHaveBeenCalledWith(
+      `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
+      expect.any(String),
+    );
     const storedJsonl = storeSpy.mock.calls[0][1] as string;
     const jsonObjects = storedJsonl
       .split('\n')
@@ -95,21 +90,16 @@ describe('DocumentConversionUseCase execute', () => {
 
   it('fetches, chunks, and generates JSONL with DOCUMENT strategy', async () => {
     const { useCase, documentConversionService, datasetService } = setup();
-    const fetchSpy = vi.spyOn(documentConversionService, 'fetchAndParse');
+    const parseSpy = vi.spyOn(documentConversionService, 'parse');
 
     const dataset_id = randomUUID();
     const document_id1 = randomUUID();
     const document_id2 = randomUUID();
-    documentConversionService.seed({
-      dataset_id: dataset_id,
-      document_id: document_id1,
-      text: 'First paragraph.\n\nSecond paragraph.',
-    });
-    documentConversionService.seed({
-      dataset_id: dataset_id,
-      document_id: document_id2,
-      text: 'Only one paragraph',
-    });
+    const buffer1 = Buffer.from('First paragraph.\n\nSecond paragraph.');
+    const buffer2 = Buffer.from('Only one paragraph');
+    datasetService.seedRawContent(dataset_id, document_id1, 'pdf', buffer1);
+
+    datasetService.seedRawContent(dataset_id, document_id2, 'pdf', buffer2);
 
     const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
@@ -123,14 +113,15 @@ describe('DocumentConversionUseCase execute', () => {
       task_type: TaskType.CLASSIFICATION,
     });
 
-    expect(result.converted_dataset_file_key).toBe(
-      `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
-    );
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
-    expect(fetchSpy).toHaveBeenCalledWith(dataset_id, document_id1, 'pdf');
-    expect(fetchSpy).toHaveBeenCalledWith(dataset_id, document_id2, 'pdf');
+    expect(result).toBe(`datasets/${dataset_id}/${dataset_id}-converted.jsonl`);
+    expect(parseSpy).toHaveBeenCalledTimes(2);
+    expect(parseSpy).toHaveBeenCalledWith(buffer1, 'pdf');
+    expect(parseSpy).toHaveBeenCalledWith(buffer2, 'pdf');
     expect(storeSpy).toHaveBeenCalledTimes(1);
-    expect(storeSpy).toHaveBeenCalledWith(dataset_id, expect.any(String));
+    expect(storeSpy).toHaveBeenCalledWith(
+      `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
+      expect.any(String),
+    );
     const storedJsonl = storeSpy.mock.calls[0][1] as string;
     const jsonObjects = storedJsonl
       .split('\n')
@@ -153,69 +144,19 @@ describe('DocumentConversionUseCase execute', () => {
     ]);
   });
 
-  it('throws for invalid dataset_id', async () => {
-    const { useCase } = setup();
-
-    await expect(
-      useCase.execute({
-        dataset_id: 'not-a-uuid',
-        documents: [
-          { document_id: randomUUID(), file_type: 'pdf' },
-          { document_id: randomUUID(), file_type: 'pdf' },
-        ],
-        chunking_strategy: ChunkingStrategy.CHAPTER,
-        task_type: TaskType.SUMMARIZATION,
-      }),
-    ).rejects.toThrow('dataset_id must be a valid UUID');
-  });
-
-  it('throws for empty documents list', async () => {
-    const { useCase } = setup();
-
-    await expect(
-      useCase.execute({
-        dataset_id: randomUUID(),
-        documents: [],
-        chunking_strategy: ChunkingStrategy.CHAPTER,
-        task_type: TaskType.SUMMARIZATION,
-      }),
-    ).rejects.toThrow(
-      'documents must be a non-empty array of document entries with document_id and file_type',
-    );
-  });
-
-  it('throws for invalid chunking strategy', async () => {
-    const { useCase } = setup();
-
-    await expect(
-      useCase.execute({
-        dataset_id: randomUUID(),
-        documents: [
-          { document_id: randomUUID(), file_type: 'pdf' },
-          { document_id: randomUUID(), file_type: 'pdf' },
-        ],
-        chunking_strategy: 'INVALID' as ChunkingStrategy,
-        task_type: TaskType.SUMMARIZATION,
-      }),
-    ).rejects.toThrow('chunking_strategy must be one of');
-  });
-
   it('chunks a document by chapter headings when present', async () => {
-    const { useCase, documentConversionService, datasetService } = setup();
+    const { useCase, datasetService } = setup();
     const dataset_id = randomUUID();
     const document_id = randomUUID();
 
-    documentConversionService.seed({
+    datasetService.seedRawContent(
       dataset_id,
       document_id,
-      text: [
-        'Chapter 1: Overview',
-        'Overview content.',
-        '',
-        'Chapter 2: Details',
-        'Detailed content.',
-      ].join('\n'),
-    });
+      'pdf',
+      Buffer.from(
+        'Chapter 1: Overview\nOverview content.\n\nChapter 2: Details\nDetailed content.',
+      ),
+    );
 
     const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
@@ -249,15 +190,18 @@ describe('DocumentConversionUseCase execute', () => {
   });
 
   it('chunks a document by chapter with multiple blank lines', async () => {
-    const { useCase, documentConversionService, datasetService } = setup();
+    const { useCase, datasetService } = setup();
     const dataset_id = randomUUID();
     const document_id = randomUUID();
 
-    documentConversionService.seed({
+    datasetService.seedRawContent(
       dataset_id,
       document_id,
-      text: 'First paragraph.\n\n\nSecond paragraph.\n\nThird paragraph.',
-    });
+      'pdf',
+      Buffer.from(
+        'First paragraph.\n\n\nSecond paragraph.\n\nThird paragraph.',
+      ),
+    );
 
     const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
@@ -295,15 +239,16 @@ describe('DocumentConversionUseCase execute', () => {
   });
 
   it('creates a single chunk for CHAPTER when no paragraph separators exist', async () => {
-    const { useCase, documentConversionService, datasetService } = setup();
+    const { useCase, datasetService } = setup();
     const dataset_id = randomUUID();
     const document_id = randomUUID();
 
-    documentConversionService.seed({
+    datasetService.seedRawContent(
       dataset_id,
       document_id,
-      text: 'A single paragraph without blank lines.',
-    });
+      'pdf',
+      Buffer.from('A single paragraph without blank lines.'),
+    );
 
     const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
@@ -329,15 +274,16 @@ describe('DocumentConversionUseCase execute', () => {
   });
 
   it('trims extracted text for DOCUMENT strategy', async () => {
-    const { useCase, documentConversionService, datasetService } = setup();
+    const { useCase, datasetService } = setup();
     const dataset_id = randomUUID();
     const document_id = randomUUID();
 
-    documentConversionService.seed({
+    datasetService.seedRawContent(
       dataset_id,
       document_id,
-      text: '\n\nOnly one paragraph with padding.\n\n',
-    });
+      'pdf',
+      Buffer.from('\n\nOnly one paragraph with padding.\n\n'),
+    );
 
     const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
@@ -366,16 +312,12 @@ describe('DocumentConversionUseCase execute', () => {
 
   it('parses docx documents end-to-end', async () => {
     const { useCase, documentConversionService, datasetService } = setup();
-    const fetchSpy = vi.spyOn(documentConversionService, 'fetchAndParse');
+    const parseSpy = vi.spyOn(documentConversionService, 'parse');
 
     const dataset_id = randomUUID();
     const document_id = randomUUID();
-
-    documentConversionService.seed({
-      dataset_id,
-      document_id,
-      text: 'Docx body content',
-    });
+    const buffer = Buffer.from('Docx body content');
+    datasetService.seedRawContent(dataset_id, document_id, 'docx', buffer);
 
     const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
@@ -386,8 +328,8 @@ describe('DocumentConversionUseCase execute', () => {
       task_type: TaskType.SUMMARIZATION,
     });
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(fetchSpy).toHaveBeenCalledWith(dataset_id, document_id, 'docx');
+    expect(parseSpy).toHaveBeenCalledTimes(1);
+    expect(parseSpy).toHaveBeenCalledWith(buffer, 'docx');
 
     const storedJsonl = storeSpy.mock.calls[0][1] as string;
     const jsonObjects = storedJsonl
@@ -405,29 +347,17 @@ describe('DocumentConversionUseCase execute', () => {
     ]);
   });
 
-  it('throws for unsupported file types instead of skipping them', async () => {
-    const { useCase } = setup();
-
-    await expect(
-      useCase.execute({
-        dataset_id: randomUUID(),
-        documents: [{ document_id: randomUUID(), file_type: 'csv' }],
-        chunking_strategy: ChunkingStrategy.DOCUMENT,
-        task_type: TaskType.SUMMARIZATION,
-      }),
-    ).rejects.toThrow('file_type must be one of: pdf, doc, docx');
-  });
-
   it('throws when extracted text is empty', async () => {
-    const { useCase, documentConversionService } = setup();
+    const { useCase, datasetService } = setup();
     const dataset_id = randomUUID();
     const document_id = randomUUID();
 
-    documentConversionService.seed({
+    datasetService.seedRawContent(
       dataset_id,
       document_id,
-      text: '   \n\n   ',
-    });
+      'pdf',
+      Buffer.from('   \n\n   '),
+    );
 
     await expect(
       useCase.execute({

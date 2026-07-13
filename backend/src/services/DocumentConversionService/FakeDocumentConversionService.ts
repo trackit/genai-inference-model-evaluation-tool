@@ -1,37 +1,31 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
 import { DatasetFileType } from '../../models/Dataset';
-import { ExtractedDocument } from '../../models/DocumentConversion';
 import { DocumentConversionService } from '../../ports/DocumentConversionService';
 
-export type SeededDocument = {
-  dataset_id: string;
-  document_id: string;
-  text: string;
-};
-
 export class FakeDocumentConversionService implements DocumentConversionService {
-  private readonly documents = new Map<string, SeededDocument>();
+  public readonly parseCalls: {
+    rawContent: Buffer;
+    fileType: DatasetFileType;
+  }[] = [];
 
-  seed(doc: SeededDocument): void {
-    this.documents.set(`${doc.dataset_id}/${doc.document_id}`, doc);
-  }
+  async parse(rawContent: Buffer, fileType: DatasetFileType): Promise<string> {
+    this.parseCalls.push({
+      rawContent,
+      fileType,
+    });
 
-  async fetchAndParse(
-    dataset_id: string,
-    document_id: string,
-    fileType: DatasetFileType,
-  ): Promise<ExtractedDocument> {
-    void fileType;
-    const doc = this.documents.get(`${dataset_id}/${document_id}`);
+    switch (fileType) {
+      case 'pdf':
+      case 'doc':
+      case 'docx':
+        return rawContent.toString().trim();
 
-    if (!doc) {
-      throw new Error(
-        `Document not found: dataset_id=${dataset_id}, document_id=${document_id}`,
-      );
+      default:
+        throw new Error(
+          `Unsupported file type for parsing: "${fileType}". Supported types: pdf, doc, docx`,
+        );
     }
-
-    return { document_id, text: doc.text };
   }
 }
 

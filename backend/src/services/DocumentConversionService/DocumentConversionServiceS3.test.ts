@@ -1,9 +1,6 @@
-import { inject, reset } from '@trackit.io/di-container';
+import { chunkDocumentByChapter } from 'backend/src/utils/chapterChunking';
 import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
-import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
-import { tokenDatasetService } from '../DatasetService/DatasetServiceS3';
-import { FakeDatasetService } from '../DatasetService/FakeDatasetService';
 import { DocumentConversionServiceImpl } from './DocumentConversionServiceS3';
 
 /** Builds a minimal valid single-page PDF binary containing the given text */
@@ -42,98 +39,45 @@ function buildMinimalPdf(text: string): Buffer {
   return Buffer.from(body);
 }
 
-const DATASET_ID = 'a1b2c3d4-0000-0000-0000-000000000001';
-const DOCUMENT_ID = 'e5f6a7b8-0000-0000-0000-000000000002';
-
-const setup = () => {
-  reset();
-  registerTestInfrastructure();
-
-  const service = new DocumentConversionServiceImpl();
-
-  const datasetService = inject(tokenDatasetService) as FakeDatasetService;
-
-  return {
-    service,
-    datasetService,
-  };
-};
-
-const addRawContent = (
-  datasetService: FakeDatasetService,
-  fileType: 'pdf' | 'doc' | 'docx' | 'csv',
-  content: Buffer,
-) => {
-  datasetService.rawContents.push({
-    datasetId: DATASET_ID,
-    documentId: DOCUMENT_ID,
-    fileType,
-    content,
-  });
-};
-
 describe('DocumentConversionService', () => {
-  describe('fetchAndParse', () => {
+  describe('parse', () => {
     describe('PDF parsing', () => {
       it('extracts text from PDF', async () => {
-        const { service, datasetService } = setup();
+        const service = new DocumentConversionServiceImpl();
 
-        addRawContent(datasetService, 'pdf', buildMinimalPdf('Hello PDF'));
+        const result = await service.parse(buildMinimalPdf('Hello PDF'), 'pdf');
 
-        const result = await service.fetchAndParse(
-          DATASET_ID,
-          DOCUMENT_ID,
-          'pdf',
-        );
-
-        expect(result).toEqual({
-          document_id: DOCUMENT_ID,
-          text: expect.stringContaining('Hello PDF'),
-        });
+        expect(result).toContain('Hello PDF');
       });
 
       it('trims extracted text', async () => {
-        const { service, datasetService } = setup();
+        const service = new DocumentConversionServiceImpl();
 
-        addRawContent(datasetService, 'pdf', buildMinimalPdf('Hello PDF'));
+        const result = await service.parse(buildMinimalPdf('Hello PDF'), 'pdf');
 
-        const result = await service.fetchAndParse(
-          DATASET_ID,
-          DOCUMENT_ID,
-          'pdf',
-        );
-
-        expect(result.text).toBe(result.text.trim());
+        expect(result).toBe(result.trim());
       });
 
       it('throws on corrupt PDF buffer', async () => {
-        const { service, datasetService } = setup();
-
-        addRawContent(datasetService, 'pdf', Buffer.from('not a pdf'));
+        const service = new DocumentConversionServiceImpl();
 
         await expect(
-          service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'pdf'),
+          service.parse(Buffer.from('not a pdf'), 'pdf'),
         ).rejects.toThrow();
       });
     });
 
     describe('DOCX parsing', () => {
       it('extracts text from docx', async () => {
-        const { service, datasetService } = setup();
+        const service = new DocumentConversionServiceImpl();
 
         const docxBuffer = readFileSync(
           new URL('../../test/fixtures/sample.docx', import.meta.url),
         );
 
-        addRawContent(datasetService, 'docx', docxBuffer);
+        const result = await service.parse(docxBuffer, 'docx');
 
-        const result = await service.fetchAndParse(
-          DATASET_ID,
-          DOCUMENT_ID,
-          'docx',
-        );
-
-        expect(result.text).toContain(
+        expect(result).toContain(
           'This is a sample document for DOC and DOCX parsing.',
         );
       });
@@ -141,41 +85,35 @@ describe('DocumentConversionService', () => {
 
     describe('DOC parsing', () => {
       it('extracts text from doc', async () => {
-        const { service, datasetService } = setup();
+        const service = new DocumentConversionServiceImpl();
 
         const docBuffer = readFileSync(
           new URL('../../test/fixtures/sample.doc', import.meta.url),
         );
 
-        addRawContent(datasetService, 'doc', docBuffer);
+        const result = await service.parse(docBuffer, 'doc');
 
-        const result = await service.fetchAndParse(
-          DATASET_ID,
-          DOCUMENT_ID,
-          'doc',
+        expect(result).toContain('This is a test of reviewing');
+      });
+
+      it('regression: preserves paragraph boundaries so a headingless .doc still chunks into multiple pieces', async () => {
+        const service = new DocumentConversionServiceImpl();
+        const docBuffer = readFileSync(
+          new URL('../../test/fixtures/sample.doc', import.meta.url),
         );
+        const extractedText = await service.parse(docBuffer, 'doc');
 
-        expect(result.text).toContain('This is a test of reviewing');
-      });
-    });
+        const chunks = chunkDocumentByChapter({
+          document_id: 'doc-1',
+          text: extractedText,
+        });
 
-    describe('errors', () => {
-      it('propagates missing raw content error', async () => {
-        const { service } = setup();
-
-        await expect(
-          service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'pdf'),
-        ).rejects.toThrow('Raw document content not found');
-      });
-
-      it('throws for unsupported file type', async () => {
-        const { service, datasetService } = setup();
-
-        addRawContent(datasetService, 'csv', Buffer.from('anything'));
-
-        await expect(
-          service.fetchAndParse(DATASET_ID, DOCUMENT_ID, 'csv'),
-        ).rejects.toThrow('Unsupported file type for parsing: "csv"');
+        expect(chunks.length).toBeGreaterThan(1);
+        expect(chunks.map((chunk) => chunk.text)).toEqual([
+          'A second test of reviewing, but with Unicode characters in to see if character offsets get broken. 😀 ∀',
+          'This is a test of reviewing',
+          'This text has been inserted, ✻and should be included',
+        ]);
       });
     });
   });

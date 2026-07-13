@@ -1,30 +1,21 @@
-import { createInjectionToken, inject } from '@trackit.io/di-container';
+import { createInjectionToken } from '@trackit.io/di-container';
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 import WordExtractor from 'word-extractor';
 
 import { DatasetFileType } from '../../models/Dataset';
-import { ExtractedDocument } from '../../models/DocumentConversion';
 import { DocumentConversionService } from '../../ports/DocumentConversionService';
-import { tokenDatasetService } from '../DatasetService/DatasetServiceS3';
 
 export class DocumentConversionServiceImpl implements DocumentConversionService {
-  private readonly datasetService = inject(tokenDatasetService);
   private readonly wordExtractor = new WordExtractor();
 
-  async fetchAndParse(
-    dataset_id: string,
-    document_id: string,
+  async parse(
+    rawContent: Buffer<ArrayBufferLike>,
     file_type: DatasetFileType,
-  ): Promise<ExtractedDocument> {
-    const rawContent = await this.datasetService.fetchRawContent(
-      dataset_id,
-      document_id,
-      file_type,
-    );
+  ): Promise<string> {
     const text = await this.extractText(rawContent, file_type);
 
-    return { document_id, text: text.trim() };
+    return text.trim();
   }
 
   private async extractText(
@@ -40,7 +31,7 @@ export class DocumentConversionServiceImpl implements DocumentConversionService 
 
       case 'doc': {
         const document = await this.wordExtractor.extract(raw_content);
-        return document.getBody();
+        return document.getBody().replace(/\n/g, '\n\n');
       }
 
       case 'docx': {

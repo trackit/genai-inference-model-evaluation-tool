@@ -9,9 +9,6 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { z } from 'zod';
 import { DatasetService } from '../../ports/DatasetService';
 
-import { DatasetFileType } from 'backend/src/models/Dataset';
-import { DocumentConversionResult } from 'backend/src/useCases/DocumentConversion/DocumentConversionUseCase';
-import { documentS3Key } from 'backend/src/utils/s3Keys';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { DocumentUploadManifest, MIN_FILE_BYTES } from '../../models/Dataset';
 
@@ -179,38 +176,44 @@ export class DatasetServiceImpl implements DatasetService {
   }
 
   async storeConversionJsonl(
-    dataset_id: string,
+    convertedDatasetFileKey: string,
     jsonl: string,
-  ): Promise<DocumentConversionResult> {
-    const documentConversionResult: DocumentConversionResult = {
-      converted_dataset_file_key: `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
-    };
-
+  ): Promise<string> {
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
-        Key: documentConversionResult.converted_dataset_file_key,
+        Key: convertedDatasetFileKey,
         Body: jsonl,
         ContentType: 'application/jsonl',
         ServerSideEncryption: 'AES256',
       }),
     );
 
-    return documentConversionResult;
+    return convertedDatasetFileKey;
   }
 
-  async fetchRawContent(
-    dataset_id: string,
-    document_id: string,
-    file_type: DatasetFileType,
-  ): Promise<Buffer> {
-    const key = documentS3Key(dataset_id, document_id, file_type);
+  async fetchRawContent(documentKey: string): Promise<Buffer> {
+    try {
+      const response = await this.s3Client.send(
+        new GetObjectCommand({ Bucket: this.bucketName, Key: documentKey }),
+      );
 
-    const response = await this.s3Client.send(
-      new GetObjectCommand({ Bucket: this.bucketName, Key: key }),
-    );
+      if (!response.Body) {
+        throw new Error('S3 returned no response body');
+      }
 
-    return Buffer.from(await response.Body!.transformToByteArray());
+      return Buffer.from(await response.Body.transformToByteArray());
+    } catch (error: unknown) {
+      if (isS3NotFound(error)) {
+        throw new BasicError(
+          BasicErrorType.NOT_FOUND,
+          'DOCUMENT_NOT_FOUND',
+          'Document not found',
+          `No document found with key: ${documentKey}`,
+        );
+      }
+      throw error;
+    }
   }
 }
 

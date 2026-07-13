@@ -1,7 +1,6 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
 import { DatasetFileType } from 'backend/src/models/Dataset';
-import { DocumentConversionResult } from 'backend/src/useCases/DocumentConversion/DocumentConversionUseCase';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { DocumentUploadManifest } from '../../models/Dataset';
 import { DatasetService } from '../../ports/DatasetService';
@@ -15,8 +14,13 @@ export type StoredDatasetUpload = {
 export type StoredRawContent = {
   datasetId: string;
   documentId: string;
-  fileType: DatasetFileType;
+  fileType: 'pdf' | 'doc' | 'docx';
   content: Buffer;
+};
+
+export type StoredConvertedDataset = {
+  key: string;
+  jsonl: string;
 };
 
 export class FakeDatasetService implements DatasetService {
@@ -25,6 +29,21 @@ export class FakeDatasetService implements DatasetService {
   public readonly documentObjects = new Map<string, number>();
   public readonly presignedMaxBytes: number[] = [];
   public readonly rawContents: StoredRawContent[] = [];
+  public readonly convertedDatasets: StoredConvertedDataset[] = [];
+
+  seedRawContent(
+    datasetId: string,
+    documentId: string,
+    fileType: 'pdf' | 'doc' | 'docx',
+    content: Buffer,
+  ) {
+    this.rawContents.push({
+      datasetId,
+      documentId,
+      fileType,
+      content,
+    });
+  }
 
   async upload(
     datasetId: string,
@@ -100,36 +119,34 @@ export class FakeDatasetService implements DatasetService {
     return size;
   }
   async storeConversionJsonl(
-    dataset_id: string,
+    convertedDatasetFileKey: string,
     jsonl: string,
-  ): Promise<DocumentConversionResult> {
-    void jsonl;
-    return {
-      converted_dataset_file_key: `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
-    };
+  ): Promise<string> {
+    this.convertedDatasets.push({
+      key: convertedDatasetFileKey,
+      jsonl,
+    });
+
+    return convertedDatasetFileKey;
   }
 
-  async fetchRawContent(
-    dataset_id: string,
-    document_id: string,
-    file_type: DatasetFileType,
-  ): Promise<Buffer> {
+  async fetchRawContent(documentKey: string): Promise<Buffer> {
+    const [, datasetId, fileName] = documentKey.split('/');
+    const [documentId, fileExtension] = fileName.split('.');
     const stored = this.rawContents.find(
       (r) =>
-        r.datasetId === dataset_id &&
-        r.documentId === document_id &&
-        r.fileType === file_type,
+        r.datasetId === datasetId &&
+        r.documentId === documentId &&
+        r.fileType === (fileExtension as DatasetFileType),
     );
-
     if (!stored) {
       throw new BasicError(
         BasicErrorType.NOT_FOUND,
         'RAW_CONTENT_NOT_FOUND',
-        'Raw document content not found',
-        `No raw content found for dataset "${dataset_id}", document "${document_id}", file_type "${file_type}"`,
+        'Raw content not found',
+        `No raw content found for key: ${documentKey}`,
       );
     }
-
     return stored.content;
   }
 }
