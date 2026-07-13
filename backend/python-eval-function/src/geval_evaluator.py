@@ -8,6 +8,37 @@ from metrics import is_metric_enabled
 logger = logging.getLogger(__name__)
 
 JUDGE_MODEL_DEFAULT = "us.meta.llama4-maverick-17b-instruct-v1:0"
+REASONING_EVALUATION_STEPS = {
+    "summarization": [
+        "Assess whether the actual output is logically structured and coherent.",
+        "Check if the actual output follows a clear reasoning flow from the input.",
+        "Evaluate whether the actual output draws correct conclusions from the source material.",
+        "Penalize outputs that contain logical contradictions or non-sequiturs.",
+        "Award higher scores to outputs that demonstrate clear, step-by-step reasoning.",
+    ],
+    "classification": [
+        "Assess whether the predicted class label is a valid category for the input text.",
+        "Evaluate if the classification decision logically follows from the content of the input.",
+        "Check if the chosen category captures the primary topic or intent of the document.",
+        "Penalize classifications that are clearly unrelated or tangential to the input.",
+        "Award higher scores when the classification is precise and well-justified by the content.",
+    ],
+}
+FAITHFULNESS_EVALUATION_STEPS = {
+    "summarization": [
+        "Compare the actual output against the input source document.",
+        "Identify any claims in the actual output that are not supported by the input.",
+        "Check for hallucinated facts, statistics, or details not present in the source.",
+        "Heavily penalize any fabricated information or unsupported extrapolation.",
+        "Award higher scores when every claim in the output is directly traceable to the input.",
+    ],
+    "classification": [
+        "Check whether the predicted class label is grounded in the actual content of the input.",
+        "Verify that the classification does not rely on information absent from the document.",
+        "Penalize predictions that seem arbitrary or disconnected from the input text.",
+        "Award higher scores when the classification directly reflects themes present in the input.",
+    ],
+}
 
 
 @dataclass
@@ -44,22 +75,9 @@ class GEvalEvaluator:
         from deepeval.metrics import GEval
         from deepeval.test_case import LLMTestCaseParams
 
-        if task_type == "classification":
-            steps = [
-                "Assess whether the predicted class label is a valid category for the input text.",
-                "Evaluate if the classification decision logically follows from the content of the input.",
-                "Check if the chosen category captures the primary topic or intent of the document.",
-                "Penalize classifications that are clearly unrelated or tangential to the input.",
-                "Award higher scores when the classification is precise and well-justified by the content.",
-            ]
-        else:
-            steps = [
-                "Assess whether the actual output is logically structured and coherent.",
-                "Check if the actual output follows a clear reasoning flow from the input.",
-                "Evaluate whether the actual output draws correct conclusions from the source material.",
-                "Penalize outputs that contain logical contradictions or non-sequiturs.",
-                "Award higher scores to outputs that demonstrate clear, step-by-step reasoning.",
-            ]
+        steps = REASONING_EVALUATION_STEPS.get(
+            task_type, REASONING_EVALUATION_STEPS["summarization"]
+        )
 
         return GEval(
             name="Reasoning",
@@ -77,21 +95,9 @@ class GEvalEvaluator:
         from deepeval.metrics import GEval
         from deepeval.test_case import LLMTestCaseParams
 
-        if task_type == "classification":
-            steps = [
-                "Check whether the predicted class label is grounded in the actual content of the input.",
-                "Verify that the classification does not rely on information absent from the document.",
-                "Penalize predictions that seem arbitrary or disconnected from the input text.",
-                "Award higher scores when the classification directly reflects themes present in the input.",
-            ]
-        else:
-            steps = [
-                "Compare the actual output against the input source document.",
-                "Identify any claims in the actual output that are not supported by the input.",
-                "Check for hallucinated facts, statistics, or details not present in the source.",
-                "Heavily penalize any fabricated information or unsupported extrapolation.",
-                "Award higher scores when every claim in the output is directly traceable to the input.",
-            ]
+        steps = FAITHFULNESS_EVALUATION_STEPS.get(
+            task_type, FAITHFULNESS_EVALUATION_STEPS["summarization"]
+        )
 
         return GEval(
             name="Faithfulness",

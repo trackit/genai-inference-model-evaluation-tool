@@ -1,6 +1,11 @@
 import { cn } from '@/lib/utils';
-import type { MetricGroup, MetricsToggles, TaskType } from '@/types/evaluation';
-import { METRIC_GROUPS } from '@/types/evaluation';
+import type {
+  GEvalMetricKey,
+  MetricGroup,
+  MetricsToggles,
+  TaskType,
+} from '@/types/evaluation';
+import { GEVAL_DEFAULT_STEPS, METRIC_GROUPS } from '@/types/evaluation';
 import { Zap } from 'lucide-react';
 
 function setGroupSelection(
@@ -17,6 +22,10 @@ function setGroupSelection(
 
 function countSelected(metrics: MetricsToggles, group: MetricGroup): number {
   return group.metrics.reduce((n, m) => (metrics[m.key] ? n + 1 : n), 0);
+}
+
+function isGEvalMetricKey(key: string): key is GEvalMetricKey {
+  return key === 'geval_reasoning' || key === 'geval_faithfulness';
 }
 
 interface MetricsPickerProps {
@@ -94,6 +103,12 @@ export function MetricsPicker({
               <div className="space-y-1.5">
                 {group.metrics.map((metric) => {
                   const enabled = metrics[metric.key];
+                  const evaluationSteps =
+                    enabled && isGEvalMetricKey(metric.key)
+                      ? GEVAL_DEFAULT_STEPS[metric.key][
+                          taskType ?? 'summarization'
+                        ]
+                      : null;
                   return (
                     <label
                       key={metric.key}
@@ -117,6 +132,18 @@ export function MetricsPicker({
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {metric.description}
                         </p>
+                        {evaluationSteps && (
+                          <div className="mt-2">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Evaluation steps
+                            </p>
+                            <ol className="mt-1 list-decimal pl-4 space-y-0.5 text-xs text-muted-foreground">
+                              {evaluationSteps.map((step) => (
+                                <li key={step}>{step}</li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
                       </div>
                       <input
                         id={`metric-${metric.key}`}
