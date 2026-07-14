@@ -5,15 +5,20 @@ import { BasicError, BasicErrorType } from '../../errors';
 import {
   ChunkingStrategy,
   DocumentChunk,
-  DocumentRequestEntry,
   ExtractedDocument,
   TaskType,
 } from '../../models/DocumentConversion';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
 import { chunkDocumentByChapter } from '../../utils/chapterChunking';
+import { DatasetFileType } from 'backend/src/models/Dataset';
 
 export type DocumentConversionUseCase = {
   execute(request: DocumentConversionRequest): Promise<string>;
+};
+
+export type DocumentRequestEntry = {
+  document_id: string;
+  file_type: DatasetFileType;
 };
 
 export interface DocumentConversionRequest {
