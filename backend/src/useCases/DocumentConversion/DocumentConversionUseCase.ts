@@ -1,5 +1,6 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
+import { DatasetFileType } from 'backend/src/models/Dataset';
 import { tokenDatasetService } from 'backend/src/services/DatasetService/DatasetServiceS3';
 import { BasicError, BasicErrorType } from '../../errors';
 import {
@@ -10,7 +11,6 @@ import {
 } from '../../models/DocumentConversion';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
 import { chunkDocumentByChapter } from '../../utils/chapterChunking';
-import { DatasetFileType } from 'backend/src/models/Dataset';
 
 export type DocumentConversionUseCase = {
   execute(request: DocumentConversionRequest): Promise<string>;
