@@ -7,10 +7,18 @@ import {
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { z } from 'zod';
-import { DatasetService } from '../../ports/DatasetService';
-import { datasetS3Key } from 'backend/src/utils/s3Keys';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
-import { DocumentUploadManifest, MIN_FILE_BYTES } from '../../models/Dataset';
+import {
+  DatasetFileType,
+  DocumentUploadManifest,
+  MIN_FILE_BYTES,
+} from '../../models/Dataset';
+import { DatasetService } from '../../ports/DatasetService';
+import {
+  convertedDatasetS3Key,
+  datasetS3Key,
+  documentS3Key,
+} from '../../services/DatasetService/s3Keys';
 
 const DocumentUploadManifestSchema = z.object({
   max_total_bytes: z.number().int().positive(),
@@ -24,7 +32,6 @@ const DocumentUploadManifestSchema = z.object({
     }),
   ),
 });
-
 export class DatasetServiceImpl implements DatasetService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
   private readonly s3Client = inject(tokenClientS3);
@@ -176,9 +183,10 @@ export class DatasetServiceImpl implements DatasetService {
   }
 
   async storeConversionJsonl(
-    convertedDatasetFileKey: string,
+    datasetId: string,
     jsonl: string,
   ): Promise<string> {
+    const convertedDatasetFileKey = convertedDatasetS3Key(datasetId);
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucketName,
@@ -192,7 +200,12 @@ export class DatasetServiceImpl implements DatasetService {
     return convertedDatasetFileKey;
   }
 
-  async fetchRawContent(documentKey: string): Promise<Buffer> {
+  async fetchRawContent(
+    datasetId: string,
+    documentId: string,
+    fileType: DatasetFileType,
+  ): Promise<Buffer> {
+    const documentKey = documentS3Key(datasetId, documentId, fileType);
     try {
       const response = await this.s3Client.send(
         new GetObjectCommand({ Bucket: this.bucketName, Key: documentKey }),

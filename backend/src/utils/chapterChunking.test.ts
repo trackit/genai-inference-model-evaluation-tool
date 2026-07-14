@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { randomUUID } from 'crypto';
 import {
   chunkDocumentByChapter,
   isChapterOrSectionHeading,
@@ -36,7 +37,7 @@ describe('isChapterOrSectionHeading', () => {
 });
 
 describe('chunkDocumentByChapter', () => {
-  const document_id = 'doc-123';
+  const document_id = randomUUID();
 
   it('splits on explicit chapter headings', () => {
     const chunks = chunkDocumentByChapter({
@@ -132,6 +133,18 @@ describe('chunkDocumentByChapter', () => {
     expect(chunks).toHaveLength(2);
     expect(chunks[0].text).toBe('First paragraph.');
     expect(chunks[1].text).toBe('Second paragraph.');
+  });
+
+  it('collapses multiple consecutive blank lines into a single paragraph break', () => {
+    const chunks = chunkDocumentByChapter({
+      document_id,
+      text: 'First paragraph.\n\n\nSecond paragraph.\n\nThird paragraph.',
+    });
+
+    expect(chunks).toHaveLength(3);
+    expect(chunks[0].text).toBe('First paragraph.');
+    expect(chunks[1].text).toBe('Second paragraph.');
+    expect(chunks[2].text).toBe('Third paragraph.');
   });
 
   it('returns a single chunk when there are no headings or paragraph breaks', () => {

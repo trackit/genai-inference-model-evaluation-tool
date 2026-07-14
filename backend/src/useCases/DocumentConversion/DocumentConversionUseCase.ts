@@ -11,7 +11,6 @@ import {
 } from '../../models/DocumentConversion';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
 import { chunkDocumentByChapter } from '../../utils/chapterChunking';
-import { convertedDatasetS3Key, documentS3Key } from 'backend/src/utils/s3Keys';
 
 export type DocumentConversionUseCase = {
   execute(request: DocumentConversionRequest): Promise<string>;
@@ -69,21 +68,20 @@ export function buildConversionJsonl(
 }
 
 export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase {
-  private readonly documentConversionService = inject(tokenDocumentConversionService);
+  private readonly documentConversionService = inject(
+    tokenDocumentConversionService,
+  );
   private readonly datasetService = inject(tokenDatasetService);
 
   async execute(request: DocumentConversionRequest): Promise<string> {
     const extracted = await this.fetchAndParseAll(request);
+
     const chunks = chunkDocuments(extracted, request.chunking_strategy);
+
     const jsonl = buildConversionJsonl(chunks, request.task_type);
 
-    const convertedDatasetFileKey: string = convertedDatasetS3Key(request.dataset_id);
-
     const storedJsonlKey: string =
-      await this.datasetService.storeConversionJsonl(
-        convertedDatasetFileKey,
-        jsonl,
-      );
+      await this.datasetService.storeConversionJsonl(request.dataset_id, jsonl);
 
     return storedJsonlKey;
   }
@@ -93,10 +91,11 @@ export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase 
   ): Promise<ExtractedDocument[]> {
     return Promise.all(
       request.documents.map(async ({ document_id, file_type }) => {
-        const documentKey = documentS3Key(request.dataset_id, document_id, file_type);
-
-        const rawContent =
-          await this.datasetService.fetchRawContent(documentKey);
+        const rawContent = await this.datasetService.fetchRawContent(
+          request.dataset_id,
+          document_id,
+          file_type,
+        );
 
         const extractedText = await this.documentConversionService.parse(
           rawContent,

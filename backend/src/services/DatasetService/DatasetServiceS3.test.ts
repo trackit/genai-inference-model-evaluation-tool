@@ -13,12 +13,13 @@ import {
   convertedDatasetS3Key,
   datasetS3Key,
   documentS3Key,
-} from 'backend/src/utils/s3Keys';
+} from 'backend/src/services/DatasetService/s3Keys';
+import { randomUUID } from 'crypto';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { DatasetServiceImpl, tokenClientS3 } from './DatasetServiceS3';
 
-const DATASET_ID = 'a1b2c3d4-0000-0000-0000-000000000001';
+const DATASET_ID = randomUUID();
 
 describe('DatasetServiceImpl', () => {
   describe('retrieveDataset', () => {
@@ -160,17 +161,14 @@ describe('DatasetServiceImpl', () => {
         '{"document_id":"doc-1","chunk_id":"doc-1-0","document":"hello"}\n';
       s3ClientMock.on(PutObjectCommand).resolves({});
 
-      const result = await service.storeConversionJsonl(
-        convertedDatasetFileKey,
-        jsonl,
-      );
+      const result = await service.storeConversionJsonl(DATASET_ID, jsonl);
 
       expect(result).toBe(convertedDatasetFileKey);
       const calls = s3ClientMock.commandCalls(PutObjectCommand);
       expect(calls).toHaveLength(1);
       expect(calls[0].args[0].input).toMatchObject({
         Bucket: 'test-bucket',
-        Key: convertedDatasetS3Key(DATASET_ID),
+        Key: convertedDatasetFileKey,
         Body: jsonl,
         ContentType: 'application/jsonl',
         ServerSideEncryption: 'AES256',
@@ -179,17 +177,13 @@ describe('DatasetServiceImpl', () => {
 
     it('returns the S3 key even when upload resolves with empty output', async () => {
       const { service, s3ClientMock } = setup();
-      const convertedDatasetFileKey = convertedDatasetS3Key(DATASET_ID);
       const jsonl =
         '{"document_id":"doc-2","chunk_id":"doc-2-0","document":"world"}\n';
       s3ClientMock.on(PutObjectCommand).resolves({});
 
-      const result = await service.storeConversionJsonl(
-        convertedDatasetFileKey,
-        jsonl,
-      );
+      const result = await service.storeConversionJsonl(DATASET_ID, jsonl);
 
-      expect(result).toBe(convertedDatasetFileKey);
+      expect(result).toBe(convertedDatasetS3Key(DATASET_ID));
     });
   });
 
@@ -197,6 +191,7 @@ describe('DatasetServiceImpl', () => {
     it('fetches raw content from S3 and returns a Buffer', async () => {
       const { service, s3ClientMock } = setup();
 
+      const documentId = randomUUID();
       const content = Buffer.from('raw document content');
 
       s3ClientMock.on(GetObjectCommand).resolves({
@@ -206,7 +201,9 @@ describe('DatasetServiceImpl', () => {
       });
 
       const result = await service.fetchRawContent(
-        documentS3Key(DATASET_ID, 'document-id', 'pdf'),
+        DATASET_ID,
+        documentId,
+        'pdf',
       );
 
       expect(result).toEqual(content);
@@ -217,7 +214,7 @@ describe('DatasetServiceImpl', () => {
 
       expect(calls[0].args[0].input).toMatchObject({
         Bucket: 'test-bucket',
-        Key: documentS3Key(DATASET_ID, 'document-id', 'pdf'),
+        Key: documentS3Key(DATASET_ID, documentId, 'pdf'),
       });
     });
 
@@ -225,6 +222,7 @@ describe('DatasetServiceImpl', () => {
       'builds the correct key for %s file type',
       async (fileType) => {
         const { service, s3ClientMock } = setup();
+        const documentId = randomUUID();
 
         s3ClientMock.on(GetObjectCommand).resolves({
           Body: {
@@ -233,43 +231,38 @@ describe('DatasetServiceImpl', () => {
           } as never,
         });
 
-        await service.fetchRawContent(
-          documentS3Key(DATASET_ID, 'document-id', fileType),
-        );
+        await service.fetchRawContent(DATASET_ID, documentId, fileType);
 
         const call = s3ClientMock.commandCalls(GetObjectCommand)[0];
 
         expect(call.args[0].input.Key).toBe(
-          documentS3Key(DATASET_ID, 'document-id', fileType),
+          documentS3Key(DATASET_ID, documentId, fileType),
         );
       },
     );
 
     it('propagates S3 errors', async () => {
       const { service, s3ClientMock } = setup();
-
+      const documentId = randomUUID();
       const error = new Error('Access denied');
 
       s3ClientMock.on(GetObjectCommand).rejects(error);
 
       await expect(
-        service.fetchRawContent(
-          documentS3Key(DATASET_ID, 'document-id', 'pdf'),
-        ),
+        service.fetchRawContent(DATASET_ID, documentId, 'pdf'),
       ).rejects.toBe(error);
     });
 
     it('throws when S3 Body is missing', async () => {
       const { service, s3ClientMock } = setup();
+      const documentId = randomUUID();
 
       s3ClientMock.on(GetObjectCommand).resolves({
         Body: undefined,
       });
 
       await expect(
-        service.fetchRawContent(
-          documentS3Key(DATASET_ID, 'document-id', 'pdf'),
-        ),
+        service.fetchRawContent(DATASET_ID, documentId, 'pdf'),
       ).rejects.toThrow('S3 returned no response body');
     });
 
@@ -283,13 +276,14 @@ describe('DatasetServiceImpl', () => {
 
       s3ClientMock.on(GetObjectCommand).rejects(error);
 
-      const documentKey = documentS3Key(DATASET_ID, 'missing', 'pdf');
-      await expect(service.fetchRawContent(documentKey)).rejects.toMatchObject(
+      await expect(
+        service.fetchRawContent(DATASET_ID, 'missing', 'pdf'),
+      ).rejects.toMatchObject(
         new BasicError(
           BasicErrorType.NOT_FOUND,
           'DOCUMENT_NOT_FOUND',
           'Document not found',
-          `No document found with key: ${documentKey}`,
+          `No document found with key: ${documentS3Key(DATASET_ID, 'missing', 'pdf')}`,
         ),
       );
     });

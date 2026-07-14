@@ -1,4 +1,6 @@
 import { DocumentUploadManifest } from '../models/Dataset';
+import { DatasetFileType } from '../models/Dataset';
+
 export interface DatasetService {
   generatePresignedPost(
     location: string,
@@ -24,15 +26,16 @@ export interface DatasetService {
   }>;
 
   /**
-   * Stores the converted dataset in S3 and returns the S3 key of the stored JSONL file.
+   * Stores the converted dataset in JSONL format and returns the path to the stored file.
    */
-  storeConversionJsonl(
-    convertedDatasetFileKey: string,
-    jsonl: string,
-  ): Promise<string>;
+  storeConversionJsonl(datasetId: string, jsonl: string): Promise<string>;
 
   /**
-   * Fetches the raw content of a document from S3 based on the provided document key.
+   * Fetches the raw content of a document in the dataset and returns it as a Buffer.
    */
-  fetchRawContent(documentKey: string): Promise<Buffer>;
+  fetchRawContent(
+    datasetId: string,
+    documentId: string,
+    fileType: DatasetFileType,
+  ): Promise<Buffer>;
 }

@@ -1,9 +1,12 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
-import { DatasetFileType } from 'backend/src/models/Dataset';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
-import { DocumentUploadManifest } from '../../models/Dataset';
+import { DatasetFileType, DocumentUploadManifest } from '../../models/Dataset';
 import { DatasetService } from '../../ports/DatasetService';
+import {
+  convertedDatasetS3Key,
+  documentS3Key,
+} from '../../services/DatasetService/s3Keys';
 
 export type StoredDatasetUpload = {
   datasetId: string;
@@ -119,9 +122,10 @@ export class FakeDatasetService implements DatasetService {
     return size;
   }
   async storeConversionJsonl(
-    convertedDatasetFileKey: string,
+    datasetId: string,
     jsonl: string,
   ): Promise<string> {
+    const convertedDatasetFileKey = convertedDatasetS3Key(datasetId);
     this.convertedDatasets.push({
       key: convertedDatasetFileKey,
       jsonl,
@@ -130,21 +134,23 @@ export class FakeDatasetService implements DatasetService {
     return convertedDatasetFileKey;
   }
 
-  async fetchRawContent(documentKey: string): Promise<Buffer> {
-    const [, datasetId, fileName] = documentKey.split('/');
-    const [documentId, fileExtension] = fileName.split('.');
+  async fetchRawContent(
+    datasetId: string,
+    documentId: string,
+    fileType: DatasetFileType,
+  ): Promise<Buffer> {
     const stored = this.rawContents.find(
       (r) =>
         r.datasetId === datasetId &&
         r.documentId === documentId &&
-        r.fileType === (fileExtension as DatasetFileType),
+        r.fileType === fileType,
     );
     if (!stored) {
       throw new BasicError(
         BasicErrorType.NOT_FOUND,
         'RAW_CONTENT_NOT_FOUND',
         'Raw content not found',
-        `No raw content found for key: ${documentKey}`,
+        `No raw content found for key: ${documentS3Key(datasetId, documentId, fileType)}`,
       );
     }
     return stored.content;

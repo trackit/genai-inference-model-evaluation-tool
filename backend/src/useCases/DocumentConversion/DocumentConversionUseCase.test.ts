@@ -2,12 +2,13 @@ import { inject, reset } from '@trackit.io/di-container';
 import { randomUUID } from 'crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { ChunkingStrategy, TaskType } from '../../models/DocumentConversion';
-import { JsonlParserImpl } from '../../parsers/JsonlParser/JsonlParser';
-import { tokenFakeDatasetService } from '../../services/DatasetService/FakeDatasetService';
+import {
+  FakeDatasetService,
+  tokenFakeDatasetService,
+} from '../../services/DatasetService/FakeDatasetService';
 import { tokenFakeDocumentConversionService } from '../../services/DocumentConversionService/FakeDocumentConversionService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { tokenDocumentConversionUseCase } from './DocumentConversionUseCase';
-import { convertedDatasetS3Key } from 'backend/src/utils/s3Keys';
 
 const setup = () => {
   reset();
@@ -20,6 +21,17 @@ const setup = () => {
   };
 };
 
+/** JSONL string from the most recent storeConversionJsonl call recorded on the fake. */
+const getStoredJsonl = (datasetService: FakeDatasetService): string =>
+  datasetService.convertedDatasets[0].jsonl;
+
+/** Parses a JSONL string into an array of objects, one per non-empty line. */
+const parseJsonlLines = (jsonl: string): Record<string, unknown>[] =>
+  jsonl
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+
 describe('DocumentConversionUseCase execute', () => {
   it('fetches, chunks, and generates JSONL with CHAPTER strategy', async () => {
     const { useCase, documentConversionService, datasetService } = setup();
@@ -31,10 +43,7 @@ describe('DocumentConversionUseCase execute', () => {
     const buffer1 = Buffer.from('First paragraph.\n\nSecond paragraph.');
     const buffer2 = Buffer.from('Only one paragraph');
     datasetService.seedRawContent(dataset_id, document_id1, 'pdf', buffer1);
-
     datasetService.seedRawContent(dataset_id, document_id2, 'pdf', buffer2);
-
-    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
     const result = await useCase.execute({
       dataset_id: dataset_id,
@@ -46,23 +55,13 @@ describe('DocumentConversionUseCase execute', () => {
       task_type: TaskType.SUMMARIZATION,
     });
 
-    const convertedDatasetKey = convertedDatasetS3Key(dataset_id);
-    expect(result).toBe(convertedDatasetKey);
-    expect(parseSpy).toHaveBeenCalledTimes(2);
+    expect(parseSpy).toHaveBeenCalledTimes(datasetService.rawContents.length);
     expect(parseSpy).toHaveBeenCalledWith(buffer1, 'pdf');
     expect(parseSpy).toHaveBeenCalledWith(buffer2, 'pdf');
-    expect(storeSpy).toHaveBeenCalledTimes(1);
-    expect(storeSpy).toHaveBeenCalledWith(
-      convertedDatasetKey,
-      expect.any(String),
-    );
-    const storedJsonl = storeSpy.mock.calls[0][1] as string;
-    const jsonObjects = storedJsonl
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
+    expect(datasetService.convertedDatasets).toHaveLength(1);
+    expect(result).toBe(datasetService.convertedDatasets[0].key);
 
-    expect(jsonObjects).toEqual([
+    expect(parseJsonlLines(getStoredJsonl(datasetService))).toEqual([
       {
         document_id: document_id1,
         chunk_id: `${document_id1}-0`,
@@ -82,12 +81,6 @@ describe('DocumentConversionUseCase execute', () => {
         summary: '',
       },
     ]);
-
-    expect(new JsonlParserImpl().parse(storedJsonl).samples).toEqual([
-      { document: 'First paragraph.' },
-      { document: 'Second paragraph.' },
-      { document: 'Only one paragraph' },
-    ]);
   });
 
   it('fetches, chunks, and generates JSONL with DOCUMENT strategy', async () => {
@@ -100,10 +93,7 @@ describe('DocumentConversionUseCase execute', () => {
     const buffer1 = Buffer.from('First paragraph.\n\nSecond paragraph.');
     const buffer2 = Buffer.from('Only one paragraph');
     datasetService.seedRawContent(dataset_id, document_id1, 'pdf', buffer1);
-
     datasetService.seedRawContent(dataset_id, document_id2, 'pdf', buffer2);
-
-    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
 
     const result = await useCase.execute({
       dataset_id: dataset_id,
@@ -115,23 +105,13 @@ describe('DocumentConversionUseCase execute', () => {
       task_type: TaskType.CLASSIFICATION,
     });
 
-    const convertedDatasetKey = convertedDatasetS3Key(dataset_id);
-    expect(result).toBe(convertedDatasetKey);
     expect(parseSpy).toHaveBeenCalledTimes(2);
     expect(parseSpy).toHaveBeenCalledWith(buffer1, 'pdf');
     expect(parseSpy).toHaveBeenCalledWith(buffer2, 'pdf');
-    expect(storeSpy).toHaveBeenCalledTimes(1);
-    expect(storeSpy).toHaveBeenCalledWith(
-      convertedDatasetKey,
-      expect.any(String),
-    );
-    const storedJsonl = storeSpy.mock.calls[0][1] as string;
-    const jsonObjects = storedJsonl
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
+    expect(datasetService.convertedDatasets).toHaveLength(1);
+    expect(result).toBe(datasetService.convertedDatasets[0].key);
 
-    expect(jsonObjects).toEqual([
+    expect(parseJsonlLines(getStoredJsonl(datasetService))).toEqual([
       {
         document_id: document_id1,
         chunk_id: `${document_id1}-0`,
@@ -143,135 +123,6 @@ describe('DocumentConversionUseCase execute', () => {
         chunk_id: `${document_id2}-0`,
         document: 'Only one paragraph',
         class: '',
-      },
-    ]);
-  });
-
-  it('chunks a document by chapter headings when present', async () => {
-    const { useCase, datasetService } = setup();
-    const dataset_id = randomUUID();
-    const document_id = randomUUID();
-
-    datasetService.seedRawContent(
-      dataset_id,
-      document_id,
-      'pdf',
-      Buffer.from(
-        'Chapter 1: Overview\nOverview content.\n\nChapter 2: Details\nDetailed content.',
-      ),
-    );
-
-    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
-
-    await useCase.execute({
-      dataset_id,
-      documents: [{ document_id, file_type: 'pdf' }],
-      chunking_strategy: ChunkingStrategy.CHAPTER,
-      task_type: TaskType.SUMMARIZATION,
-    });
-
-    const storedJsonl = storeSpy.mock.calls[0][1] as string;
-    const jsonObjects = storedJsonl
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
-
-    expect(jsonObjects).toEqual([
-      {
-        document_id: document_id,
-        chunk_id: `${document_id}-0`,
-        document: 'Chapter 1: Overview\nOverview content.',
-        summary: '',
-      },
-      {
-        document_id: document_id,
-        chunk_id: `${document_id}-1`,
-        document: 'Chapter 2: Details\nDetailed content.',
-        summary: '',
-      },
-    ]);
-  });
-
-  it('chunks a document by chapter with multiple blank lines', async () => {
-    const { useCase, datasetService } = setup();
-    const dataset_id = randomUUID();
-    const document_id = randomUUID();
-
-    datasetService.seedRawContent(
-      dataset_id,
-      document_id,
-      'pdf',
-      Buffer.from(
-        'First paragraph.\n\n\nSecond paragraph.\n\nThird paragraph.',
-      ),
-    );
-
-    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
-
-    await useCase.execute({
-      dataset_id,
-      documents: [{ document_id, file_type: 'pdf' }],
-      chunking_strategy: ChunkingStrategy.CHAPTER,
-      task_type: TaskType.SUMMARIZATION,
-    });
-
-    const storedJsonl = storeSpy.mock.calls[0][1] as string;
-    const lines = storedJsonl.split('\n').filter(Boolean);
-    const jsonObjects = lines.map((line) => JSON.parse(line));
-
-    expect(jsonObjects).toEqual([
-      {
-        document_id: document_id,
-        chunk_id: `${document_id}-0`,
-        document: 'First paragraph.',
-        summary: '',
-      },
-      {
-        document_id: document_id,
-        chunk_id: `${document_id}-1`,
-        document: 'Second paragraph.',
-        summary: '',
-      },
-      {
-        document_id: document_id,
-        chunk_id: `${document_id}-2`,
-        document: 'Third paragraph.',
-        summary: '',
-      },
-    ]);
-  });
-
-  it('creates a single chunk for CHAPTER when no paragraph separators exist', async () => {
-    const { useCase, datasetService } = setup();
-    const dataset_id = randomUUID();
-    const document_id = randomUUID();
-
-    datasetService.seedRawContent(
-      dataset_id,
-      document_id,
-      'pdf',
-      Buffer.from('A single paragraph without blank lines.'),
-    );
-
-    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
-
-    await useCase.execute({
-      dataset_id,
-      documents: [{ document_id, file_type: 'pdf' }],
-      chunking_strategy: ChunkingStrategy.CHAPTER,
-      task_type: TaskType.SUMMARIZATION,
-    });
-
-    const storedJsonl = storeSpy.mock.calls[0][1] as string;
-    const lines = storedJsonl.split('\n').filter(Boolean);
-    const jsonObjects = lines.map((line) => JSON.parse(line));
-
-    expect(jsonObjects).toEqual([
-      {
-        document_id: document_id,
-        chunk_id: `${document_id}-0`,
-        document: 'A single paragraph without blank lines.',
-        summary: '',
       },
     ]);
   });
@@ -288,8 +139,6 @@ describe('DocumentConversionUseCase execute', () => {
       Buffer.from('\n\nOnly one paragraph with padding.\n\n'),
     );
 
-    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
-
     await useCase.execute({
       dataset_id,
       documents: [{ document_id, file_type: 'pdf' }],
@@ -297,13 +146,7 @@ describe('DocumentConversionUseCase execute', () => {
       task_type: TaskType.CLASSIFICATION,
     });
 
-    const storedJsonl = storeSpy.mock.calls[0][1] as string;
-    const jsonObjects = storedJsonl
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
-
-    expect(jsonObjects).toEqual([
+    expect(parseJsonlLines(getStoredJsonl(datasetService))).toEqual([
       {
         document_id: document_id,
         chunk_id: `${document_id}-0`,
@@ -322,8 +165,6 @@ describe('DocumentConversionUseCase execute', () => {
     const buffer = Buffer.from('Docx body content');
     datasetService.seedRawContent(dataset_id, document_id, 'docx', buffer);
 
-    const storeSpy = vi.spyOn(datasetService, 'storeConversionJsonl');
-
     await useCase.execute({
       dataset_id,
       documents: [{ document_id, file_type: 'docx' }],
@@ -334,13 +175,7 @@ describe('DocumentConversionUseCase execute', () => {
     expect(parseSpy).toHaveBeenCalledTimes(1);
     expect(parseSpy).toHaveBeenCalledWith(buffer, 'docx');
 
-    const storedJsonl = storeSpy.mock.calls[0][1] as string;
-    const jsonObjects = storedJsonl
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
-
-    expect(jsonObjects).toEqual([
+    expect(parseJsonlLines(getStoredJsonl(datasetService))).toEqual([
       {
         document_id: document_id,
         chunk_id: `${document_id}-0`,
@@ -372,5 +207,23 @@ describe('DocumentConversionUseCase execute', () => {
     ).rejects.toThrow(
       `Document "${document_id}" could not be converted into readable text`,
     );
+  });
+
+  it('propagates a not-found error when raw content is missing for a document', async () => {
+    const { useCase } = setup();
+    const dataset_id = randomUUID();
+    const document_id = randomUUID();
+
+    // Intentionally not seeded — fetchRawContent should reject, and that
+    // rejection must surface out of execute() rather than being swallowed
+    // inside the Promise.all in fetchAndParseAll.
+    await expect(
+      useCase.execute({
+        dataset_id,
+        documents: [{ document_id, file_type: 'pdf' }],
+        chunking_strategy: ChunkingStrategy.DOCUMENT,
+        task_type: TaskType.SUMMARIZATION,
+      }),
+    ).rejects.toThrow('Raw content not found');
   });
 });

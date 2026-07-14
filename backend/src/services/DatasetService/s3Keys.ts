@@ -1,4 +1,4 @@
-import { DatasetFileType } from '../models/Dataset';
+import { DatasetFileType } from '../../models/Dataset';
 
 export function datasetS3Key(
   datasetId: string,
