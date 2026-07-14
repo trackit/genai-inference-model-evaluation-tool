@@ -11,6 +11,7 @@ import {
 } from '../../models/DocumentConversion';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
 import { chunkDocumentByChapter } from '../../utils/chapterChunking';
+import { convertedDatasetS3Key, documentS3Key } from 'backend/src/utils/s3Keys';
 
 export type DocumentConversionUseCase = {
   execute(request: DocumentConversionRequest): Promise<string>;
@@ -68,9 +69,7 @@ export function buildConversionJsonl(
 }
 
 export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase {
-  private readonly documentConversionService = inject(
-    tokenDocumentConversionService,
-  );
+  private readonly documentConversionService = inject(tokenDocumentConversionService);
   private readonly datasetService = inject(tokenDatasetService);
 
   async execute(request: DocumentConversionRequest): Promise<string> {
@@ -78,7 +77,7 @@ export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase 
     const chunks = chunkDocuments(extracted, request.chunking_strategy);
     const jsonl = buildConversionJsonl(chunks, request.task_type);
 
-    const convertedDatasetFileKey: string = `datasets/${request.dataset_id}/${request.dataset_id}-converted.jsonl`;
+    const convertedDatasetFileKey: string = convertedDatasetS3Key(request.dataset_id);
 
     const storedJsonlKey: string =
       await this.datasetService.storeConversionJsonl(
@@ -94,7 +93,7 @@ export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase 
   ): Promise<ExtractedDocument[]> {
     return Promise.all(
       request.documents.map(async ({ document_id, file_type }) => {
-        const documentKey = `datasets/${request.dataset_id}/${document_id}.${file_type}`;
+        const documentKey = documentS3Key(request.dataset_id, document_id, file_type);
 
         const rawContent =
           await this.datasetService.fetchRawContent(documentKey);

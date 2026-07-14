@@ -3,57 +3,29 @@ import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
 import { DocumentConversionServiceImpl } from './DocumentConversionServiceS3';
 
-/** Builds a minimal valid single-page PDF binary containing the given text */
-function buildMinimalPdf(text: string): Buffer {
-  const escaped = text.replace(/[()\\]/g, (c) => `\\${c}`);
-  const stream = `BT /F1 12 Tf 100 700 Td (${escaped}) Tj ET`;
-
-  const objects = [
-    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
-    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj',
-    `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj`,
-    `4 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj`,
-    '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj',
-  ];
-
-  let body = '%PDF-1.4\n';
-  const offsets: number[] = [];
-
-  for (const obj of objects) {
-    offsets.push(body.length);
-    body += obj + '\n';
-  }
-
-  const xref = body.length;
-
-  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-
-  for (const offset of offsets) {
-    body += `${String(offset).padStart(10, '0')} 00000 n \n`;
-  }
-
-  body += `trailer\n<< /Size ${
-    objects.length + 1
-  } /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-
-  return Buffer.from(body);
-}
-
 describe('DocumentConversionService', () => {
   describe('parse', () => {
     describe('PDF parsing', () => {
       it('extracts text from PDF', async () => {
         const service = new DocumentConversionServiceImpl();
+        const pdfBuffer = readFileSync(
+          new URL('../../test/fixtures/sample.pdf', import.meta.url),
+        );
+        const result = await service.parse(pdfBuffer, 'pdf');
 
-        const result = await service.parse(buildMinimalPdf('Hello PDF'), 'pdf');
-
-        expect(result).toContain('Hello PDF');
+        expect(result).toContain('This is a sample document for PDF parsing.');
+        expect(result).toContain(
+          'Chapter 1: Fixture text for conversion tests.',
+        );
       });
 
       it('trims extracted text', async () => {
         const service = new DocumentConversionServiceImpl();
 
-        const result = await service.parse(buildMinimalPdf('Hello PDF'), 'pdf');
+        const pdfBuffer = readFileSync(
+          new URL('../../test/fixtures/sample.pdf', import.meta.url),
+        );
+        const result = await service.parse(pdfBuffer, 'pdf');
 
         expect(result).toBe(result.trim());
       });
@@ -80,6 +52,32 @@ describe('DocumentConversionService', () => {
         expect(result).toContain(
           'This is a sample document for DOC and DOCX parsing.',
         );
+      });
+
+      it('regression: detects a real chapter heading extracted by Mammoth and splits on it', async () => {
+        const service = new DocumentConversionServiceImpl();
+        const docxBuffer = readFileSync(
+          new URL('../../test/fixtures/sample.docx', import.meta.url),
+        );
+        const extractedText = await service.parse(docxBuffer, 'docx');
+
+        const chunks = chunkDocumentByChapter({
+          document_id: 'docx-1',
+          text: extractedText,
+        });
+
+        expect(chunks).toEqual([
+          {
+            document_id: 'docx-1',
+            chunk_id: 'docx-1-0',
+            text: 'This is a sample document for DOC and DOCX parsing.',
+          },
+          {
+            document_id: 'docx-1',
+            chunk_id: 'docx-1-1',
+            text: 'Chapter 1: Fixture text for conversion tests.',
+          },
+        ]);
       });
     });
 

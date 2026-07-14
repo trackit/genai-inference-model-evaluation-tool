@@ -7,6 +7,7 @@ import { tokenFakeDatasetService } from '../../services/DatasetService/FakeDatas
 import { tokenFakeDocumentConversionService } from '../../services/DocumentConversionService/FakeDocumentConversionService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { tokenDocumentConversionUseCase } from './DocumentConversionUseCase';
+import { convertedDatasetS3Key } from 'backend/src/utils/s3Keys';
 
 const setup = () => {
   reset();
@@ -45,13 +46,14 @@ describe('DocumentConversionUseCase execute', () => {
       task_type: TaskType.SUMMARIZATION,
     });
 
-    expect(result).toBe(`datasets/${dataset_id}/${dataset_id}-converted.jsonl`);
+    const convertedDatasetKey = convertedDatasetS3Key(dataset_id);
+    expect(result).toBe(convertedDatasetKey);
     expect(parseSpy).toHaveBeenCalledTimes(2);
     expect(parseSpy).toHaveBeenCalledWith(buffer1, 'pdf');
     expect(parseSpy).toHaveBeenCalledWith(buffer2, 'pdf');
     expect(storeSpy).toHaveBeenCalledTimes(1);
     expect(storeSpy).toHaveBeenCalledWith(
-      `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
+      convertedDatasetKey,
       expect.any(String),
     );
     const storedJsonl = storeSpy.mock.calls[0][1] as string;
@@ -113,13 +115,14 @@ describe('DocumentConversionUseCase execute', () => {
       task_type: TaskType.CLASSIFICATION,
     });
 
-    expect(result).toBe(`datasets/${dataset_id}/${dataset_id}-converted.jsonl`);
+    const convertedDatasetKey = convertedDatasetS3Key(dataset_id);
+    expect(result).toBe(convertedDatasetKey);
     expect(parseSpy).toHaveBeenCalledTimes(2);
     expect(parseSpy).toHaveBeenCalledWith(buffer1, 'pdf');
     expect(parseSpy).toHaveBeenCalledWith(buffer2, 'pdf');
     expect(storeSpy).toHaveBeenCalledTimes(1);
     expect(storeSpy).toHaveBeenCalledWith(
-      `datasets/${dataset_id}/${dataset_id}-converted.jsonl`,
+      convertedDatasetKey,
       expect.any(String),
     );
     const storedJsonl = storeSpy.mock.calls[0][1] as string;

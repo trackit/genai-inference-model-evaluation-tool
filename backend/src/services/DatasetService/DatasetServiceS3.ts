@@ -8,7 +8,7 @@ import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { z } from 'zod';
 import { DatasetService } from '../../ports/DatasetService';
-
+import { datasetS3Key } from 'backend/src/utils/s3Keys';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { DocumentUploadManifest, MIN_FILE_BYTES } from '../../models/Dataset';
 
@@ -137,7 +137,7 @@ export class DatasetServiceImpl implements DatasetService {
     fileExtension: 'csv' | 'jsonl';
   }> {
     try {
-      const csvKey = `datasets/${datasetId}/${datasetId}.csv`;
+      const csvKey = datasetS3Key(datasetId, 'csv');
       const csvResponse = await this.s3Client.send(
         new GetObjectCommand({
           Bucket: this.bucketName,
@@ -149,7 +149,7 @@ export class DatasetServiceImpl implements DatasetService {
     } catch (error: unknown) {
       if (isS3NotFound(error)) {
         try {
-          const jsonlKey = `datasets/${datasetId}/${datasetId}.jsonl`;
+          const jsonlKey = datasetS3Key(datasetId, 'jsonl');
           const jsonlResponse = await this.s3Client.send(
             new GetObjectCommand({
               Bucket: this.bucketName,
