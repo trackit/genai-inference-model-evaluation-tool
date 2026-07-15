@@ -1,36 +1,43 @@
 import { describe, expect, it } from 'vitest';
 
+import { BasicError } from '../errors/BasicError';
 import { Dataset } from '../models/Dataset';
 import {
   extractDatasetMetadata,
-  parseDatasetFileExtension,
+  fileContentType,
+  parseFileType,
   validateDatasetSize,
+  validateDeclaredTotalSize,
 } from './datasetValidation';
 
 describe('datasetValidation', () => {
-  describe('parseDatasetFileExtension', () => {
-    it.each(['dataset.csv', 'dataset.CSV', 'path/to/file.csv'])(
-      'accepts csv: %s',
-      (filename) => {
-        expect(parseDatasetFileExtension(filename)).toBe('csv');
-      },
-    );
+  describe('fileContentType', () => {
+    it.each([
+      ['csv', 'text/csv'],
+      ['jsonl', 'application/jsonl'],
+      ['pdf', 'application/pdf'],
+      ['doc', 'application/msword'],
+      [
+        'docx',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ],
+    ] as const)('maps %s to %s', (fileType, contentType) => {
+      expect(fileContentType(fileType)).toBe(contentType);
+    });
+  });
 
-    it.each(['dataset.jsonl', 'dataset.JSONL', 'path/to/file.jsonl'])(
-      'accepts jsonl: %s',
-      (filename) => {
-        expect(parseDatasetFileExtension(filename)).toBe('jsonl');
-      },
-    );
+  describe('validateDeclaredTotalSize', () => {
+    it('accepts totals up to the dataset limit', () => {
+      expect(() =>
+        validateDeclaredTotalSize([100_000_000, 50_000_000]),
+      ).not.toThrow();
+    });
 
-    it.each(['dataset.txt', 'dataset', 'dataset.pdf', 'readme'])(
-      'rejects unsupported extension: %s',
-      (filename) => {
-        expect(() => parseDatasetFileExtension(filename)).toThrow(
-          'Invalid file format. Only CSV and JSONL files are supported',
-        );
-      },
-    );
+    it('rejects totals above the dataset limit', () => {
+      expect(() =>
+        validateDeclaredTotalSize([150_000_000, 100_000_000]),
+      ).toThrow(BasicError);
+    });
   });
 
   describe('validateDatasetSize', () => {
@@ -51,6 +58,14 @@ describe('datasetValidation', () => {
 
       expect(() => validateDatasetSize(dataset)).toThrow(
         'Dataset must contain at least 10 samples. Found 2 samples',
+      );
+    });
+  });
+
+  describe('parseFileType', () => {
+    it('rejects unsupported extensions', () => {
+      expect(() => parseFileType('dataset.txt')).toThrow(
+        'Invalid file format. Supported: CSV, JSONL, PDF, DOC, DOCX',
       );
     });
   });
@@ -101,6 +116,7 @@ describe('datasetValidation', () => {
       };
 
       expect(extractDatasetMetadata('dataset-id', dataset)).toEqual({
+        dataset_type: 'structured',
         dataset_id: 'dataset-id',
         sample_count: 15,
         has_summary: false,

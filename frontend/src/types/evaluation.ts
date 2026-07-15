@@ -160,7 +160,7 @@ export interface EvaluationConfig {
   weights: MetricsWeights;
   metrics: MetricsToggles;
   selectedModels: string[];
-  datasetFile: File | null;
+  datasetFiles: File[];
 }
 
 export interface ModelResult {
@@ -233,12 +233,27 @@ export interface CreateEvaluationRequest {
   metrics?: Partial<Record<MetricKey, boolean>>;
 }
 
-export interface DatasetUploadData {
+export interface StructuredDatasetUploadData {
+  dataset_type: 'structured';
   dataset_id: string;
   sample_count: number;
   has_summary: boolean;
   has_class: boolean;
 }
+
+export interface DocumentDatasetUploadData {
+  dataset_type: 'documents';
+  dataset_id: string;
+  file_count: number;
+  documents: Array<{
+    filename: string;
+    file_type: string;
+  }>;
+}
+
+export type DatasetUploadData =
+  | StructuredDatasetUploadData
+  | DocumentDatasetUploadData;
 
 export interface EvaluationLaunchData {
   evaluation_id: string;

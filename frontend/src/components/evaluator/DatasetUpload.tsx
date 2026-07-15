@@ -2,7 +2,11 @@ import { MetricsPicker } from '@/components/evaluator/MetricsPicker';
 import { Button } from '@/components/ui/button';
 import { useUploadDataset } from '@/hooks/useEvaluation';
 import { cn } from '@/lib/utils';
-import type { MetricsToggles, TaskType } from '@/types/evaluation';
+import type {
+  DatasetUploadData,
+  MetricsToggles,
+  TaskType,
+} from '@/types/evaluation';
 import { hasAtLeastOneMetric } from '@/utils/metrics';
 import { motion } from 'framer-motion';
 import {
@@ -17,12 +21,11 @@ import {
 import { useState } from 'react';
 
 interface DatasetUploadProps {
-  file: File | null;
-  onChange: (file: File | null) => void;
+  files: File[];
+  onChange: (files: File[]) => void;
   onStartEvaluation: () => void;
   onUploadSuccess: (data: {
     dataset_id: string;
-    sample_count: number;
     taskType: TaskType | undefined;
   }) => void;
   isStarting?: boolean;
@@ -82,6 +85,34 @@ const TASK_TYPES: {
 ];
 
 type FormatTab = 'csv' | 'jsonl';
+type DatasetMode = 'structured' | 'documents';
+
+const DATASET_MODES: {
+  id: DatasetMode;
+  label: string;
+  description: string;
+  accept: string;
+  multiple: boolean;
+  hint: string;
+}[] = [
+  {
+    id: 'structured',
+    label: 'Structured (CSV / JSONL)',
+    description: 'Single tabular file with document rows and optional labels.',
+    accept: '.csv,.jsonl',
+    multiple: false,
+    hint: 'One CSV or JSONL file · up to 200 MB',
+  },
+  {
+    id: 'documents',
+    label: 'Documents (PDF / DOC / DOCX)',
+    description:
+      'Multiple unstructured files that form your evaluation dataset.',
+    accept: '.pdf,.doc,.docx',
+    multiple: true,
+    hint: 'One or more PDF, DOC, or DOCX files · up to 200 MB total',
+  },
+];
 
 function resolveDetectedTask(data: {
   has_summary: boolean;
@@ -92,8 +123,137 @@ function resolveDetectedTask(data: {
   return undefined;
 }
 
+function getValidationError(files: File[], mode: DatasetMode): string | null {
+  const extensions = files.map((file) =>
+    file.name.toLowerCase().split('.').pop(),
+  );
+  const isDataset = (extension?: string) =>
+    extension === 'csv' || extension === 'jsonl';
+  const isDocument = (extension?: string) =>
+    extension === 'pdf' || extension === 'doc' || extension === 'docx';
+
+  if (files.reduce((s, f) => s + f.size, 0) > 209_715_200) {
+    return 'Total size must not exceed 200 MB';
+  }
+
+  if (mode === 'structured') {
+    if (files.length > 1) {
+      return 'Upload one CSV or JSONL file';
+    }
+    if (files.length === 1 && !isDataset(extensions[0])) {
+      return 'Structured datasets must be CSV or JSONL';
+    }
+    return null;
+  }
+
+  if (files.length === 0) {
+    return null;
+  }
+
+  if (extensions.some((extension) => !isDocument(extension))) {
+    return 'Document datasets must be PDF, DOC, or DOCX only';
+  }
+
+  return null;
+}
+
+function formatBytes(size: number): string {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fileMatchesMode(file: File, mode: DatasetMode): boolean {
+  const extension = file.name.toLowerCase().split('.').pop();
+  if (mode === 'structured') {
+    return extension === 'csv' || extension === 'jsonl';
+  }
+  return extension === 'pdf' || extension === 'doc' || extension === 'docx';
+}
+
+function detectedTaskFromUpload(
+  data: DatasetUploadData | undefined,
+): TaskType | undefined {
+  if (!data || data.dataset_type !== 'structured') return undefined;
+  return resolveDetectedTask(data);
+}
+
+function DatasetModeButtons({
+  selected,
+  onSelect,
+}: {
+  selected: DatasetMode;
+  onSelect: (mode: DatasetMode) => void;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {DATASET_MODES.map((mode) => {
+        const isActive = mode.id === selected;
+        return (
+          <button
+            key={mode.id}
+            type="button"
+            onClick={() => onSelect(mode.id)}
+            className={cn(
+              'rounded-lg border px-4 py-3 text-left transition-all',
+              isActive
+                ? 'border-primary bg-primary/5'
+                : 'border-border bg-surface hover:border-primary/40',
+            )}
+          >
+            <p
+              className={cn(
+                'text-sm font-medium',
+                isActive ? 'text-primary' : 'text-foreground',
+              )}
+            >
+              {mode.label}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {mode.description}
+            </p>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function TaskTypeButtons({
+  selected,
+  onSelect,
+}: {
+  selected: TaskType | null;
+  onSelect: (task: TaskType) => void;
+}) {
+  return (
+    <div className="flex gap-2">
+      {TASK_TYPES.map((task) => {
+        const Icon = task.icon;
+        const isActive = task.id === selected;
+        return (
+          <button
+            key={task.id}
+            type="button"
+            onClick={() => onSelect(task.id)}
+            className={cn(
+              'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
+              isActive
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-border bg-surface text-muted-foreground hover:border-primary/40 hover:text-foreground',
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {task.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function DatasetUpload({
-  file,
+  files,
   onChange,
   onStartEvaluation,
   onUploadSuccess,
@@ -102,20 +262,73 @@ export function DatasetUpload({
   onMetricsChange,
 }: DatasetUploadProps) {
   const [dragOver, setDragOver] = useState(false);
+  const [datasetMode, setDatasetMode] = useState<DatasetMode>('structured');
   const [activeTask, setActiveTask] = useState<TaskType>('summarization');
+  const [selectedDocumentTask, setSelectedDocumentTask] =
+    useState<TaskType | null>(null);
   const [formatTab, setFormatTab] = useState<FormatTab>('csv');
   const uploadMutation = useUploadDataset();
+  const activeDatasetMode = DATASET_MODES.find(
+    (mode) => mode.id === datasetMode,
+  )!;
+  const validationError = getValidationError(files, datasetMode);
+  const showStructuredGuidance = datasetMode === 'structured';
+  const isDocumentUploadSuccess =
+    uploadMutation.isSuccess &&
+    uploadMutation.data?.dataset_type === 'documents';
+  const metricsTaskType = isDocumentUploadSuccess
+    ? (selectedDocumentTask ?? undefined)
+    : detectedTaskFromUpload(uploadMutation.data);
+  const canStartEvaluation =
+    hasAtLeastOneMetric(metrics) &&
+    (!isDocumentUploadSuccess || selectedDocumentTask !== null);
 
-  const handleFile = (f: File) => {
+  const handleAddFiles = (newFiles: File[]) => {
+    if (newFiles.length === 0) return;
     uploadMutation.reset();
-    onChange(f);
-    uploadMutation.mutate(f, {
+    setSelectedDocumentTask(null);
+    onChange(
+      datasetMode === 'structured'
+        ? newFiles.slice(0, 1)
+        : [...files, ...newFiles],
+    );
+  };
+
+  const handleDatasetModeChange = (mode: DatasetMode) => {
+    if (mode === datasetMode) return;
+    uploadMutation.reset();
+    setSelectedDocumentTask(null);
+    setDatasetMode(mode);
+    onChange(files.filter((file) => fileMatchesMode(file, mode)));
+  };
+
+  const handleRemoveFile = (index: number) => {
+    uploadMutation.reset();
+    setSelectedDocumentTask(null);
+    onChange(files.filter((_, fileIndex) => fileIndex !== index));
+  };
+
+  const handleSelectDocumentTask = (task: TaskType) => {
+    setSelectedDocumentTask(task);
+    if (uploadMutation.data?.dataset_type === 'documents') {
+      onUploadSuccess({
+        dataset_id: uploadMutation.data.dataset_id,
+        taskType: task,
+      });
+    }
+  };
+
+  const handleUpload = () => {
+    if (files.length === 0 || validationError) return;
+    setSelectedDocumentTask(null);
+    uploadMutation.mutate(files, {
       onSuccess: (data) => {
-        onUploadSuccess({
-          dataset_id: data.dataset_id,
-          sample_count: data.sample_count,
-          taskType: resolveDetectedTask(data),
-        });
+        if (data.dataset_type === 'structured') {
+          onUploadSuccess({
+            dataset_id: data.dataset_id,
+            taskType: detectedTaskFromUpload(data),
+          });
+        }
       },
     });
   };
@@ -123,8 +336,8 @@ export function DatasetUpload({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleAddFiles(droppedFiles);
   };
 
   const task = TASK_TYPES.find((t) => t.id === activeTask)!;
@@ -138,153 +351,154 @@ export function DatasetUpload({
     >
       <h1 className="text-2xl font-semibold tracking-tight">Upload Dataset</h1>
       <p className="text-sm text-muted-foreground mt-1 mb-6">
-        Upload a CSV or JSONL file. Summarization requires{' '}
-        <span className="font-mono text-foreground/80">document</span> and{' '}
-        <span className="font-mono text-foreground/80">summary</span>;
-        classification requires{' '}
-        <span className="font-mono text-foreground/80">document</span> and{' '}
-        <span className="font-mono text-foreground/80">class</span>. Task type
-        is inferred from your columns.
+        {datasetMode === 'structured' ? (
+          <>
+            Upload one CSV or JSONL file. Summarization requires{' '}
+            <span className="font-mono text-foreground/80">document</span> and{' '}
+            <span className="font-mono text-foreground/80">summary</span>;
+            classification requires{' '}
+            <span className="font-mono text-foreground/80">document</span> and{' '}
+            <span className="font-mono text-foreground/80">class</span>. Task
+            type is inferred from your columns.
+          </>
+        ) : (
+          <>
+            Upload one or more PDF, DOC, or DOCX files. Choose the task type
+            after upload completes.
+          </>
+        )}
       </p>
 
-      {/* ── Task type tabs ── */}
+      {showStructuredGuidance && (
+        <>
+          <div className="mb-4">
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
+              Dataset type
+            </p>
+            <TaskTypeButtons selected={activeTask} onSelect={setActiveTask} />
+          </div>
+
+          <motion.div
+            key={activeTask}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18 }}
+            className="rounded-xl border border-border bg-surface p-4 mb-6 space-y-4"
+          >
+            {/* Header */}
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-2">
+                <TaskIcon className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">{task.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {task.description}
+                </p>
+              </div>
+            </div>
+
+            {/* Columns */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                  Required columns
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {task.requiredColumns.map((col) => (
+                    <span
+                      key={col}
+                      className="inline-flex items-center rounded-md border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-mono font-medium text-primary"
+                    >
+                      {col}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5"></p>
+
+                <span className="text-xs text-muted-foreground italic"></span>
+              </div>
+            </div>
+
+            {/* Metrics */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                Evaluation metrics
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {task.metrics.map((m) => (
+                  <span
+                    key={m}
+                    className="inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5 text-xs text-foreground/70"
+                  >
+                    <Sparkles className="mr-1 h-2.5 w-2.5 text-muted-foreground" />
+                    {m}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Auto-detection note */}
+            <div className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  Auto-detection:{' '}
+                </span>
+                {task.autoDetect}
+              </p>
+            </div>
+
+            {/* Format example */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Format example
+                </p>
+                <div className="flex rounded-md border border-border overflow-hidden text-xs">
+                  <button
+                    onClick={() => setFormatTab('csv')}
+                    className={cn(
+                      'px-2.5 py-1 font-mono transition-colors',
+                      formatTab === 'csv'
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'bg-surface text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    CSV
+                  </button>
+                  <button
+                    onClick={() => setFormatTab('jsonl')}
+                    className={cn(
+                      'px-2.5 py-1 font-mono transition-colors border-l border-border',
+                      formatTab === 'jsonl'
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'bg-surface text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    JSONL
+                  </button>
+                </div>
+              </div>
+              <pre className="rounded-lg bg-muted/50 border border-border px-3 py-2.5 text-xs font-mono text-foreground/80 overflow-x-auto whitespace-pre leading-relaxed">
+                {formatTab === 'csv' ? task.csvExample : task.jsonlExample}
+              </pre>
+            </div>
+          </motion.div>
+        </>
+      )}
+
       <div className="mb-4">
         <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
-          Dataset type
+          Dataset format
         </p>
-        <div className="flex gap-2">
-          {TASK_TYPES.map((t) => {
-            const Icon = t.icon;
-            const isActive = t.id === activeTask;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setActiveTask(t.id)}
-                className={cn(
-                  'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
-                  isActive
-                    ? 'border-primary bg-primary/5 text-primary'
-                    : 'border-border bg-surface text-muted-foreground hover:border-primary/40 hover:text-foreground',
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+        <DatasetModeButtons
+          selected={datasetMode}
+          onSelect={handleDatasetModeChange}
+        />
       </div>
-
-      {/* ── Task description card ── */}
-      <motion.div
-        key={activeTask}
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18 }}
-        className="rounded-xl border border-border bg-surface p-4 mb-6 space-y-4"
-      >
-        {/* Header */}
-        <div className="flex items-start gap-3">
-          <div className="rounded-lg border border-primary/20 bg-primary/5 p-2">
-            <TaskIcon className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-medium">{task.label}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {task.description}
-            </p>
-          </div>
-        </div>
-
-        {/* Columns */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">
-              Required columns
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {task.requiredColumns.map((col) => (
-                <span
-                  key={col}
-                  className="inline-flex items-center rounded-md border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-mono font-medium text-primary"
-                >
-                  {col}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5"></p>
-
-            <span className="text-xs text-muted-foreground italic"></span>
-          </div>
-        </div>
-
-        {/* Metrics */}
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1.5">
-            Evaluation metrics
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {task.metrics.map((m) => (
-              <span
-                key={m}
-                className="inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5 text-xs text-foreground/70"
-              >
-                <Sparkles className="mr-1 h-2.5 w-2.5 text-muted-foreground" />
-                {m}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Auto-detection note */}
-        <div className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
-          <div className="h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
-          <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">
-              Auto-detection:{' '}
-            </span>
-            {task.autoDetect}
-          </p>
-        </div>
-
-        {/* Format example */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              Format example
-            </p>
-            <div className="flex rounded-md border border-border overflow-hidden text-xs">
-              <button
-                onClick={() => setFormatTab('csv')}
-                className={cn(
-                  'px-2.5 py-1 font-mono transition-colors',
-                  formatTab === 'csv'
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'bg-surface text-muted-foreground hover:text-foreground',
-                )}
-              >
-                CSV
-              </button>
-              <button
-                onClick={() => setFormatTab('jsonl')}
-                className={cn(
-                  'px-2.5 py-1 font-mono transition-colors border-l border-border',
-                  formatTab === 'jsonl'
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'bg-surface text-muted-foreground hover:text-foreground',
-                )}
-              >
-                JSONL
-              </button>
-            </div>
-          </div>
-          <pre className="rounded-lg bg-muted/50 border border-border px-3 py-2.5 text-xs font-mono text-foreground/80 overflow-x-auto whitespace-pre leading-relaxed">
-            {formatTab === 'csv' ? task.csvExample : task.jsonlExample}
-          </pre>
-        </div>
-      </motion.div>
 
       {/* ── Upload zone ── */}
       <div
@@ -301,25 +515,86 @@ export function DatasetUpload({
       >
         <input
           type="file"
-          accept=".csv,.jsonl,.json"
+          multiple={activeDatasetMode.multiple}
+          accept={activeDatasetMode.accept}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           disabled={uploadMutation.isPending}
           onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleFile(f);
+            handleAddFiles(Array.from(e.target.files ?? []));
+            e.currentTarget.value = '';
           }}
         />
         <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
         <p className="text-sm font-medium">
-          Drop your file here or click to browse
+          Drop files here or click to browse
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          CSV or JSONL · up to 200 MB · min 10 rows
+          {activeDatasetMode.hint}
         </p>
       </div>
 
+      {files.length > 0 && (
+        <div className="mt-4 rounded-lg border border-border bg-surface">
+          <div className="border-b border-border px-4 py-2 text-xs font-medium text-muted-foreground">
+            Selected files ({files.length})
+          </div>
+          <div className="divide-y divide-border">
+            {files.map((selectedFile, index) => (
+              <div
+                key={`${selectedFile.name}-${selectedFile.size}-${index}`}
+                className="flex items-center justify-between px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatBytes(selectedFile.size)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadMutation.isPending}
+                  onClick={() => handleRemoveFile(index)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {validationError && (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {validationError}
+        </p>
+      )}
+
+      <Button
+        onClick={handleUpload}
+        className="mt-4 w-full"
+        disabled={
+          files.length === 0 ||
+          !!validationError ||
+          uploadMutation.isPending ||
+          uploadMutation.isSuccess
+        }
+      >
+        {uploadMutation.isPending ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Uploading…
+          </>
+        ) : (
+          'Upload'
+        )}
+      </Button>
+
       {/* ── Upload status ── */}
-      {file && (
+      {files.length > 0 && (
         <div
           className={cn(
             'mt-4 flex items-center gap-3 rounded-lg p-4 shadow-card',
@@ -340,14 +615,17 @@ export function DatasetUpload({
             <>
               <FileCheck className="h-4 w-4 text-accent" />
               <div>
-                <span className="text-sm font-medium">{file.name}</span>
+                <span className="text-sm font-medium">Upload complete</span>
                 <span className="text-xs text-muted-foreground ml-2">
-                  {uploadMutation.data.sample_count} samples —{' '}
-                  {uploadMutation.data.has_summary
-                    ? 'Summarization'
-                    : uploadMutation.data.has_class
-                      ? 'Classification'
-                      : 'Ready'}
+                  {uploadMutation.data.dataset_type === 'structured'
+                    ? `${uploadMutation.data.sample_count} samples — ${
+                        uploadMutation.data.has_summary
+                          ? 'Summarization'
+                          : uploadMutation.data.has_class
+                            ? 'Classification'
+                            : 'Ready'
+                      }`
+                    : `${uploadMutation.data.file_count} files uploaded`}
                 </span>
               </div>
             </>
@@ -363,27 +641,45 @@ export function DatasetUpload({
         </div>
       )}
 
-      {uploadMutation.isSuccess && (
+      {isDocumentUploadSuccess && (
         <div className="mt-6">
-          <MetricsPicker
-            metrics={metrics}
-            onChange={onMetricsChange}
-            taskType={resolveDetectedTask(uploadMutation.data)}
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
+            Task type
+          </p>
+          <TaskTypeButtons
+            selected={selectedDocumentTask}
+            onSelect={handleSelectDocumentTask}
           />
-          {!hasAtLeastOneMetric(metrics) && (
-            <p className="mt-2 text-xs text-destructive" role="alert">
-              Select at least one accuracy metric to continue.
+          {!selectedDocumentTask && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Select a task type to configure metrics.
             </p>
           )}
         </div>
       )}
+
+      {uploadMutation.isSuccess &&
+        (!isDocumentUploadSuccess || selectedDocumentTask) && (
+          <div className="mt-6">
+            <MetricsPicker
+              metrics={metrics}
+              onChange={onMetricsChange}
+              taskType={metricsTaskType}
+            />
+            {!hasAtLeastOneMetric(metrics) && (
+              <p className="mt-2 text-xs text-destructive" role="alert">
+                Select at least one accuracy metric to continue.
+              </p>
+            )}
+          </div>
+        )}
 
       {uploadMutation.isSuccess && (
         <Button
           onClick={onStartEvaluation}
           className="mt-6 w-full"
           size="lg"
-          disabled={isStarting || !hasAtLeastOneMetric(metrics)}
+          disabled={isStarting || !canStartEvaluation}
         >
           {isStarting ? (
             <>

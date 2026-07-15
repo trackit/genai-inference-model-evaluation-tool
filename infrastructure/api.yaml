@@ -171,7 +171,8 @@ Resources:
       Policies:
         - Statement:
             - Effect: Allow
-              Action: s3:PutObject
+              Action:
+                - s3:PutObject
               Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets/*'
       Events:
         InitializeDatasetUploadApi:
@@ -209,8 +210,23 @@ Resources:
         Variables:
           DATASET_BUCKET: !Ref DatasetBucketName
       Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref DatasetBucketName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource:
+                - !Sub 'arn:aws:s3:::${DatasetBucketName}'
+              Condition:
+                StringLike:
+                  s3:prefix:
+                    - datasets/*
+
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:HeadObject
+              Resource:
+                - !Sub 'arn:aws:s3:::${DatasetBucketName}/*'
       Events:
         ConfirmDatasetUploadApi:
           Type: HttpApi

@@ -13,8 +13,11 @@ export function getBaseUrl(): string {
 
 type InitializeDatasetUploadResponse = {
   dataset_id: string;
-  upload_url: string;
-  fields: Record<string, string>;
+  uploads: Array<{
+    document_id: string;
+    upload_url: string;
+    fields: Record<string, string>;
+  }>;
 };
 
 export class ApiError extends Error {
@@ -148,17 +151,34 @@ async function uploadToS3(
   }
 }
 
-export async function uploadDataset(file: File): Promise<DatasetUploadData> {
+export async function uploadDataset(files: File[]): Promise<DatasetUploadData> {
   const initResponse = await fetchWithTimeout(`${getBaseUrl()}/datasets/init`, {
     method: 'POST',
     headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename: file.name }),
+    body: JSON.stringify({
+      files: files.map((file) => ({
+        filename: file.name,
+        size_bytes: file.size,
+      })),
+    }),
   });
 
-  const { dataset_id, upload_url, fields } =
+  const { dataset_id, uploads } =
     await handleResponse<InitializeDatasetUploadResponse>(initResponse);
 
-  await uploadToS3(upload_url, fields, file);
+  if (uploads.length !== files.length) {
+    throw new ApiError(
+      500,
+      'UPLOAD_PLAN_MISMATCH',
+      'Upload plan does not match selected files',
+    );
+  }
+
+  await Promise.all(
+    uploads.map((upload, index) =>
+      uploadToS3(upload.upload_url, upload.fields, files[index]),
+    ),
+  );
 
   const confirmResponse = await fetchWithTimeout(
     `${getBaseUrl()}/datasets/${dataset_id}/confirm`,

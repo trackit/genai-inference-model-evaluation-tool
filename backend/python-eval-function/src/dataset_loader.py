@@ -77,7 +77,7 @@ class DatasetLoader:
     def _load_from_s3(self, dataset_id: str) -> tuple[str, str]:
         
         for extension, file_format in [('.csv', 'csv'), ('.jsonl', 'jsonl')]:
-            s3_key = f"datasets/{dataset_id}{extension}"
+            s3_key = f"datasets/{dataset_id}/{dataset_id}{extension}"
             try:
                 response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
                 content = response['Body'].read().decode('utf-8')

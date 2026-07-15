@@ -160,6 +160,7 @@ describe('endpoint functions', () => {
   describe('uploadDataset', () => {
     it('runs init → S3 → confirm flow and returns data', async () => {
       const payload = {
+        dataset_type: 'structured',
         dataset_id: 'd1',
         sample_count: 42,
         has_summary: true,
@@ -171,8 +172,13 @@ describe('endpoint functions', () => {
             success: true,
             data: {
               dataset_id: 'd1',
-              upload_url: 'https://bucket.s3.amazonaws.com',
-              fields: { key: 'value' },
+              uploads: [
+                {
+                  document_id: 'doc-1',
+                  upload_url: 'https://bucket.s3.amazonaws.com',
+                  fields: { key: 'value' },
+                },
+              ],
             },
           }),
         )
@@ -180,7 +186,7 @@ describe('endpoint functions', () => {
         .mockResolvedValueOnce(jsonResponse({ success: true, data: payload }));
 
       const file = new File(['hello'], 'test.csv', { type: 'text/csv' });
-      const result = await uploadDataset(file);
+      const result = await uploadDataset([file]);
 
       expect(result).toEqual(payload);
       expect(mockFetch).toHaveBeenCalledTimes(3);
@@ -195,7 +201,7 @@ describe('endpoint functions', () => {
         'application/json',
       );
       expect(JSON.parse(initInit.body as string)).toEqual({
-        filename: 'test.csv',
+        files: [{ filename: 'test.csv', size_bytes: 5 }],
       });
 
       const [s3Url, s3Init] = mockFetch.mock.calls[1] as [string, RequestInit];
@@ -223,8 +229,13 @@ describe('endpoint functions', () => {
             success: true,
             data: {
               dataset_id: 'd1',
-              upload_url: 'https://bucket.s3.amazonaws.com',
-              fields: {},
+              uploads: [
+                {
+                  document_id: 'doc-1',
+                  upload_url: 'https://bucket.s3.amazonaws.com',
+                  fields: {},
+                },
+              ],
             },
           }),
         )
@@ -232,12 +243,18 @@ describe('endpoint functions', () => {
         .mockResolvedValueOnce(
           jsonResponse({
             success: true,
-            data: { dataset_id: 'd1', sample_count: 10 },
+            data: {
+              dataset_type: 'structured',
+              dataset_id: 'd1',
+              sample_count: 10,
+              has_summary: false,
+              has_class: false,
+            },
           }),
         );
 
       const file = new File(['hello'], 'test.csv', { type: 'text/csv' });
-      await uploadDataset(file);
+      await uploadDataset([file]);
 
       for (const callIndex of [0, 2]) {
         const [, init] = mockFetch.mock.calls[callIndex] as [
@@ -268,7 +285,68 @@ describe('endpoint functions', () => {
       );
 
       const file = new File(['bad'], 'bad.csv');
-      await expect(uploadDataset(file)).rejects.toThrow(ApiError);
+      await expect(uploadDataset([file])).rejects.toThrow(ApiError);
+    });
+
+    it('uploads multiple document files and confirms once', async () => {
+      const doc1 = new File(['doc-1'], 'report.pdf', {
+        type: 'application/pdf',
+      });
+      const doc2 = new File(['doc-2'], 'notes.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const payload = {
+        dataset_type: 'documents' as const,
+        dataset_id: 'd1',
+        file_count: 2,
+        documents: [
+          {
+            filename: 'report.pdf',
+            file_type: 'pdf',
+          },
+          {
+            filename: 'notes.docx',
+            file_type: 'docx',
+          },
+        ],
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(
+          jsonResponse({
+            success: true,
+            data: {
+              dataset_id: 'd1',
+              uploads: [
+                {
+                  document_id: 'doc-1',
+                  upload_url: 'https://bucket.s3.amazonaws.com',
+                  fields: { key: 'report' },
+                },
+                {
+                  document_id: 'doc-2',
+                  upload_url: 'https://bucket.s3.amazonaws.com',
+                  fields: { key: 'notes' },
+                },
+              ],
+            },
+          }),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+        .mockResolvedValueOnce(jsonResponse({ success: true, data: payload }));
+
+      const result = await uploadDataset([doc1, doc2]);
+      expect(result).toEqual(payload);
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+
+      const [, firstS3Init] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect((firstS3Init.body as FormData).get('key')).toBe('report');
+      expect((firstS3Init.body as FormData).get('file')).toBe(doc1);
+
+      const [, secondS3Init] = mockFetch.mock.calls[2] as [string, RequestInit];
+      expect((secondS3Init.body as FormData).get('key')).toBe('notes');
+      expect((secondS3Init.body as FormData).get('file')).toBe(doc2);
     });
   });
 

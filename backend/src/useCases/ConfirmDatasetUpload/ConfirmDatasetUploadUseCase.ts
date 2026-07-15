@@ -1,16 +1,22 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
-import { Dataset, DatasetMetadata } from '../../models/Dataset';
+import {
+  Dataset,
+  DatasetConfirmMetadata,
+  DocumentUploadManifest,
+} from '../../models/Dataset';
 import { tokenCsvParser } from '../../parsers/CsvParser/CsvParser';
 import { tokenJsonlParser } from '../../parsers/JsonlParser/JsonlParser';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 import {
   extractDatasetMetadata,
   validateDatasetSize,
+  validateDeclaredTotalSize,
+  validateUploadedFileSize,
 } from '../datasetValidation';
 
 export type ConfirmDatasetUploadUseCase = {
-  confirmDatasetUpload(datasetId: string): Promise<DatasetMetadata>;
+  confirmDatasetUpload(datasetId: string): Promise<DatasetConfirmMetadata>;
 };
 
 export class ConfirmDatasetUploadUseCaseImpl implements ConfirmDatasetUploadUseCase {
@@ -18,14 +24,62 @@ export class ConfirmDatasetUploadUseCaseImpl implements ConfirmDatasetUploadUseC
   private readonly jsonlParser = inject(tokenJsonlParser);
   private readonly datasetService = inject(tokenDatasetService);
 
-  async confirmDatasetUpload(datasetId: string): Promise<DatasetMetadata> {
+  async confirmDatasetUpload(
+    datasetId: string,
+  ): Promise<DatasetConfirmMetadata> {
+    const manifest = await this.datasetService.readUploadManifest(datasetId);
+    if (manifest) {
+      return this.confirmDocumentUpload(datasetId, manifest);
+    }
+
+    return this.confirmStructuredDatasetUpload(datasetId);
+  }
+
+  private async confirmStructuredDatasetUpload(
+    datasetId: string,
+  ): Promise<DatasetConfirmMetadata> {
     const { content, fileExtension } =
       await this.datasetService.retrieveDataset(datasetId);
 
     const dataset = this.parseDataset(content, fileExtension);
     validateDatasetSize(dataset);
 
+    console.info(`Upload done for structured dataset`);
+
     return extractDatasetMetadata(datasetId, dataset);
+  }
+
+  private async confirmDocumentUpload(
+    datasetId: string,
+    manifest: DocumentUploadManifest,
+  ): Promise<DatasetConfirmMetadata> {
+    const documents = [];
+
+    for (const file of manifest.files) {
+      const actualSize = await this.datasetService.getUploadedObjectSize(
+        file.s3_key,
+      );
+      validateUploadedFileSize(actualSize, file.size_bytes);
+      documents.push({
+        filename: file.filename,
+        file_type: file.file_type,
+        size_bytes: actualSize,
+      });
+    }
+
+    validateDeclaredTotalSize(documents.map((document) => document.size_bytes));
+
+    console.info(`Upload done for ${documents.length} document files`);
+
+    return {
+      dataset_type: 'documents',
+      dataset_id: datasetId,
+      file_count: documents.length,
+      documents: documents.map((document) => ({
+        filename: document.filename,
+        file_type: document.file_type,
+      })),
+    };
   }
 
   private parseDataset(
