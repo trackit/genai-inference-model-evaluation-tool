@@ -1,5 +1,6 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
+import { BasicError, BasicErrorType } from 'backend/src/errors';
 import {
   Dataset,
   DatasetConfirmMetadata,
@@ -36,7 +37,15 @@ export class ConfirmDatasetUploadUseCaseImpl implements ConfirmDatasetUploadUseC
       return this.confirmDocumentUpload(datasetId, manifest);
     }
 
-    return this.confirmStructuredDatasetUpload(datasetId, file_type!);
+    if (!file_type) {
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'MISSING_FILE_TYPE',
+        'file_type is required to confirm a structured dataset upload',
+      );
+    }
+
+    return this.confirmStructuredDatasetUpload(datasetId, file_type);
   }
 
   private async confirmStructuredDatasetUpload(
