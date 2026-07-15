@@ -18,7 +18,7 @@ import {
   convertedDatasetS3Key,
   datasetS3Key,
   documentS3Key,
-} from '../../services/DatasetService/s3Keys';
+} from './s3Keys.internal';
 
 const DocumentUploadManifestSchema = z.object({
   max_total_bytes: z.number().int().positive(),

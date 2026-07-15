@@ -13,7 +13,7 @@ import {
   convertedDatasetS3Key,
   datasetS3Key,
   documentS3Key,
-} from 'backend/src/services/DatasetService/s3Keys';
+} from 'backend/src/services/DatasetService/s3Keys.internal';
 import { randomUUID } from 'crypto';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';

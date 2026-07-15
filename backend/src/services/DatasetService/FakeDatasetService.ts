@@ -6,7 +6,7 @@ import { DatasetService } from '../../ports/DatasetService';
 import {
   convertedDatasetS3Key,
   documentS3Key,
-} from '../../services/DatasetService/s3Keys';
+} from './s3Keys.internal';
 
 export type StoredDatasetUpload = {
   datasetId: string;
