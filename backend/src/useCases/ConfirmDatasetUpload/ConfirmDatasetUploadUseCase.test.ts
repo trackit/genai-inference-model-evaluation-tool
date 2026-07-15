@@ -15,7 +15,7 @@ describe('ConfirmDatasetUploadUseCase', () => {
       const { useCase, datasetService } = setup();
       await datasetService.upload('dataset-id', defaultCsv, 'csv');
 
-      const result = await useCase.confirmDatasetUpload('dataset-id');
+      const result = await useCase.confirmDatasetUpload('dataset-id', 'csv');
 
       expect(result).toEqual({
         dataset_type: 'structured',
@@ -35,7 +35,7 @@ describe('ConfirmDatasetUploadUseCase', () => {
       const { useCase, datasetService } = setup();
       await datasetService.upload('dataset-id', jsonlContent, 'jsonl');
 
-      const result = await useCase.confirmDatasetUpload('dataset-id');
+      const result = await useCase.confirmDatasetUpload('dataset-id', 'jsonl');
 
       expect(result).toMatchObject({
         dataset_type: 'structured',
@@ -49,7 +49,9 @@ describe('ConfirmDatasetUploadUseCase', () => {
       const { useCase, datasetService } = setup();
       await datasetService.upload('dataset-id', content, 'csv');
 
-      await expect(useCase.confirmDatasetUpload('dataset-id')).rejects.toThrow(
+      await expect(
+        useCase.confirmDatasetUpload('dataset-id', 'csv'),
+      ).rejects.toThrow(
         'Dataset must contain at least 10 samples. Found 2 samples',
       );
     });
