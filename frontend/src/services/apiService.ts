@@ -18,6 +18,7 @@ export function getBaseUrl(): string {
 
 type InitializeDatasetUploadResponse = {
   dataset_id: string;
+  file_type: string;
   uploads: Array<{
     document_id: string;
     upload_url: string;
@@ -168,7 +169,7 @@ export async function uploadDataset(files: File[]): Promise<DatasetUploadData> {
     }),
   });
 
-  const { dataset_id, uploads } =
+  const { dataset_id, file_type, uploads } =
     await handleResponse<InitializeDatasetUploadResponse>(initResponse);
 
   if (uploads.length !== files.length) {
@@ -190,6 +191,7 @@ export async function uploadDataset(files: File[]): Promise<DatasetUploadData> {
     {
       method: 'POST',
       headers: authHeaders(),
+      body: JSON.stringify({ file_type }),
     },
     120_000,
   );

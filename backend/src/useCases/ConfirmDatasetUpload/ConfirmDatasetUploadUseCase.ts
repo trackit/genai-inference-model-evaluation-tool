@@ -16,7 +16,10 @@ import {
 } from '../datasetValidation';
 
 export type ConfirmDatasetUploadUseCase = {
-  confirmDatasetUpload(datasetId: string): Promise<DatasetConfirmMetadata>;
+  confirmDatasetUpload(
+    datasetId: string,
+    file_type?: 'csv' | 'jsonl',
+  ): Promise<DatasetConfirmMetadata>;
 };
 
 export class ConfirmDatasetUploadUseCaseImpl implements ConfirmDatasetUploadUseCase {
@@ -26,22 +29,26 @@ export class ConfirmDatasetUploadUseCaseImpl implements ConfirmDatasetUploadUseC
 
   async confirmDatasetUpload(
     datasetId: string,
+    file_type?: 'csv' | 'jsonl',
   ): Promise<DatasetConfirmMetadata> {
     const manifest = await this.datasetService.readUploadManifest(datasetId);
     if (manifest) {
       return this.confirmDocumentUpload(datasetId, manifest);
     }
 
-    return this.confirmStructuredDatasetUpload(datasetId);
+    return this.confirmStructuredDatasetUpload(datasetId, file_type!);
   }
 
   private async confirmStructuredDatasetUpload(
     datasetId: string,
+    file_type: 'csv' | 'jsonl',
   ): Promise<DatasetConfirmMetadata> {
-    const { content, fileExtension } =
-      await this.datasetService.retrieveDataset(datasetId);
+    const content = await this.datasetService.retrieveDataset(
+      datasetId,
+      file_type,
+    );
 
-    const dataset = this.parseDataset(content, fileExtension);
+    const dataset = this.parseDataset(content, file_type);
     validateDatasetSize(dataset);
 
     console.info(`Upload done for structured dataset`);

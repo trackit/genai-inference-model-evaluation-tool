@@ -114,8 +114,11 @@ export class FakeDatasetService implements DatasetService {
 
   async retrieveDataset(
     datasetId: string,
-  ): Promise<{ content: string; fileExtension: 'csv' | 'jsonl' }> {
-    const stored = this.uploads.find((u) => u.datasetId === datasetId);
+    fileType: 'csv' | 'jsonl',
+  ): Promise<string> {
+    const stored = this.uploads.find(
+      (u) => u.datasetId === datasetId && u.fileExtension === fileType,
+    );
     if (!stored) {
       throw new BasicError(
         BasicErrorType.NOT_FOUND,
@@ -124,10 +127,7 @@ export class FakeDatasetService implements DatasetService {
         `No dataset found with ID: ${datasetId}`,
       );
     }
-    return {
-      content: stored.content,
-      fileExtension: stored.fileExtension,
-    };
+    return stored.content;
   }
 
   async writeUploadManifest(
