@@ -18,7 +18,7 @@ export function getBaseUrl(): string {
 
 type InitializeDatasetUploadResponse = {
   dataset_id: string;
-  file_type: string;
+  file_type?: 'csv' | 'jsonl';
   uploads: Array<{
     document_id: string;
     upload_url: string;
