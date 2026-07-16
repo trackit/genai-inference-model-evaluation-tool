@@ -8,7 +8,6 @@ import { inject, reset } from '@trackit.io/di-container';
 import { mockClient } from 'aws-sdk-client-mock';
 import { describe, expect, it } from 'vitest';
 
-import { MAX_DATASET_BYTES } from '../../models/Dataset';
 import {
   convertedDatasetS3Key,
   datasetS3Key,
@@ -16,6 +15,7 @@ import {
 } from 'backend/src/services/DatasetService/s3Keys.internal';
 import { randomUUID } from 'crypto';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
+import { MAX_DATASET_BYTES } from '../../models/Dataset';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { DatasetServiceImpl, tokenClientS3 } from './DatasetServiceS3';
 

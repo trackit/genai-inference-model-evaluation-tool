@@ -3,10 +3,7 @@ import { createInjectionToken } from '@trackit.io/di-container';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { DatasetFileType, DocumentUploadManifest } from '../../models/Dataset';
 import { DatasetService } from '../../ports/DatasetService';
-import {
-  convertedDatasetS3Key,
-  documentS3Key,
-} from './s3Keys.internal';
+import { convertedDatasetS3Key, documentS3Key } from './s3Keys.internal';
 
 export type StoredDatasetUpload = {
   datasetId: string;

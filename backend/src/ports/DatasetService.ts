@@ -1,5 +1,4 @@
-import { DocumentUploadManifest } from '../models/Dataset';
-import { DatasetFileType } from '../models/Dataset';
+import { DatasetFileType, DocumentUploadManifest } from '../models/Dataset';
 
 export interface DatasetService {
   generatePresignedPost(
