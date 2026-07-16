@@ -112,6 +112,12 @@ Resources:
       LogGroupName: !Sub '/aws/lambda/${ConfirmDatasetUploadFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
+  DocumentConversionFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${DocumentConversionFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
   RequestAccessCodeFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
