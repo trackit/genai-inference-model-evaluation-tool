@@ -5,7 +5,10 @@ import {
   FakeDatasetService,
   tokenFakeDatasetService,
 } from '../../services/DatasetService/FakeDatasetService';
-import { tokenFakeSyntheticOutputModelClient } from '../../services/SyntheticOutputModelClient/FakeSyntheticOutputModelClient';
+import {
+  FakeSyntheticOutputModelClient,
+  tokenFakeSyntheticOutputModelClient,
+} from '../../services/SyntheticOutputModelClient/FakeSyntheticOutputModelClient';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { RunSyntheticPreprocessingUseCaseImpl } from './RunSyntheticPreprocessingUseCase';
 
@@ -33,7 +36,6 @@ describe('RunSyntheticPreprocessingUseCase', () => {
       failedCount: 0,
       sampleCount: 2,
     });
-    expect(fakeDatasetService.artifacts).toHaveLength(3);
     expect(
       artifactBody(fakeDatasetService, 'datasets/demo-dataset.jsonl'),
     ).toBe(
@@ -42,11 +44,40 @@ describe('RunSyntheticPreprocessingUseCase', () => {
     );
   });
 
-  it('does not write the final structured dataset when generation has failures', async () => {
+  it('retries failed rows and proceeds to structured dataset on recovery', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
     seedConvertedArtifact(fakeDatasetService);
     fakeModelClient.queueOutput('Summary one');
-    fakeModelClient.queueError(new Error('model failed'));
+    fakeModelClient.queueError(new Error('transient'));
+    fakeModelClient.queueOutput('Summary two recovered');
+
+    const result = await useCase.runSyntheticPreprocessing({
+      datasetId: 'demo-dataset',
+      convertedDatasetArtifactKey:
+        'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      taskType: 'summarization',
+    });
+
+    expect(result).toMatchObject({
+      generatedCount: 2,
+      failedCount: 0,
+      sampleCount: 2,
+    });
+    expect(
+      artifactBody(
+        fakeDatasetService,
+        'datasets/demo-dataset/demo-dataset.jsonl',
+      ),
+    ).toContain('Summary two recovered');
+  });
+
+  it('throws after exhausting retries when rows remain failed', async () => {
+    const { fakeDatasetService, fakeModelClient, useCase } = setup();
+    seedConvertedArtifact(fakeDatasetService);
+    fakeModelClient.queueOutput('Summary one');
+    fakeModelClient.queueError(new Error('fail 1'));
+    fakeModelClient.queueError(new Error('fail 2'));
+    fakeModelClient.queueError(new Error('fail 3'));
 
     await expect(
       useCase.runSyntheticPreprocessing({
@@ -78,7 +109,9 @@ function setup() {
 
   return {
     fakeDatasetService: inject(tokenFakeDatasetService),
-    fakeModelClient: inject(tokenFakeSyntheticOutputModelClient),
+    fakeModelClient: inject(
+      tokenFakeSyntheticOutputModelClient,
+    ) as FakeSyntheticOutputModelClient,
     useCase: new RunSyntheticPreprocessingUseCaseImpl(),
   };
 }

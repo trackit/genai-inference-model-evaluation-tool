@@ -17,6 +17,14 @@ export interface GenerateSyntheticOutputsInput {
   modelId?: string;
 }
 
+export interface RetryFailedRowsInput {
+  datasetId: string;
+  syntheticDatasetArtifactKey: string;
+  convertedDatasetArtifactKey: string;
+  taskType: PreprocessingTaskType;
+  modelId?: string;
+}
+
 export interface GenerateSyntheticOutputsOutput {
   syntheticDatasetArtifactKey: string;
   generatedCount: number;
@@ -26,6 +34,10 @@ export interface GenerateSyntheticOutputsOutput {
 export type GenerateSyntheticOutputsUseCase = {
   generateSyntheticOutputs(
     input: GenerateSyntheticOutputsInput,
+  ): Promise<GenerateSyntheticOutputsOutput>;
+
+  retryFailedRows(
+    input: RetryFailedRowsInput,
   ): Promise<GenerateSyntheticOutputsOutput>;
 };
 
@@ -58,6 +70,50 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
       syntheticDatasetArtifactKey,
       generatedCount: countRowsByStatus(rows, 'completed'),
       failedCount: countRowsByStatus(rows, 'failed'),
+    };
+  }
+
+  async retryFailedRows({
+    datasetId,
+    syntheticDatasetArtifactKey,
+    convertedDatasetArtifactKey,
+    taskType,
+    modelId,
+  }: RetryFailedRowsInput): Promise<GenerateSyntheticOutputsOutput> {
+    const existingRows = await this.datasetService.readSyntheticDatasetRows(
+      syntheticDatasetArtifactKey,
+    );
+    const convertedRows = await this.datasetService.readConvertedDatasetRows(
+      convertedDatasetArtifactKey,
+    );
+    const convertedByChunkId = new Map(
+      convertedRows.map((row) => [row.chunk_id, row]),
+    );
+
+    const updatedRows: SyntheticOutputRow[] = [];
+
+    for (const row of existingRows) {
+      if (row.status !== 'failed') {
+        updatedRows.push(row);
+        continue;
+      }
+
+      const convertedRow = convertedByChunkId.get(row.chunk_id);
+      if (!convertedRow) {
+        updatedRows.push(row);
+        continue;
+      }
+
+      updatedRows.push(await this.generateRow(convertedRow, taskType, modelId));
+    }
+
+    const { syntheticDatasetArtifactKey: updatedKey } =
+      await this.datasetService.writeSyntheticDataset(datasetId, updatedRows);
+
+    return {
+      syntheticDatasetArtifactKey: updatedKey,
+      generatedCount: countRowsByStatus(updatedRows, 'completed'),
+      failedCount: countRowsByStatus(updatedRows, 'failed'),
     };
   }
 

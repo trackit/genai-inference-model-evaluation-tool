@@ -5,8 +5,11 @@ import { PreprocessingTaskType } from '../../models/Preprocessing';
 import { tokenGenerateStructuredDatasetUseCase } from '../GenerateStructuredDataset/GenerateStructuredDatasetUseCase';
 import {
   GenerateSyntheticOutputsInput,
+  GenerateSyntheticOutputsOutput,
   tokenGenerateSyntheticOutputsUseCase,
 } from '../GenerateSyntheticOutputs/GenerateSyntheticOutputsUseCase';
+
+const MAX_RETRY_ATTEMPTS = 2;
 
 export interface RunSyntheticPreprocessingRequest {
   datasetId: string;
@@ -44,7 +47,7 @@ export class RunSyntheticPreprocessingUseCaseImpl implements RunSyntheticPreproc
     taskType,
     modelId,
   }: RunSyntheticPreprocessingRequest): Promise<RunSyntheticPreprocessingResult> {
-    const syntheticResult =
+    let syntheticResult =
       await this.generateSyntheticOutputs.generateSyntheticOutputs({
         datasetId,
         convertedDatasetArtifactKey,
@@ -52,12 +55,19 @@ export class RunSyntheticPreprocessingUseCaseImpl implements RunSyntheticPreproc
         modelId,
       } satisfies GenerateSyntheticOutputsInput);
 
+    syntheticResult = await this.retryFailedWithLimit(syntheticResult, {
+      datasetId,
+      convertedDatasetArtifactKey,
+      taskType,
+      modelId,
+    });
+
     if (syntheticResult.failedCount > 0) {
       throw new BasicError(
         BasicErrorType.UNPROCESSABLE_ENTITY,
         'SYNTHETIC_GENERATION_FAILED',
-        'Synthetic generation produced failed rows',
-        `${syntheticResult.failedCount} row(s) failed synthetic generation`,
+        'Synthetic generation produced failed rows after retries',
+        `${syntheticResult.failedCount} row(s) still failed after ${MAX_RETRY_ATTEMPTS} retry attempt(s)`,
       );
     }
 
@@ -77,6 +87,32 @@ export class RunSyntheticPreprocessingUseCaseImpl implements RunSyntheticPreproc
       failedCount: syntheticResult.failedCount,
       sampleCount: structuredResult.sampleCount,
     };
+  }
+
+  private async retryFailedWithLimit(
+    result: GenerateSyntheticOutputsOutput,
+    params: {
+      datasetId: string;
+      convertedDatasetArtifactKey: string;
+      taskType: PreprocessingTaskType;
+      modelId?: string;
+    },
+  ): Promise<GenerateSyntheticOutputsOutput> {
+    let current = result;
+
+    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+      if (current.failedCount === 0) break;
+
+      current = await this.generateSyntheticOutputs.retryFailedRows({
+        datasetId: params.datasetId,
+        syntheticDatasetArtifactKey: current.syntheticDatasetArtifactKey,
+        convertedDatasetArtifactKey: params.convertedDatasetArtifactKey,
+        taskType: params.taskType,
+        modelId: params.modelId,
+      });
+    }
+
+    return current;
   }
 }
 

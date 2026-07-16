@@ -153,6 +153,81 @@ describe('GenerateSyntheticOutputsUseCase', () => {
       code: 'CONVERTED_DATASET_TASK_FIELD_MISMATCH',
     });
   });
+
+  it('retries only failed rows and preserves completed rows', async () => {
+    const { fakeDatasetService, fakeModelClient, useCase } = setup();
+    seedConvertedArtifact(fakeDatasetService, summarizationConvertedArtifact());
+    fakeModelClient.queueOutput('Summary one');
+    fakeModelClient.queueError(new Error('transient failure'));
+
+    const initial = await useCase.generateSyntheticOutputs({
+      datasetId: 'demo-dataset',
+      convertedDatasetArtifactKey:
+        'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      taskType: 'summarization',
+      modelId: 'test-model',
+    });
+
+    expect(initial.failedCount).toBe(1);
+
+    fakeModelClient.queueOutput('Summary two recovered');
+
+    const retried = await useCase.retryFailedRows({
+      datasetId: 'demo-dataset',
+      syntheticDatasetArtifactKey: initial.syntheticDatasetArtifactKey,
+      convertedDatasetArtifactKey:
+        'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      taskType: 'summarization',
+      modelId: 'test-model',
+    });
+
+    expect(retried.generatedCount).toBe(2);
+    expect(retried.failedCount).toBe(0);
+    expect(expectWrittenSyntheticRows(fakeDatasetService)).toEqual([
+      expect.objectContaining({
+        chunk_id: 'demo-dataset-0',
+        summary: 'Summary one',
+        status: 'completed',
+      }),
+      expect.objectContaining({
+        chunk_id: 'demo-dataset-1',
+        summary: 'Summary two recovered',
+        status: 'completed',
+      }),
+    ]);
+  });
+
+  it('keeps rows as failed if retry also fails', async () => {
+    const { fakeDatasetService, fakeModelClient, useCase } = setup();
+    seedConvertedArtifact(fakeDatasetService, summarizationConvertedArtifact());
+    fakeModelClient.queueOutput('Summary one');
+    fakeModelClient.queueError(new Error('first failure'));
+
+    const initial = await useCase.generateSyntheticOutputs({
+      datasetId: 'demo-dataset',
+      convertedDatasetArtifactKey:
+        'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      taskType: 'summarization',
+    });
+
+    fakeModelClient.queueError(new Error('second failure'));
+
+    const retried = await useCase.retryFailedRows({
+      datasetId: 'demo-dataset',
+      syntheticDatasetArtifactKey: initial.syntheticDatasetArtifactKey,
+      convertedDatasetArtifactKey:
+        'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      taskType: 'summarization',
+    });
+
+    expect(retried.generatedCount).toBe(1);
+    expect(retried.failedCount).toBe(1);
+    expect(expectWrittenSyntheticRows(fakeDatasetService)[1]).toMatchObject({
+      chunk_id: 'demo-dataset-1',
+      status: 'failed',
+      error_message: 'second failure',
+    });
+  });
 });
 
 function setup() {
