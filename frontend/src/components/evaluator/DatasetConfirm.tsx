@@ -117,7 +117,7 @@ export function DatasetConfirm({
                           <span
                             className={
                               isExpanded
-                                ? 'whitespace-pre-wrap'
+                                ? 'line-clamp-5 whitespace-pre-wrap break-words'
                                 : 'line-clamp-2'
                             }
                           >
@@ -129,7 +129,7 @@ export function DatasetConfirm({
                             <span
                               className={
                                 isExpanded
-                                  ? 'whitespace-pre-wrap'
+                                  ? 'line-clamp-5 whitespace-pre-wrap break-words'
                                   : 'line-clamp-2'
                               }
                             >
@@ -183,7 +183,7 @@ export function DatasetConfirm({
                               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
                                 Document
                               </p>
-                              <p className="whitespace-pre-wrap break-words">
+                              <p className="line-clamp-5 whitespace-pre-wrap break-words">
                                 {sample.document}
                               </p>
                             </div>
@@ -192,7 +192,7 @@ export function DatasetConfirm({
                                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
                                   Summary
                                 </p>
-                                <p className="whitespace-pre-wrap break-words">
+                                <p className="line-clamp-5 whitespace-pre-wrap break-words">
                                   {sample.summary}
                                 </p>
                               </div>
