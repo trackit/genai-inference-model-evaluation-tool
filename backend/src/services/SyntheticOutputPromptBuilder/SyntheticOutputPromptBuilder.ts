@@ -1,25 +1,10 @@
-import { createInjectionToken } from '@trackit.io/di-container';
-
 import { BasicError, BasicErrorType } from '../../errors';
+import { ConvertedDatasetRow } from '../../models/Preprocessing';
 import {
-  ConvertedDatasetRow,
-  PreprocessingTaskType,
-} from '../../models/Preprocessing';
-
-export interface SyntheticOutputPromptBuilder {
-  buildPrompt(input: BuildSyntheticOutputPromptInput): string;
-  normalizeOutput(input: NormalizeSyntheticOutputInput): string;
-}
-
-export interface BuildSyntheticOutputPromptInput {
-  row: ConvertedDatasetRow;
-  taskType: PreprocessingTaskType;
-}
-
-export interface NormalizeSyntheticOutputInput {
-  rawOutput: string;
-  taskType: PreprocessingTaskType;
-}
+  BuildSyntheticOutputPromptInput,
+  NormalizeSyntheticOutputInput,
+  SyntheticOutputPromptBuilder,
+} from '../../ports/SyntheticOutputPromptBuilder';
 
 export class SyntheticOutputPromptBuilderImpl implements SyntheticOutputPromptBuilder {
   buildPrompt({ row, taskType }: BuildSyntheticOutputPromptInput): string {
@@ -47,14 +32,6 @@ export class SyntheticOutputPromptBuilderImpl implements SyntheticOutputPromptBu
       : cleaned;
   }
 }
-
-export const tokenSyntheticOutputPromptBuilder =
-  createInjectionToken<SyntheticOutputPromptBuilder>(
-    'SyntheticOutputPromptBuilder',
-    {
-      useClass: SyntheticOutputPromptBuilderImpl,
-    },
-  );
 
 function buildSummarizationPrompt(row: ConvertedDatasetRow): string {
   return [

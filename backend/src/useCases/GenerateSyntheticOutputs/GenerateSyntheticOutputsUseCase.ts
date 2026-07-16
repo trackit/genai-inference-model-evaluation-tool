@@ -7,8 +7,8 @@ import {
   SyntheticOutputRow,
 } from '../../models/Preprocessing';
 import { tokenSyntheticOutputModelClient } from '../../ports/SyntheticOutputModelClient';
+import { tokenSyntheticOutputPromptBuilder } from '../../ports/SyntheticOutputPromptBuilder';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
-import { tokenSyntheticOutputPromptBuilder } from '../../services/SyntheticOutputPromptBuilder/SyntheticOutputPromptBuilder';
 
 export interface GenerateSyntheticOutputsInput {
   datasetId: string;
