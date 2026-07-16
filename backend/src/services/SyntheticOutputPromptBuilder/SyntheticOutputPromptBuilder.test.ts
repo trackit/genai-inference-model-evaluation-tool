@@ -1,39 +1,42 @@
 import { describe, expect, it } from 'vitest';
 
 import { BasicError } from '../../errors';
-import { ConvertedDatasetRow } from '../../models/Preprocessing';
 import { SyntheticOutputPromptBuilderImpl } from './SyntheticOutputPromptBuilder';
 
 describe('SyntheticOutputPromptBuilderImpl', () => {
   const builder = new SyntheticOutputPromptBuilderImpl();
 
-  it('builds a summarization prompt with converted row text', () => {
+  it('builds a summarization prompt with document text', () => {
     const prompt = builder.buildPrompt({
-      row: convertedDatasetRow({ summary: '' }),
+      document: 'Revenue increased by 18 percent in Q2.',
       taskType: 'summarization',
     });
 
     expect(prompt).toContain('Generate a concise reference summary');
     expect(prompt).toContain('Return only the summary text');
-    expect(prompt).toContain('Document ID: demo-dataset');
-    expect(prompt).toContain('Chunk ID: demo-dataset-0');
-    expect(prompt).toContain('Target field: summary');
-    expect(prompt).toContain('Revenue increased by 18 percent');
-    expect(prompt).toContain('<converted_dataset_row>');
-    expect(prompt).toContain('</converted_dataset_row>');
+    expect(prompt).toContain('Revenue increased by 18 percent in Q2.');
   });
 
   it('builds a classification prompt that asks for one canonical label', () => {
     const prompt = builder.buildPrompt({
-      row: convertedDatasetRow({ class: '' }),
+      document: 'Revenue increased by 18 percent in Q2.',
       taskType: 'classification',
     });
 
     expect(prompt).toContain('Generate one short canonical class label');
     expect(prompt).toContain('Return only the label');
     expect(prompt).toContain('Use 1 to 4 words');
-    expect(prompt).toContain('Target field: class');
-    expect(prompt).toContain('Revenue increased by 18 percent');
+    expect(prompt).toContain('Revenue increased by 18 percent in Q2.');
+  });
+
+  it('does not include metadata identifiers in the prompt', () => {
+    const prompt = builder.buildPrompt({
+      document: 'Some document text.',
+      taskType: 'summarization',
+    });
+
+    expect(prompt).not.toContain('Document ID');
+    expect(prompt).not.toContain('Chunk ID');
   });
 
   it('normalizes summarization outputs without changing casing', () => {
@@ -84,15 +87,3 @@ describe('SyntheticOutputPromptBuilderImpl', () => {
     ).toThrow(BasicError);
   });
 });
-
-function convertedDatasetRow(
-  targetField: Pick<ConvertedDatasetRow, 'summary' | 'class'>,
-): ConvertedDatasetRow {
-  return {
-    document_id: 'demo-dataset',
-    chunk_id: 'demo-dataset-0',
-    document:
-      'Revenue increased by 18 percent in Q2 due to growth in enterprise subscriptions.',
-    ...targetField,
-  };
-}

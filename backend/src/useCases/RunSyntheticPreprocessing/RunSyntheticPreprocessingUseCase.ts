@@ -1,7 +1,7 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { BasicError, BasicErrorType } from '../../errors';
-import { PreprocessingTaskType } from '../../models/Preprocessing';
+import { SyntheticOutputTaskType } from '../../models/SyntheticOutput';
 import { tokenGenerateStructuredDatasetUseCase } from '../GenerateStructuredDataset/GenerateStructuredDatasetUseCase';
 import {
   GenerateSyntheticOutputsInput,
@@ -14,7 +14,7 @@ const MAX_RETRY_ATTEMPTS = 2;
 export interface RunSyntheticPreprocessingRequest {
   datasetId: string;
   convertedDatasetArtifactKey: string;
-  taskType: PreprocessingTaskType;
+  taskType: SyntheticOutputTaskType;
   modelId?: string;
 }
 
@@ -94,7 +94,7 @@ export class RunSyntheticPreprocessingUseCaseImpl implements RunSyntheticPreproc
     params: {
       datasetId: string;
       convertedDatasetArtifactKey: string;
-      taskType: PreprocessingTaskType;
+      taskType: SyntheticOutputTaskType;
       modelId?: string;
     },
   ): Promise<GenerateSyntheticOutputsOutput> {

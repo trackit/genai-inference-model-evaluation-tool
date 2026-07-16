@@ -3,9 +3,9 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { BasicError, BasicErrorType } from '../../errors';
 import {
   ConvertedDatasetRow,
-  PreprocessingTaskType,
   SyntheticOutputRow,
-} from '../../models/Preprocessing';
+  SyntheticOutputTaskType,
+} from '../../models/SyntheticOutput';
 import { tokenSyntheticOutputModelClient } from '../../ports/SyntheticOutputModelClient';
 import { tokenSyntheticOutputPromptBuilder } from '../../ports/SyntheticOutputPromptBuilder';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
@@ -13,7 +13,7 @@ import { tokenDatasetService } from '../../services/DatasetService/DatasetServic
 export interface GenerateSyntheticOutputsInput {
   datasetId: string;
   convertedDatasetArtifactKey: string;
-  taskType: PreprocessingTaskType;
+  taskType: SyntheticOutputTaskType;
   modelId?: string;
 }
 
@@ -21,7 +21,7 @@ export interface RetryFailedRowsInput {
   datasetId: string;
   syntheticDatasetArtifactKey: string;
   convertedDatasetArtifactKey: string;
-  taskType: PreprocessingTaskType;
+  taskType: SyntheticOutputTaskType;
   modelId?: string;
 }
 
@@ -119,12 +119,12 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
 
   private async generateRow(
     convertedRow: ConvertedDatasetRow,
-    taskType: PreprocessingTaskType,
+    taskType: SyntheticOutputTaskType,
     modelId: string | undefined,
   ): Promise<SyntheticOutputRow> {
     try {
       const prompt = this.promptBuilder.buildPrompt({
-        row: convertedRow,
+        document: convertedRow.document,
         taskType,
       });
       const result = await this.modelClient.generate({ prompt, modelId });
@@ -165,7 +165,7 @@ export const tokenGenerateSyntheticOutputsUseCase =
 
 function assertTaskFieldMatches(
   row: ConvertedDatasetRow,
-  taskType: PreprocessingTaskType,
+  taskType: SyntheticOutputTaskType,
 ): void {
   if (taskType === 'summarization' && row.summary === undefined) {
     throw new BasicError(
@@ -185,7 +185,7 @@ function assertTaskFieldMatches(
 }
 
 function buildGeneratedField(
-  taskType: PreprocessingTaskType,
+  taskType: SyntheticOutputTaskType,
   output: string,
 ): Pick<SyntheticOutputRow, 'summary' | 'class'> {
   return taskType === 'summarization' ? { summary: output } : { class: output };

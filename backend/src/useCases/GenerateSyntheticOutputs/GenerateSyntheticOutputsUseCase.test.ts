@@ -51,6 +51,9 @@ describe('GenerateSyntheticOutputsUseCase', () => {
     expect(fakeModelClient.requests[0].prompt).toContain(
       'Generate a concise reference summary',
     );
+    expect(fakeModelClient.requests[0].prompt).toContain(
+      'First document chunk',
+    );
     expect(fakeModelClient.requests[0].modelId).toBe('test-model');
   });
 
@@ -85,6 +88,9 @@ describe('GenerateSyntheticOutputsUseCase', () => {
     });
     expect(fakeModelClient.requests[0].prompt).toContain(
       'Generate one short canonical class label',
+    );
+    expect(fakeModelClient.requests[0].prompt).toContain(
+      'Refunds are available after billing errors.',
     );
   });
 

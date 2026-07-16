@@ -3,7 +3,7 @@ import type { DatasetSample } from '../models/Dataset';
 import type {
   ConvertedDatasetRow,
   SyntheticOutputRow,
-} from '../models/Preprocessing';
+} from '../models/SyntheticOutput';
 
 export interface DatasetService {
   generatePresignedPost(

@@ -1,9 +1,10 @@
-export const PREPROCESSING_TASK_TYPES = [
+export const SYNTHETIC_OUTPUT_TASK_TYPES = [
   'summarization',
   'classification',
 ] as const;
 
-export type PreprocessingTaskType = (typeof PREPROCESSING_TASK_TYPES)[number];
+export type SyntheticOutputTaskType =
+  (typeof SYNTHETIC_OUTPUT_TASK_TYPES)[number];
 
 export const CHUNKING_STRATEGIES = ['document', 'chapter'] as const;
 

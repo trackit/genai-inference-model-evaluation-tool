@@ -2,7 +2,7 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { BasicError, BasicErrorType } from '../../errors';
 import { DatasetSample } from '../../models/Dataset';
-import { SyntheticOutputRow } from '../../models/Preprocessing';
+import { SyntheticOutputRow } from '../../models/SyntheticOutput';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 
 export interface StructuredDatasetGenerationInput {

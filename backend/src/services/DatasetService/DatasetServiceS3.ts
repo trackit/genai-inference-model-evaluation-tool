@@ -17,7 +17,7 @@ import {
 import {
   ConvertedDatasetRow,
   SyntheticOutputRow,
-} from '../../models/Preprocessing';
+} from '../../models/SyntheticOutput';
 import { DatasetService } from '../../ports/DatasetService';
 
 const DocumentUploadManifestSchema = z.object({

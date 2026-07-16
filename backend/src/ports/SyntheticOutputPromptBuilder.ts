@@ -1,9 +1,6 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
-import {
-  ConvertedDatasetRow,
-  PreprocessingTaskType,
-} from '../models/Preprocessing';
+import { SyntheticOutputTaskType } from '../models/SyntheticOutput';
 import { SyntheticOutputPromptBuilderImpl } from '../services/SyntheticOutputPromptBuilder/SyntheticOutputPromptBuilder';
 
 export interface SyntheticOutputPromptBuilder {
@@ -12,13 +9,13 @@ export interface SyntheticOutputPromptBuilder {
 }
 
 export interface BuildSyntheticOutputPromptInput {
-  row: ConvertedDatasetRow;
-  taskType: PreprocessingTaskType;
+  document: string;
+  taskType: SyntheticOutputTaskType;
 }
 
 export interface NormalizeSyntheticOutputInput {
   rawOutput: string;
-  taskType: PreprocessingTaskType;
+  taskType: SyntheticOutputTaskType;
 }
 
 export const tokenSyntheticOutputPromptBuilder =

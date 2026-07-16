@@ -1,5 +1,4 @@
 import { BasicError, BasicErrorType } from '../../errors';
-import { ConvertedDatasetRow } from '../../models/Preprocessing';
 import {
   BuildSyntheticOutputPromptInput,
   NormalizeSyntheticOutputInput,
@@ -7,10 +6,19 @@ import {
 } from '../../ports/SyntheticOutputPromptBuilder';
 
 export class SyntheticOutputPromptBuilderImpl implements SyntheticOutputPromptBuilder {
-  buildPrompt({ row, taskType }: BuildSyntheticOutputPromptInput): string {
-    return taskType === 'summarization'
-      ? buildSummarizationPrompt(row)
-      : buildClassificationPrompt(row);
+  buildPrompt({ document, taskType }: BuildSyntheticOutputPromptInput): string {
+    const instructions =
+      taskType === 'summarization'
+        ? [
+            'Generate a concise reference summary for the text below.',
+            'Return only the summary text. Do not include markdown, labels, or explanations.',
+          ]
+        : [
+            'Generate one short canonical class label for the text below.',
+            'Return only the label. Use 1 to 4 words. Do not include markdown, explanations, or confidence scores.',
+          ];
+
+    return [...instructions, '', document.trim()].join('\n');
   }
 
   normalizeOutput({
@@ -31,47 +39,6 @@ export class SyntheticOutputPromptBuilderImpl implements SyntheticOutputPromptBu
       ? normalizeClassificationLabel(cleaned)
       : cleaned;
   }
-}
-
-function buildSummarizationPrompt(row: ConvertedDatasetRow): string {
-  return [
-    'Generate a concise reference summary for the converted dataset row below.',
-    'Return only the summary text. Do not include markdown, labels, or explanations.',
-    '',
-    formatConvertedDatasetRowContext(row),
-  ].join('\n');
-}
-
-function buildClassificationPrompt(row: ConvertedDatasetRow): string {
-  return [
-    'Generate one short canonical class label for the converted dataset row below.',
-    'Return only the label. Use 1 to 4 words. Do not include markdown, explanations, or confidence scores.',
-    '',
-    formatConvertedDatasetRowContext(row),
-  ].join('\n');
-}
-
-function formatConvertedDatasetRowContext(row: ConvertedDatasetRow): string {
-  const contextLines = [
-    `Document ID: ${row.document_id}`,
-    `Chunk ID: ${row.chunk_id}`,
-  ];
-
-  if (row.summary !== undefined) {
-    contextLines.push('Target field: summary');
-  }
-
-  if (row.class !== undefined) {
-    contextLines.push('Target field: class');
-  }
-
-  return [
-    '<converted_dataset_row>',
-    ...contextLines,
-    '',
-    row.document.trim(),
-    '</converted_dataset_row>',
-  ].join('\n');
 }
 
 function stripWrappingPunctuation(value: string): string {
