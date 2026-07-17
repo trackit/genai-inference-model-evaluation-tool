@@ -7,7 +7,6 @@ import {
   ChunkingStrategy,
   DocumentChunk,
   ExtractedDocument,
-  TaskType,
 } from '../../models/DocumentConversion';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
 import { chunkDocumentByChapter } from '../../utils/chapterChunking';
@@ -25,7 +24,6 @@ export interface DocumentConversionRequest {
   dataset_id: string;
   documents: DocumentRequestEntry[];
   chunking_strategy: ChunkingStrategy;
-  task_type: TaskType;
 }
 
 export function chunkDocuments(
@@ -47,10 +45,7 @@ export function chunkDocuments(
   });
 }
 
-export function buildConversionJsonl(
-  chunks: DocumentChunk[],
-  taskType: TaskType,
-): string {
+export function buildConversionJsonl(chunks: DocumentChunk[]): string {
   return chunks
     .map((chunk) => {
       const record: Record<string, string> = {
@@ -58,14 +53,6 @@ export function buildConversionJsonl(
         chunk_id: chunk.chunk_id,
         document: chunk.text,
       };
-
-      if (taskType === TaskType.SUMMARIZATION) {
-        record.summary = '';
-      }
-
-      if (taskType === TaskType.CLASSIFICATION) {
-        record.class = '';
-      }
 
       return JSON.stringify(record);
     })
@@ -83,7 +70,7 @@ export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase 
 
     const chunks = chunkDocuments(extracted, request.chunking_strategy);
 
-    const jsonl = buildConversionJsonl(chunks, request.task_type);
+    const jsonl = buildConversionJsonl(chunks);
 
     const storedJsonlKey: string =
       await this.datasetService.storeConversionJsonl(request.dataset_id, jsonl);

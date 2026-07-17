@@ -8,7 +8,6 @@ import { z } from 'zod';
 import {
   ChunkingStrategy,
   SUPPORTED_DOCUMENT_FILE_TYPES,
-  TaskType,
 } from '../../models/DocumentConversion';
 import {
   DocumentConversionRequest,
@@ -33,9 +32,6 @@ const documentConversionBodySchema = z.object({
       error: 'documents must be an array',
     })
     .min(1, 'documents must contain at least one document'),
-  task_type: z.enum(TaskType, {
-    error: `task_type must be one of: ${Object.values(TaskType).join(', ')}`,
-  }),
   chunking_strategy: z
     .enum(ChunkingStrategy, {
       error: `chunking_strategy must be one of: ${Object.values(ChunkingStrategy).join(', ')}`,

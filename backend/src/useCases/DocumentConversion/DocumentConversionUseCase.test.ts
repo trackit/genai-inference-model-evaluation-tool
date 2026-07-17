@@ -1,7 +1,7 @@
 import { inject, reset } from '@trackit.io/di-container';
 import { randomUUID } from 'crypto';
 import { describe, expect, it, vi } from 'vitest';
-import { ChunkingStrategy, TaskType } from '../../models/DocumentConversion';
+import { ChunkingStrategy } from '../../models/DocumentConversion';
 import {
   FakeDatasetService,
   tokenFakeDatasetService,
@@ -52,7 +52,6 @@ describe('DocumentConversionUseCase execute', () => {
         { document_id: document_id2, file_type: 'pdf' },
       ],
       chunking_strategy: ChunkingStrategy.CHAPTER,
-      task_type: TaskType.SUMMARIZATION,
     });
 
     expect(parseSpy).toHaveBeenCalledTimes(datasetService.rawContents.length);
@@ -66,19 +65,16 @@ describe('DocumentConversionUseCase execute', () => {
         document_id: document_id1,
         chunk_id: `${document_id1}-0`,
         document: 'First paragraph.',
-        summary: '',
       },
       {
         document_id: document_id1,
         chunk_id: `${document_id1}-1`,
         document: 'Second paragraph.',
-        summary: '',
       },
       {
         document_id: document_id2,
         chunk_id: `${document_id2}-0`,
         document: 'Only one paragraph',
-        summary: '',
       },
     ]);
   });
@@ -102,7 +98,6 @@ describe('DocumentConversionUseCase execute', () => {
         { document_id: document_id2, file_type: 'pdf' },
       ],
       chunking_strategy: ChunkingStrategy.DOCUMENT,
-      task_type: TaskType.CLASSIFICATION,
     });
 
     expect(parseSpy).toHaveBeenCalledTimes(2);
@@ -116,13 +111,11 @@ describe('DocumentConversionUseCase execute', () => {
         document_id: document_id1,
         chunk_id: `${document_id1}-0`,
         document: 'First paragraph.\n\nSecond paragraph.',
-        class: '',
       },
       {
         document_id: document_id2,
         chunk_id: `${document_id2}-0`,
         document: 'Only one paragraph',
-        class: '',
       },
     ]);
   });
@@ -143,7 +136,6 @@ describe('DocumentConversionUseCase execute', () => {
       dataset_id,
       documents: [{ document_id, file_type: 'pdf' }],
       chunking_strategy: ChunkingStrategy.DOCUMENT,
-      task_type: TaskType.CLASSIFICATION,
     });
 
     expect(parseJsonlLines(getStoredJsonl(datasetService))).toEqual([
@@ -151,7 +143,6 @@ describe('DocumentConversionUseCase execute', () => {
         document_id: document_id,
         chunk_id: `${document_id}-0`,
         document: 'Only one paragraph with padding.',
-        class: '',
       },
     ]);
   });
@@ -169,7 +160,6 @@ describe('DocumentConversionUseCase execute', () => {
       dataset_id,
       documents: [{ document_id, file_type: 'docx' }],
       chunking_strategy: ChunkingStrategy.DOCUMENT,
-      task_type: TaskType.SUMMARIZATION,
     });
 
     expect(parseSpy).toHaveBeenCalledTimes(1);
@@ -180,7 +170,6 @@ describe('DocumentConversionUseCase execute', () => {
         document_id: document_id,
         chunk_id: `${document_id}-0`,
         document: 'Docx body content',
-        summary: '',
       },
     ]);
   });
@@ -202,7 +191,6 @@ describe('DocumentConversionUseCase execute', () => {
         dataset_id,
         documents: [{ document_id, file_type: 'pdf' }],
         chunking_strategy: ChunkingStrategy.DOCUMENT,
-        task_type: TaskType.SUMMARIZATION,
       }),
     ).rejects.toThrow(
       `Document "${document_id}" could not be converted into readable text`,
@@ -222,7 +210,6 @@ describe('DocumentConversionUseCase execute', () => {
         dataset_id,
         documents: [{ document_id, file_type: 'pdf' }],
         chunking_strategy: ChunkingStrategy.DOCUMENT,
-        task_type: TaskType.SUMMARIZATION,
       }),
     ).rejects.toThrow('Raw content not found');
   });

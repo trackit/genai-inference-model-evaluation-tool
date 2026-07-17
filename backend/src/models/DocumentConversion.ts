@@ -3,11 +3,6 @@ export enum ChunkingStrategy {
   CHAPTER = 'CHAPTER',
 }
 
-export enum TaskType {
-  CLASSIFICATION = 'Classification',
-  SUMMARIZATION = 'Summarization',
-}
-
 export const SUPPORTED_DOCUMENT_FILE_TYPES = ['pdf', 'doc', 'docx'] as const;
 export type SupportedDocumentFileType =
   (typeof SUPPORTED_DOCUMENT_FILE_TYPES)[number];
