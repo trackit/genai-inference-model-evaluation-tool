@@ -1,5 +1,5 @@
 import { inject, reset } from '@trackit.io/di-container';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   FakeDatasetService,
@@ -13,6 +13,14 @@ import { registerTestInfrastructure } from '../../test/registerTestInfrastructur
 import { RunSyntheticPreprocessingUseCaseImpl } from './RunSyntheticPreprocessingUseCase';
 
 describe('RunSyntheticPreprocessingUseCase', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('generates synthetic output and final structured dataset artifacts', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
     seedConvertedArtifact(fakeDatasetService);
@@ -51,12 +59,14 @@ describe('RunSyntheticPreprocessingUseCase', () => {
     fakeModelClient.queueError(new Error('transient'));
     fakeModelClient.queueOutput('Summary two recovered');
 
-    const result = await useCase.runSyntheticPreprocessing({
+    const promise = useCase.runSyntheticPreprocessing({
       datasetId: 'demo-dataset',
       convertedDatasetArtifactKey:
         'datasets/demo-dataset/demo-dataset-converted.jsonl',
       taskType: 'summarization',
     });
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result).toMatchObject({
       generatedCount: 2,
@@ -79,14 +89,18 @@ describe('RunSyntheticPreprocessingUseCase', () => {
     fakeModelClient.queueError(new Error('fail 2'));
     fakeModelClient.queueError(new Error('fail 3'));
 
-    await expect(
-      useCase.runSyntheticPreprocessing({
+    const promise = useCase
+      .runSyntheticPreprocessing({
         datasetId: 'demo-dataset',
         convertedDatasetArtifactKey:
           'datasets/demo-dataset/demo-dataset-converted.jsonl',
         taskType: 'summarization',
-      }),
-    ).rejects.toMatchObject({
+      })
+      .catch((e: unknown) => e);
+    await vi.runAllTimersAsync();
+
+    const error = await promise;
+    expect(error).toMatchObject({
       code: 'SYNTHETIC_GENERATION_FAILED',
     });
 

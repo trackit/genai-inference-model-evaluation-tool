@@ -10,6 +10,17 @@ import {
 } from '../GenerateSyntheticOutputs/GenerateSyntheticOutputsUseCase';
 
 const MAX_RETRY_ATTEMPTS = 2;
+const BASE_RETRY_DELAY_MS = 1000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryDelayMs(attempt: number): number {
+  const exponential = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
+  const jitter = Math.random() * exponential * 0.5;
+  return exponential + jitter;
+}
 
 export interface RunSyntheticPreprocessingRequest {
   datasetId: string;
@@ -102,6 +113,8 @@ export class RunSyntheticPreprocessingUseCaseImpl implements RunSyntheticPreproc
 
     for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
       if (current.failedCount === 0) break;
+
+      await sleep(retryDelayMs(attempt));
 
       current = await this.generateSyntheticOutputs.retryFailedRows({
         datasetId: params.datasetId,
