@@ -1,13 +1,16 @@
-import { DocumentUploadManifest } from '../models/Dataset';
+import { DatasetFileType, DocumentUploadManifest } from '../models/Dataset';
 
 export interface DatasetService {
   generatePresignedPost(
-    location: string,
+    datasetId: string,
+    fileType: DatasetFileType,
     contentType: string,
     maxBytes: number,
+    documentId?: string,
   ): Promise<{
     url: string;
     fields: Record<string, string>;
+    key: string;
   }>;
 
   writeUploadManifest(
@@ -23,4 +26,18 @@ export interface DatasetService {
     content: string;
     fileExtension: 'csv' | 'jsonl';
   }>;
+
+  /**
+   * Stores the converted dataset in JSONL format and returns the path to the stored file.
+   */
+  storeConversionJsonl(datasetId: string, jsonl: string): Promise<string>;
+
+  /**
+   * Fetches the raw content of a document in the dataset and returns it as a Buffer.
+   */
+  fetchRawContent(
+    datasetId: string,
+    documentId: string,
+    fileType: DatasetFileType,
+  ): Promise<Buffer>;
 }

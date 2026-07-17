@@ -7,10 +7,13 @@ import {
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { z } from 'zod';
-import { DatasetService } from '../../ports/DatasetService';
-
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
-import { DocumentUploadManifest, MIN_FILE_BYTES } from '../../models/Dataset';
+import {
+  DatasetFileType,
+  DocumentUploadManifest,
+  MIN_FILE_BYTES,
+} from '../../models/Dataset';
+import { DatasetService } from '../../ports/DatasetService';
 
 const DocumentUploadManifestSchema = z.object({
   max_total_bytes: z.number().int().positive(),
@@ -25,22 +28,61 @@ const DocumentUploadManifestSchema = z.object({
   ),
 });
 
+export function datasetS3Key(
+  datasetId: string,
+  fileType: 'csv' | 'jsonl',
+): string {
+  return `datasets/${datasetId}/${datasetId}.${fileType}`;
+}
+
+export function documentS3Key(
+  datasetId: string,
+  documentId: string,
+  fileType: DatasetFileType,
+): string {
+  return `datasets/${datasetId}/${documentId}.${fileType}`;
+}
+
+export function convertedDatasetS3Key(datasetId: string): string {
+  return `datasets/${datasetId}/${datasetId}-converted.jsonl`;
+}
+
 export class DatasetServiceImpl implements DatasetService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
   private readonly s3Client = inject(tokenClientS3);
   private readonly PRESIGNED_POST_EXPIRY_SECONDS = 1800;
 
+  private getUploadKey(
+    datasetId: string,
+    fileType: DatasetFileType,
+    documentId?: string,
+  ): string {
+    if (fileType === 'csv' || fileType === 'jsonl') {
+      return datasetS3Key(datasetId, fileType);
+    }
+
+    if (!documentId) {
+      throw new Error('documentId is required for document uploads');
+    }
+
+    return documentS3Key(datasetId, documentId, fileType);
+  }
+
   async generatePresignedPost(
-    location: string,
+    datasetId: string,
+    fileType: DatasetFileType,
     contentType: string,
     maxBytes: number,
+    documentId?: string,
   ): Promise<{
     url: string;
     fields: Record<string, string>;
+    key: string;
   }> {
+    const key = this.getUploadKey(datasetId, fileType, documentId);
     const { url, fields } = await createPresignedPost(this.s3Client, {
       Bucket: this.bucketName,
-      Key: location,
+      Key: key,
       Conditions: [
         ['content-length-range', MIN_FILE_BYTES, maxBytes],
         ['eq', '$Content-Type', contentType],
@@ -53,7 +95,7 @@ export class DatasetServiceImpl implements DatasetService {
       Expires: this.PRESIGNED_POST_EXPIRY_SECONDS,
     });
 
-    return { url, fields };
+    return { url, fields, key };
   }
 
   async writeUploadManifest(
@@ -137,7 +179,7 @@ export class DatasetServiceImpl implements DatasetService {
     fileExtension: 'csv' | 'jsonl';
   }> {
     try {
-      const csvKey = `datasets/${datasetId}/${datasetId}.csv`;
+      const csvKey = datasetS3Key(datasetId, 'csv');
       const csvResponse = await this.s3Client.send(
         new GetObjectCommand({
           Bucket: this.bucketName,
@@ -149,7 +191,7 @@ export class DatasetServiceImpl implements DatasetService {
     } catch (error: unknown) {
       if (isS3NotFound(error)) {
         try {
-          const jsonlKey = `datasets/${datasetId}/${datasetId}.jsonl`;
+          const jsonlKey = datasetS3Key(datasetId, 'jsonl');
           const jsonlResponse = await this.s3Client.send(
             new GetObjectCommand({
               Bucket: this.bucketName,
@@ -170,6 +212,53 @@ export class DatasetServiceImpl implements DatasetService {
           }
           throw jsonlError;
         }
+      }
+      throw error;
+    }
+  }
+
+  async storeConversionJsonl(
+    datasetId: string,
+    jsonl: string,
+  ): Promise<string> {
+    const convertedDatasetFileKey = convertedDatasetS3Key(datasetId);
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: convertedDatasetFileKey,
+        Body: jsonl,
+        ContentType: 'application/jsonl',
+        ServerSideEncryption: 'AES256',
+      }),
+    );
+
+    return convertedDatasetFileKey;
+  }
+
+  async fetchRawContent(
+    datasetId: string,
+    documentId: string,
+    fileType: DatasetFileType,
+  ): Promise<Buffer> {
+    const documentKey = documentS3Key(datasetId, documentId, fileType);
+    try {
+      const response = await this.s3Client.send(
+        new GetObjectCommand({ Bucket: this.bucketName, Key: documentKey }),
+      );
+
+      if (!response.Body) {
+        throw new Error('S3 returned no response body');
+      }
+
+      return Buffer.from(await response.Body.transformToByteArray());
+    } catch (error: unknown) {
+      if (isS3NotFound(error)) {
+        throw new BasicError(
+          BasicErrorType.NOT_FOUND,
+          'DOCUMENT_NOT_FOUND',
+          'Document not found',
+          `No document found with key: ${documentKey}`,
+        );
       }
       throw error;
     }

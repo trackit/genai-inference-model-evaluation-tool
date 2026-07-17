@@ -1,0 +1,119 @@
+import { createInjectionToken, inject } from '@trackit.io/di-container';
+
+import { DatasetFileType } from 'backend/src/models/Dataset';
+import { tokenDatasetService } from 'backend/src/services/DatasetService/DatasetServiceS3';
+import { BasicError, BasicErrorType } from '../../errors';
+import {
+  ChunkingStrategy,
+  DocumentChunk,
+  ExtractedDocument,
+} from '../../models/DocumentConversion';
+import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
+import { chunkDocumentByChapter } from '../../utils/chapterChunking';
+
+export type DocumentConversionUseCase = {
+  execute(request: DocumentConversionRequest): Promise<string>;
+};
+
+export type DocumentRequestEntry = {
+  document_id: string;
+  file_type: DatasetFileType;
+};
+
+export interface DocumentConversionRequest {
+  dataset_id: string;
+  documents: DocumentRequestEntry[];
+  chunking_strategy: ChunkingStrategy;
+}
+
+export function chunkDocuments(
+  extracted: ExtractedDocument[],
+  strategy: ChunkingStrategy,
+): DocumentChunk[] {
+  return extracted.flatMap((document) => {
+    if (strategy === ChunkingStrategy.DOCUMENT) {
+      return [
+        {
+          document_id: document.document_id,
+          chunk_id: `${document.document_id}-0`,
+          text: document.text.trim(),
+        },
+      ];
+    }
+
+    return chunkDocumentByChapter(document);
+  });
+}
+
+export function buildConversionJsonl(chunks: DocumentChunk[]): string {
+  return chunks
+    .map((chunk) => {
+      const record: Record<string, string> = {
+        document_id: chunk.document_id,
+        chunk_id: chunk.chunk_id,
+        document: chunk.text,
+      };
+
+      return JSON.stringify(record);
+    })
+    .join('\n');
+}
+
+export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase {
+  private readonly documentConversionService = inject(
+    tokenDocumentConversionService,
+  );
+  private readonly datasetService = inject(tokenDatasetService);
+
+  async execute(request: DocumentConversionRequest): Promise<string> {
+    const extracted = await this.fetchAndParseAll(request);
+
+    const chunks = chunkDocuments(extracted, request.chunking_strategy);
+
+    const jsonl = buildConversionJsonl(chunks);
+
+    const storedJsonlKey: string =
+      await this.datasetService.storeConversionJsonl(request.dataset_id, jsonl);
+
+    return storedJsonlKey;
+  }
+
+  private async fetchAndParseAll(
+    request: DocumentConversionRequest,
+  ): Promise<ExtractedDocument[]> {
+    return Promise.all(
+      request.documents.map(async ({ document_id, file_type }) => {
+        const rawContent = await this.datasetService.fetchRawContent(
+          request.dataset_id,
+          document_id,
+          file_type,
+        );
+
+        const extractedText = await this.documentConversionService.parse(
+          rawContent,
+          file_type,
+        );
+
+        const extracted: ExtractedDocument = {
+          document_id,
+          text: extractedText,
+        };
+
+        if (!extracted.text) {
+          throw new BasicError(
+            BasicErrorType.BAD_REQUEST,
+            'EMPTY_DOCUMENT_TEXT',
+            `Document "${document_id}" could not be converted into readable text`,
+          );
+        }
+
+        return extracted;
+      }),
+    );
+  }
+}
+
+export const tokenDocumentConversionUseCase =
+  createInjectionToken<DocumentConversionUseCase>('DocumentConversionUseCase', {
+    useClass: DocumentConversionUseCaseImpl,
+  });

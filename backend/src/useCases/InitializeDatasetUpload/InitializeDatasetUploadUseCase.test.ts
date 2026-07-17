@@ -5,26 +5,25 @@ import { BasicError } from '../../errors/BasicError';
 import { MAX_DATASET_BYTES } from '../../models/Dataset';
 import { tokenFakeDatasetService } from '../../services/DatasetService/FakeDatasetService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
-import {
-  documentS3Key,
-  InitializeDatasetUploadUseCaseImpl,
-} from './InitializeDatasetUploadUseCase';
+import { InitializeDatasetUploadUseCaseImpl } from './InitializeDatasetUploadUseCase';
 
 describe('InitializeDatasetUploadUseCase', () => {
   it('returns presigned upload details for csv files', async () => {
     const { useCase, datasetService } = setup();
+
     const sizeBytes = 1024;
     const result = await useCase.initDatasetUpload([
       { filename: 'dataset.csv', size_bytes: sizeBytes },
     ]);
+    const datasetKey = result.uploads[0].fields.key;
 
     expect(result.uploads).toHaveLength(1);
     expect(datasetService.presignedMaxBytes).toEqual([sizeBytes]);
     expect(result.uploads[0].upload_url).toBe(
-      `https://fake-s3.test/datasets/${result.dataset_id}/${result.dataset_id}.csv`,
+      `https://fake-s3.test/${datasetKey}`,
     );
     expect(result.uploads[0].fields).toEqual({
-      key: `datasets/${result.dataset_id}/${result.dataset_id}.csv`,
+      key: datasetKey,
       Policy: 'fake-policy',
     });
     expect(result.dataset_id).toMatch(
@@ -38,8 +37,8 @@ describe('InitializeDatasetUploadUseCase', () => {
       { filename: 'dataset.jsonl', size_bytes: 2048 },
     ]);
 
-    expect(result.uploads[0].fields.key).toBe(
-      `datasets/${result.dataset_id}/${result.dataset_id}.jsonl`,
+    expect(result.uploads[0].upload_url).toBe(
+      `https://fake-s3.test/${result.uploads[0].fields.key}`,
     );
   });
 
@@ -63,56 +62,21 @@ describe('InitializeDatasetUploadUseCase', () => {
           document_id: result.uploads[0].document_id,
           filename: 'report.pdf',
           file_type: 'pdf',
-          s3_key: documentS3Key(
-            result.dataset_id,
-            result.uploads[0].document_id,
-            'pdf',
-          ),
+          s3_key: result.uploads[0].fields.key,
           size_bytes: bigSize,
         },
         {
           document_id: result.uploads[1].document_id,
           filename: 'notes.docx',
           file_type: 'docx',
-          s3_key: documentS3Key(
-            result.dataset_id,
-            result.uploads[1].document_id,
-            'docx',
-          ),
+          s3_key: result.uploads[1].fields.key,
           size_bytes: smallSize,
         },
       ],
     });
-    expect(result.uploads[0].fields.key).toBe(manifest!.files[0].s3_key);
     expect(datasetService.writeUploadManifest).toHaveBeenCalledWith(
       result.dataset_id,
-      {
-        max_total_bytes: MAX_DATASET_BYTES,
-        files: [
-          {
-            document_id: result.uploads[0].document_id,
-            filename: 'report.pdf',
-            file_type: 'pdf',
-            s3_key: documentS3Key(
-              result.dataset_id,
-              result.uploads[0].document_id,
-              'pdf',
-            ),
-            size_bytes: bigSize,
-          },
-          {
-            document_id: result.uploads[1].document_id,
-            filename: 'notes.docx',
-            file_type: 'docx',
-            s3_key: documentS3Key(
-              result.dataset_id,
-              result.uploads[1].document_id,
-              'docx',
-            ),
-            size_bytes: smallSize,
-          },
-        ],
-      },
+      manifest,
     );
   });
 
