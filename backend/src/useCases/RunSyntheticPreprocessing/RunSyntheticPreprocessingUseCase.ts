@@ -9,8 +9,14 @@ import {
   tokenGenerateSyntheticOutputsUseCase,
 } from '../GenerateSyntheticOutputs/GenerateSyntheticOutputsUseCase';
 
-const MAX_RETRY_ATTEMPTS = 2;
-const BASE_RETRY_DELAY_MS = 1000;
+const MAX_RETRY_ATTEMPTS = parseInt(
+  process.env.SYNTHETIC_MAX_RETRY_ATTEMPTS ?? '2',
+  10,
+);
+const BASE_RETRY_DELAY_MS = parseInt(
+  process.env.SYNTHETIC_RETRY_BASE_DELAY_MS ?? '1000',
+  10,
+);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -13,8 +13,12 @@ import type {
 } from '../../ports/SyntheticOutputModelClient';
 
 const DEFAULT_SYNTHETIC_OUTPUT_MODEL_ID =
+  process.env.SYNTHETIC_OUTPUT_MODEL_ID?.trim() ||
   'us.meta.llama4-maverick-17b-instruct-v1:0';
-const MAX_OUTPUT_TOKENS = 512;
+const MAX_OUTPUT_TOKENS = parseInt(
+  process.env.SYNTHETIC_MAX_OUTPUT_TOKENS ?? '512',
+  10,
+);
 const TEMPERATURE = 0.2;
 
 export const tokenBedrockRuntimeClient =
