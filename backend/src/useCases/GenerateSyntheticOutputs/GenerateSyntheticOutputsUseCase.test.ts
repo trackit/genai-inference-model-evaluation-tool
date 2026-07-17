@@ -141,25 +141,6 @@ describe('GenerateSyntheticOutputsUseCase', () => {
     });
   });
 
-  it('rejects converted rows that do not match the requested task type', async () => {
-    const { fakeDatasetService, useCase } = setup();
-    seedConvertedArtifact(
-      fakeDatasetService,
-      classificationConvertedArtifact(),
-    );
-
-    await expect(
-      useCase.generateSyntheticOutputs({
-        datasetId: 'demo-dataset',
-        convertedDatasetArtifactKey:
-          'datasets/demo-dataset/demo-dataset-converted.jsonl',
-        taskType: 'summarization',
-      }),
-    ).rejects.toMatchObject({
-      code: 'CONVERTED_DATASET_TASK_FIELD_MISMATCH',
-    });
-  });
-
   it('retries only failed rows and preserves completed rows', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
     seedConvertedArtifact(fakeDatasetService, summarizationConvertedArtifact());
@@ -282,13 +263,11 @@ function summarizationConvertedArtifact(): string {
       document_id: 'demo-dataset',
       chunk_id: 'demo-dataset-0',
       document: 'First document chunk',
-      summary: '',
     }),
     JSON.stringify({
       document_id: 'demo-dataset',
       chunk_id: 'demo-dataset-1',
       document: 'Second document chunk',
-      summary: '',
     }),
   ].join('\n');
 }
@@ -298,6 +277,5 @@ function classificationConvertedArtifact(): string {
     document_id: 'demo-dataset',
     chunk_id: 'demo-dataset-0',
     document: 'Refunds are available after billing errors.',
-    class: '',
   });
 }

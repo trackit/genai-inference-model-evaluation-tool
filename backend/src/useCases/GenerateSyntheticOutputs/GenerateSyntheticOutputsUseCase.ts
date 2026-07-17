@@ -1,6 +1,5 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
-import { BasicError, BasicErrorType } from '../../errors';
 import {
   ConvertedDatasetRow,
   SyntheticOutputRow,
@@ -59,7 +58,6 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
     const rows: SyntheticOutputRow[] = [];
 
     for (const convertedRow of convertedRows) {
-      assertTaskFieldMatches(convertedRow, taskType);
       rows.push(await this.generateRow(convertedRow, taskType, modelId));
     }
 
@@ -162,27 +160,6 @@ export const tokenGenerateSyntheticOutputsUseCase =
       useClass: GenerateSyntheticOutputsUseCaseImpl,
     },
   );
-
-function assertTaskFieldMatches(
-  row: ConvertedDatasetRow,
-  taskType: SyntheticOutputTaskType,
-): void {
-  if (taskType === 'summarization' && row.summary === undefined) {
-    throw new BasicError(
-      BasicErrorType.UNPROCESSABLE_ENTITY,
-      'CONVERTED_DATASET_TASK_FIELD_MISMATCH',
-      'Summarization converted rows must include a summary field',
-    );
-  }
-
-  if (taskType === 'classification' && row.class === undefined) {
-    throw new BasicError(
-      BasicErrorType.UNPROCESSABLE_ENTITY,
-      'CONVERTED_DATASET_TASK_FIELD_MISMATCH',
-      'Classification converted rows must include a class field',
-    );
-  }
-}
 
 function buildGeneratedField(
   taskType: SyntheticOutputTaskType,

@@ -489,21 +489,6 @@ function validateConvertedDatasetRow(
     document: readRequiredConvertedString(value, 'document', lineNumber),
   };
 
-  if (value.summary !== undefined) {
-    row.summary = readOptionalConvertedString(value, 'summary', lineNumber);
-  }
-
-  if (value.class !== undefined) {
-    row.class = readOptionalConvertedString(value, 'class', lineNumber);
-  }
-
-  if (row.summary === undefined && row.class === undefined) {
-    throw invalidConvertedDatasetRow(
-      lineNumber,
-      'either "summary" or "class" must be present',
-    );
-  }
-
   return row;
 }
 
@@ -518,19 +503,6 @@ function readRequiredConvertedString(
       lineNumber,
       `"${field}" must be a non-empty string`,
     );
-  }
-
-  return fieldValue;
-}
-
-function readOptionalConvertedString(
-  value: Record<string, unknown>,
-  field: 'summary' | 'class',
-  lineNumber: number,
-): string {
-  const fieldValue = value[field];
-  if (typeof fieldValue !== 'string') {
-    throw invalidConvertedDatasetRow(lineNumber, `"${field}" must be a string`);
   }
 
   return fieldValue;

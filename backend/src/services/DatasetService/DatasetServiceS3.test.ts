@@ -177,7 +177,6 @@ describe('DatasetServiceImpl', () => {
           document_id: 'demo-dataset',
           chunk_id: 'demo-dataset-0',
           document: 'First document chunk',
-          summary: '',
         },
       ]);
       expect(
@@ -451,7 +450,6 @@ function summarizationConvertedArtifact(): string {
     document_id: 'demo-dataset',
     chunk_id: 'demo-dataset-0',
     document: 'First document chunk',
-    summary: '',
   });
 }
 

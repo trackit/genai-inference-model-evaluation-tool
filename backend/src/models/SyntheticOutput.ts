@@ -14,8 +14,6 @@ export interface ConvertedDatasetRow {
   chunk_id: string;
   document_id: string;
   document: string;
-  summary?: string;
-  class?: string;
 }
 
 export interface SyntheticOutputRow {
