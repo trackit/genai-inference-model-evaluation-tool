@@ -25,14 +25,6 @@ export default defineConfig(
         '@typescript-eslint/triple-slash-reference': 'off',
       },
     },
-    {
-      files: ['**/*.{ts,mts,cts}'],
-      ignores: [
-        '**/DatasetServiceS3.ts',
-        '**/DatasetServiceS3.test.ts',
-        '**/FakeDatasetService.ts',
-      ],
-    },
     eslintConfigPrettier,
   ],
   {
