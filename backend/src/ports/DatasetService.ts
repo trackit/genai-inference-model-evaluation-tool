@@ -2,12 +2,15 @@ import { DatasetFileType, DocumentUploadManifest } from '../models/Dataset';
 
 export interface DatasetService {
   generatePresignedPost(
-    location: string,
+    datasetId: string,
+    fileType: DatasetFileType,
     contentType: string,
     maxBytes: number,
+    documentId?: string,
   ): Promise<{
     url: string;
     fields: Record<string, string>;
+    key: string;
   }>;
 
   writeUploadManifest(

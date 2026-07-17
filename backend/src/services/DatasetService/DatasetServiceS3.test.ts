@@ -8,16 +8,17 @@ import { inject, reset } from '@trackit.io/di-container';
 import { mockClient } from 'aws-sdk-client-mock';
 import { describe, expect, it } from 'vitest';
 
-import {
-  convertedDatasetS3Key,
-  datasetS3Key,
-  documentS3Key,
-} from 'backend/src/services/DatasetService/s3Keys.internal';
 import { randomUUID } from 'crypto';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { MAX_DATASET_BYTES } from '../../models/Dataset';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
-import { DatasetServiceImpl, tokenClientS3 } from './DatasetServiceS3';
+import {
+  convertedDatasetS3Key,
+  datasetS3Key,
+  DatasetServiceImpl,
+  documentS3Key,
+  tokenClientS3,
+} from './DatasetServiceS3';
 
 const DATASET_ID = randomUUID();
 
@@ -79,7 +80,7 @@ describe('DatasetServiceImpl', () => {
             document_id: 'doc-1',
             filename: 'report.pdf',
             file_type: 'pdf' as const,
-            s3_key: 'datasets/dataset-id/doc-1.pdf',
+            s3_key: documentS3Key('dataset-id', 'doc-1', 'pdf'),
             size_bytes: 1024,
           },
         ],
@@ -138,7 +139,9 @@ describe('DatasetServiceImpl', () => {
       s3ClientMock.on(HeadObjectCommand).resolves({ ContentLength: 4096 });
 
       await expect(
-        service.getUploadedObjectSize('datasets/dataset-id/doc-1.pdf'),
+        service.getUploadedObjectSize(
+          documentS3Key('dataset-id', 'doc-1', 'pdf'),
+        ),
       ).resolves.toBe(4096);
     });
 
@@ -149,10 +152,13 @@ describe('DatasetServiceImpl', () => {
       s3ClientMock.on(HeadObjectCommand).rejects(notFound);
 
       await expect(
-        service.getUploadedObjectSize('datasets/dataset-id/missing.pdf'),
+        service.getUploadedObjectSize(
+          documentS3Key('dataset-id', 'missing', 'pdf'),
+        ),
       ).rejects.toThrow(BasicError);
     });
   });
+
   describe('storeConversionJsonl', () => {
     it('uploads JSONL to the dataset bucket with the correct metadata', async () => {
       const { service, s3ClientMock } = setup();

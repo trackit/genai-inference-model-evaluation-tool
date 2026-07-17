@@ -14,11 +14,6 @@ import {
   MIN_FILE_BYTES,
 } from '../../models/Dataset';
 import { DatasetService } from '../../ports/DatasetService';
-import {
-  convertedDatasetS3Key,
-  datasetS3Key,
-  documentS3Key,
-} from './s3Keys.internal';
 
 const DocumentUploadManifestSchema = z.object({
   max_total_bytes: z.number().int().positive(),
@@ -32,22 +27,62 @@ const DocumentUploadManifestSchema = z.object({
     }),
   ),
 });
+
+export function datasetS3Key(
+  datasetId: string,
+  fileType: 'csv' | 'jsonl',
+): string {
+  return `datasets/${datasetId}/${datasetId}.${fileType}`;
+}
+
+export function documentS3Key(
+  datasetId: string,
+  documentId: string,
+  fileType: DatasetFileType,
+): string {
+  return `datasets/${datasetId}/${documentId}.${fileType}`;
+}
+
+export function convertedDatasetS3Key(datasetId: string): string {
+  return `datasets/${datasetId}/${datasetId}-converted.jsonl`;
+}
+
 export class DatasetServiceImpl implements DatasetService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
   private readonly s3Client = inject(tokenClientS3);
   private readonly PRESIGNED_POST_EXPIRY_SECONDS = 1800;
 
+  private getUploadKey(
+    datasetId: string,
+    fileType: DatasetFileType,
+    documentId?: string,
+  ): string {
+    if (fileType === 'csv' || fileType === 'jsonl') {
+      return datasetS3Key(datasetId, fileType);
+    }
+
+    if (!documentId) {
+      throw new Error('documentId is required for document uploads');
+    }
+
+    return documentS3Key(datasetId, documentId, fileType);
+  }
+
   async generatePresignedPost(
-    location: string,
+    datasetId: string,
+    fileType: DatasetFileType,
     contentType: string,
     maxBytes: number,
+    documentId?: string,
   ): Promise<{
     url: string;
     fields: Record<string, string>;
+    key: string;
   }> {
+    const key = this.getUploadKey(datasetId, fileType, documentId);
     const { url, fields } = await createPresignedPost(this.s3Client, {
       Bucket: this.bucketName,
-      Key: location,
+      Key: key,
       Conditions: [
         ['content-length-range', MIN_FILE_BYTES, maxBytes],
         ['eq', '$Content-Type', contentType],
@@ -60,7 +95,7 @@ export class DatasetServiceImpl implements DatasetService {
       Expires: this.PRESIGNED_POST_EXPIRY_SECONDS,
     });
 
-    return { url, fields };
+    return { url, fields, key };
   }
 
   async writeUploadManifest(

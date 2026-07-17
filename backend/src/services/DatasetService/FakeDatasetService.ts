@@ -3,7 +3,11 @@ import { createInjectionToken } from '@trackit.io/di-container';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { DatasetFileType, DocumentUploadManifest } from '../../models/Dataset';
 import { DatasetService } from '../../ports/DatasetService';
-import { convertedDatasetS3Key, documentS3Key } from './s3Keys.internal';
+import {
+  convertedDatasetS3Key,
+  datasetS3Key,
+  documentS3Key,
+} from './DatasetServiceS3';
 
 export type StoredDatasetUpload = {
   datasetId: string;
@@ -64,14 +68,24 @@ export class FakeDatasetService implements DatasetService {
   }
 
   async generatePresignedPost(
-    location: string,
+    datasetId: string,
+    fileType: DatasetFileType,
     _contentType: string,
     maxBytes: number,
-  ): Promise<{ url: string; fields: Record<string, string> }> {
+    documentId?: string,
+  ): Promise<{
+    url: string;
+    fields: Record<string, string>;
+    key: string;
+  }> {
     this.presignedMaxBytes.push(maxBytes);
+    const key = documentId
+      ? documentS3Key(datasetId, documentId, fileType)
+      : datasetS3Key(datasetId, fileType as 'csv' | 'jsonl');
     return {
-      url: `https://fake-s3.test/${location}`,
-      fields: { key: location, Policy: 'fake-policy' },
+      url: `https://fake-s3.test/${key}`,
+      fields: { key: key, Policy: 'fake-policy' },
+      key,
     };
   }
 

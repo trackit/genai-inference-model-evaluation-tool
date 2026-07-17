@@ -40,21 +40,6 @@ export type InitializeDatasetUploadUseCase = {
   ): Promise<InitializeDatasetUploadResult>;
 };
 
-export function datasetS3Key(
-  datasetId: string,
-  fileType: 'csv' | 'jsonl',
-): string {
-  return `datasets/${datasetId}/${datasetId}.${fileType}`;
-}
-
-export function documentS3Key(
-  datasetId: string,
-  documentId: string,
-  fileType: DatasetFileType,
-): string {
-  return `datasets/${datasetId}/${documentId}.${fileType}`;
-}
-
 export class InitializeDatasetUploadUseCaseImpl implements InitializeDatasetUploadUseCase {
   private readonly datasetService = inject(tokenDatasetService);
 
@@ -86,9 +71,9 @@ export class InitializeDatasetUploadUseCaseImpl implements InitializeDatasetUplo
     }
     if (datasetFiles.length > 0) {
       const file = datasetFiles[0];
-      const location = datasetS3Key(datasetId, file.fileType);
       const { url, fields } = await this.datasetService.generatePresignedPost(
-        location,
+        datasetId,
+        file.fileType,
         fileContentType(file.fileType),
         file.size_bytes,
       );
@@ -115,18 +100,20 @@ export class InitializeDatasetUploadUseCaseImpl implements InitializeDatasetUplo
     const uploads = await Promise.all(
       documentFiles.map(async (file) => {
         const documentId = randomUUID();
-        const location = documentS3Key(datasetId, documentId, file.fileType);
-        const { url, fields } = await this.datasetService.generatePresignedPost(
-          location,
-          fileContentType(file.fileType),
-          file.size_bytes,
-        );
+        const { url, fields, key } =
+          await this.datasetService.generatePresignedPost(
+            datasetId,
+            file.fileType,
+            fileContentType(file.fileType),
+            file.size_bytes,
+            documentId,
+          );
 
         manifestFiles.push({
           document_id: documentId,
           filename: file.filename,
           file_type: file.fileType,
-          s3_key: location,
+          s3_key: key,
           size_bytes: file.size_bytes,
         });
 

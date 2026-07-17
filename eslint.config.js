@@ -32,20 +32,6 @@ export default defineConfig(
         '**/DatasetServiceS3.test.ts',
         '**/FakeDatasetService.ts',
       ],
-      rules: {
-        'no-restricted-imports': [
-          'error',
-          {
-            patterns: [
-              {
-                group: ['**/s3Keys.internal'],
-                message:
-                  's3Keys.internal is private to DatasetServiceS3, its test, and FakeDatasetService. Do not import it from other files.',
-              },
-            ],
-          },
-        ],
-      },
     },
     eslintConfigPrettier,
   ],
