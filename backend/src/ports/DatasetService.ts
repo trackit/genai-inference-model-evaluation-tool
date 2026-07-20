@@ -63,4 +63,18 @@ export interface DatasetService {
     datasetId: string,
     samples: DatasetSample[],
   ): Promise<{ structuredDatasetArtifactKey: string }>;
+
+  /**
+   * Stores the converted dataset in JSONL format and returns the path to the stored file.
+   */
+  storeConversionJsonl(datasetId: string, jsonl: string): Promise<string>;
+
+  /**
+   * Fetches the raw content of a document in the dataset and returns it as a Buffer.
+   */
+  fetchRawContent(
+    datasetId: string,
+    documentId: string,
+    fileType: DatasetFileType,
+  ): Promise<Buffer>;
 }
