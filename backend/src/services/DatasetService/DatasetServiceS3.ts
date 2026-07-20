@@ -52,6 +52,14 @@ export function convertedDatasetS3Key(datasetId: string): string {
   return `datasets/${datasetId}/${datasetId}-converted.jsonl`;
 }
 
+export function syntheticDatasetS3Key(datasetId: string): string {
+  return `datasets/${datasetId}/${datasetId}-synthetic.jsonl`;
+}
+
+export function structuredDatasetS3Key(datasetId: string): string {
+  return `datasets/${datasetId}/${datasetId}.jsonl`;
+}
+
 export class DatasetServiceImpl implements DatasetService {
   private readonly bucketName = process.env.DATASET_BUCKET!;
   private readonly s3Client = inject(tokenClientS3);
@@ -309,8 +317,7 @@ export class DatasetServiceImpl implements DatasetService {
       );
     }
 
-    const syntheticDatasetArtifactKey =
-      buildSyntheticDatasetArtifactKey(datasetId);
+    const syntheticDatasetArtifactKey = syntheticDatasetS3Key(datasetId);
     await this.writeArtifact(
       syntheticDatasetArtifactKey,
       serializeSyntheticRows(rows),
@@ -359,7 +366,7 @@ export class DatasetServiceImpl implements DatasetService {
       );
     }
 
-    const structuredDatasetArtifactKey = `datasets/${datasetId}/${datasetId}.jsonl`;
+    const structuredDatasetArtifactKey = structuredDatasetS3Key(datasetId);
     await this.writeArtifact(
       structuredDatasetArtifactKey,
       serializeSamples(samples),
@@ -406,10 +413,6 @@ function isS3NotFound(error: unknown): boolean {
     error instanceof Error &&
     (error.name === 'NoSuchKey' || error.name === 'NotFound')
   );
-}
-
-function buildSyntheticDatasetArtifactKey(datasetId: string): string {
-  return `datasets/${datasetId}/${datasetId}-synthetic.jsonl`;
 }
 
 function serializeSyntheticRows(rows: SyntheticOutputRow[]): string {

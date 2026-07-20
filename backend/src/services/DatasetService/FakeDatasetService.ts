@@ -15,6 +15,8 @@ import {
   convertedDatasetS3Key,
   datasetS3Key,
   documentS3Key,
+  structuredDatasetS3Key,
+  syntheticDatasetS3Key,
 } from './DatasetServiceS3';
 
 export type StoredDatasetUpload = {
@@ -59,6 +61,14 @@ export class FakeDatasetService implements DatasetService {
       documentId,
       fileType,
       content,
+    });
+  }
+
+  seedConvertedDatasetRows(key: string, rows: ConvertedDatasetRow[]): void {
+    this.artifacts.push({
+      key,
+      body: rows.map((row) => JSON.stringify(row)).join('\n'),
+      contentType: 'application/jsonl',
     });
   }
 
@@ -157,7 +167,7 @@ export class FakeDatasetService implements DatasetService {
     datasetId: string,
     rows: SyntheticOutputRow[],
   ): Promise<{ syntheticDatasetArtifactKey: string }> {
-    const syntheticDatasetArtifactKey = `datasets/${datasetId}/${datasetId}-synthetic.jsonl`;
+    const syntheticDatasetArtifactKey = syntheticDatasetS3Key(datasetId);
     this.writeArtifactContent(
       syntheticDatasetArtifactKey,
       serializeJsonlRows(rows),
@@ -177,7 +187,7 @@ export class FakeDatasetService implements DatasetService {
     datasetId: string,
     samples: DatasetSample[],
   ): Promise<{ structuredDatasetArtifactKey: string }> {
-    const structuredDatasetArtifactKey = `datasets/${datasetId}/${datasetId}.jsonl`;
+    const structuredDatasetArtifactKey = structuredDatasetS3Key(datasetId);
     this.writeArtifactContent(
       structuredDatasetArtifactKey,
       serializeJsonlRows(

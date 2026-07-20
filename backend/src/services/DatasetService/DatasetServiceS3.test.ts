@@ -437,7 +437,7 @@ const setup = () => {
   registerTestInfrastructure();
   process.env.DATASET_BUCKET = 'test-bucket';
 
-  const s3ClientMock = mockClient(inject(tokenClientS3) as never);
+  const s3ClientMock = mockClient(inject(tokenClientS3));
 
   return {
     service: new DatasetServiceImpl(),
