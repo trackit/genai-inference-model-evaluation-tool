@@ -1,0 +1,28 @@
+version = 0.1
+
+[default.global.parameters]
+stack_name = "genai-inference-model-evaluation-tool"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[dev.deploy.parameters]
+stack_name = "genai-inference-model-evaluation-tool-dev"
+s3_prefix = "genai-inference-model-evaluation-tool-dev"
+resolve_s3 = true
+region = "AWS_REGION"
+capabilities = ["CAPABILITY_IAM", "CAPABILITY_AUTO_EXPAND", "CAPABILITY_NAMED_IAM"]
+confirm_changeset = true
+tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"dev\""
+image_repository = "ACCOUNT_ID.dkr.ecr.AWS_REGION.amazonaws.com/genai-evaluation"
+
+[prod.deploy.parameters]
+stack_name = "genai-inference-model-evaluation-tool-prod"
+s3_prefix = "genai-inference-model-evaluation-tool-prod"
+resolve_s3 = true
+region = "AWS_REGION"
+capabilities = ["CAPABILITY_IAM", "CAPABILITY_AUTO_EXPAND", "CAPABILITY_NAMED_IAM"]
+confirm_changeset = true
+tags = "Name=\"GenAI Inference Model Evaluation Tool Stack\" Project=\"GenAI Inference Model Evaluation Tool\" Owner=\"prod\""
+image_repository = "ACCOUNT_ID.dkr.ecr.AWS_REGION.amazonaws.com/genai-evaluation"
