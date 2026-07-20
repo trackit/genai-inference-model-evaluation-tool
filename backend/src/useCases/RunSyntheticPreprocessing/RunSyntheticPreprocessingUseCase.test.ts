@@ -45,7 +45,10 @@ describe('RunSyntheticPreprocessingUseCase', () => {
       sampleCount: 2,
     });
     expect(
-      artifactBody(fakeDatasetService, 'datasets/demo-dataset/demo-dataset.jsonl'),
+      artifactBody(
+        fakeDatasetService,
+        'datasets/demo-dataset/demo-dataset.jsonl',
+      ),
     ).toBe(
       '{"document":"First document chunk","summary":"Summary one"}\n' +
         '{"document":"Second document chunk","summary":"Summary two"}\n',

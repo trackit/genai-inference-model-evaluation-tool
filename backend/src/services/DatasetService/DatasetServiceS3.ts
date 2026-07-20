@@ -368,53 +368,6 @@ export class DatasetServiceImpl implements DatasetService {
     return { structuredDatasetArtifactKey };
   }
 
-  async storeConversionJsonl(
-    datasetId: string,
-    jsonl: string,
-  ): Promise<string> {
-    const convertedDatasetFileKey = convertedDatasetS3Key(datasetId);
-    await this.s3Client.send(
-      new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: convertedDatasetFileKey,
-        Body: jsonl,
-        ContentType: 'application/jsonl',
-        ServerSideEncryption: 'AES256',
-      }),
-    );
-
-    return convertedDatasetFileKey;
-  }
-
-  async fetchRawContent(
-    datasetId: string,
-    documentId: string,
-    fileType: DatasetFileType,
-  ): Promise<Buffer> {
-    const documentKey = documentS3Key(datasetId, documentId, fileType);
-    try {
-      const response = await this.s3Client.send(
-        new GetObjectCommand({ Bucket: this.bucketName, Key: documentKey }),
-      );
-
-      if (!response.Body) {
-        throw new Error('S3 returned no response body');
-      }
-
-      return Buffer.from(await response.Body.transformToByteArray());
-    } catch (error: unknown) {
-      if (isS3NotFound(error)) {
-        throw new BasicError(
-          BasicErrorType.NOT_FOUND,
-          'DOCUMENT_NOT_FOUND',
-          'Document not found',
-          `No document found with key: ${documentKey}`,
-        );
-      }
-      throw error;
-    }
-  }
-
   private async retrieveArtifact(key: string): Promise<string> {
     const response = await this.s3Client.send(
       new GetObjectCommand({

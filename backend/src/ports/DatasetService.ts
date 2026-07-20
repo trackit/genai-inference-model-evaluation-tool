@@ -1,5 +1,5 @@
-import { DatasetFileType, DocumentUploadManifest } from '../models/Dataset';
 import type { DatasetSample } from '../models/Dataset';
+import { DatasetFileType, DocumentUploadManifest } from '../models/Dataset';
 import type {
   ConvertedDatasetRow,
   SyntheticOutputRow,
