@@ -1,7 +1,3 @@
-import { createInjectionToken } from '@trackit.io/di-container';
-
-import { BedrockSyntheticOutputModelClient } from '../services/SyntheticOutputModelClient/BedrockSyntheticOutputModelClient';
-
 export interface SyntheticOutputModelClient {
   generate(
     request: SyntheticOutputModelRequest,
@@ -17,11 +13,3 @@ export interface SyntheticOutputModelResult {
   output: string;
   modelId?: string;
 }
-
-export const tokenSyntheticOutputModelClient =
-  createInjectionToken<SyntheticOutputModelClient>(
-    'SyntheticOutputModelClient',
-    {
-      useClass: BedrockSyntheticOutputModelClient,
-    },
-  );

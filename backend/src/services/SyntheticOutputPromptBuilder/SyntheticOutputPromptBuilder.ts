@@ -1,3 +1,5 @@
+import { createInjectionToken } from '@trackit.io/di-container';
+
 import { BasicError, BasicErrorType } from '../../errors';
 import {
   BuildSyntheticOutputPromptInput,
@@ -60,3 +62,11 @@ function normalizeClassificationLabel(value: string): string {
     .replace(/[^a-z0-9]+/gu, '_')
     .replace(/^_+|_+$/gu, '');
 }
+
+export const tokenSyntheticOutputPromptBuilder =
+  createInjectionToken<SyntheticOutputPromptBuilder>(
+    'SyntheticOutputPromptBuilder',
+    {
+      useClass: SyntheticOutputPromptBuilderImpl,
+    },
+  );

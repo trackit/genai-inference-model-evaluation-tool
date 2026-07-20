@@ -105,3 +105,11 @@ function extractTextOutput(response: ConverseCommandOutput): string {
 
   return output;
 }
+
+export const tokenSyntheticOutputModelClient =
+  createInjectionToken<SyntheticOutputModelClient>(
+    'SyntheticOutputModelClient',
+    {
+      useClass: BedrockSyntheticOutputModelClient,
+    },
+  );

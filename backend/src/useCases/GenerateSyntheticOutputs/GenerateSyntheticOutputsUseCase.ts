@@ -5,8 +5,8 @@ import {
   SyntheticOutputRow,
   SyntheticOutputTaskType,
 } from '../../models/SyntheticOutput';
-import { tokenSyntheticOutputModelClient } from '../../ports/SyntheticOutputModelClient';
-import { tokenSyntheticOutputPromptBuilder } from '../../ports/SyntheticOutputPromptBuilder';
+import { tokenSyntheticOutputModelClient } from '../../services/SyntheticOutputModelClient/BedrockSyntheticOutputModelClient';
+import { tokenSyntheticOutputPromptBuilder } from '../../services/SyntheticOutputPromptBuilder/SyntheticOutputPromptBuilder';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 
 export interface GenerateSyntheticOutputsInput {

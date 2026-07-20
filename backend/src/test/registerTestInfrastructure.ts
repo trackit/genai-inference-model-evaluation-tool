@@ -1,5 +1,5 @@
 import { inject, register } from '@trackit.io/di-container';
-import { tokenSyntheticOutputModelClient } from '../ports/SyntheticOutputModelClient';
+import { tokenSyntheticOutputModelClient } from '../services/SyntheticOutputModelClient/BedrockSyntheticOutputModelClient';
 import { tokenAccessCodeRepository } from '../services/AccessCodeRepository/AccessCodeRepository';
 import { tokenFakeAccessCodeRepository } from '../services/AccessCodeRepository/FakeAccessCodeRepository';
 import { tokenBedrockModelValidationService } from '../services/BedrockModelValidationService/BedrockModelValidationService';
