@@ -1,6 +1,7 @@
 import { inject, reset } from '@trackit.io/di-container';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ConvertedDatasetRow } from '../../models/SyntheticOutput';
 import {
   FakeDatasetService,
   tokenFakeDatasetService,
@@ -23,7 +24,10 @@ describe('RunSyntheticPreprocessingUseCase', () => {
 
   it('generates synthetic output and final structured dataset artifacts', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    seedConvertedArtifact(fakeDatasetService);
+    fakeDatasetService.seedConvertedDatasetRows(
+      'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      convertedRows(),
+    );
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueOutput('Summary two');
 
@@ -57,7 +61,10 @@ describe('RunSyntheticPreprocessingUseCase', () => {
 
   it('retries failed rows and proceeds to structured dataset on recovery', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    seedConvertedArtifact(fakeDatasetService);
+    fakeDatasetService.seedConvertedDatasetRows(
+      'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      convertedRows(),
+    );
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueError(new Error('transient'));
     fakeModelClient.queueOutput('Summary two recovered');
@@ -86,7 +93,10 @@ describe('RunSyntheticPreprocessingUseCase', () => {
 
   it('throws after exhausting retries when rows remain failed', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    seedConvertedArtifact(fakeDatasetService);
+    fakeDatasetService.seedConvertedDatasetRows(
+      'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      convertedRows(),
+    );
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueError(new Error('fail 1'));
     fakeModelClient.queueError(new Error('fail 2'));
@@ -133,14 +143,6 @@ function setup() {
   };
 }
 
-function seedConvertedArtifact(fakeDatasetService: FakeDatasetService): void {
-  fakeDatasetService.artifacts.push({
-    key: 'datasets/demo-dataset/demo-dataset-converted.jsonl',
-    body: convertedArtifact(),
-    contentType: 'application/jsonl',
-  });
-}
-
 function artifactBody(
   fakeDatasetService: FakeDatasetService,
   key: string,
@@ -148,19 +150,17 @@ function artifactBody(
   return fakeDatasetService.artifacts.find((a) => a.key === key)?.body;
 }
 
-function convertedArtifact(): string {
+function convertedRows(): ConvertedDatasetRow[] {
   return [
-    JSON.stringify({
+    {
       document_id: 'demo-dataset',
       chunk_id: 'demo-dataset-0',
       document: 'First document chunk',
-      summary: '',
-    }),
-    JSON.stringify({
+    },
+    {
       document_id: 'demo-dataset',
       chunk_id: 'demo-dataset-1',
       document: 'Second document chunk',
-      summary: '',
-    }),
-  ].join('\n');
+    },
+  ];
 }

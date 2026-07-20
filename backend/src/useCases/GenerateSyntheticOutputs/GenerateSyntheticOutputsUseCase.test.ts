@@ -1,6 +1,7 @@
 import { inject, reset } from '@trackit.io/di-container';
 import { describe, expect, it } from 'vitest';
 
+import { ConvertedDatasetRow } from '../../models/SyntheticOutput';
 import {
   FakeDatasetService,
   tokenFakeDatasetService,
@@ -12,7 +13,10 @@ import { GenerateSyntheticOutputsUseCaseImpl } from './GenerateSyntheticOutputsU
 describe('GenerateSyntheticOutputsUseCase', () => {
   it('generates summaries for converted dataset rows', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    seedConvertedArtifact(fakeDatasetService, summarizationConvertedArtifact());
+    fakeDatasetService.seedConvertedDatasetRows(
+      'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      summarizationConvertedRows(),
+    );
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueOutput('Summary two');
 
@@ -59,9 +63,9 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 
   it('generates normalized class labels for classification converted rows', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    seedConvertedArtifact(
-      fakeDatasetService,
-      classificationConvertedArtifact(),
+    fakeDatasetService.seedConvertedDatasetRows(
+      'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      classificationConvertedRows(),
     );
     fakeModelClient.queueOutput('Classification label: Support Policy.');
 
@@ -96,7 +100,10 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 
   it('records failed rows when model generation fails', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    seedConvertedArtifact(fakeDatasetService, summarizationConvertedArtifact());
+    fakeDatasetService.seedConvertedDatasetRows(
+      'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      summarizationConvertedRows(),
+    );
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueError(new Error('model failed'));
 
@@ -119,9 +126,9 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 
   it('records failed rows when normalized model output is empty', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    seedConvertedArtifact(
-      fakeDatasetService,
-      classificationConvertedArtifact(),
+    fakeDatasetService.seedConvertedDatasetRows(
+      'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      classificationConvertedRows(),
     );
     fakeModelClient.queueOutput('   ');
 
@@ -143,7 +150,10 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 
   it('retries only failed rows and preserves completed rows', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    seedConvertedArtifact(fakeDatasetService, summarizationConvertedArtifact());
+    fakeDatasetService.seedConvertedDatasetRows(
+      'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      summarizationConvertedRows(),
+    );
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueError(new Error('transient failure'));
 
@@ -186,7 +196,10 @@ describe('GenerateSyntheticOutputsUseCase', () => {
 
   it('keeps rows as failed if retry also fails', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    seedConvertedArtifact(fakeDatasetService, summarizationConvertedArtifact());
+    fakeDatasetService.seedConvertedDatasetRows(
+      'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      summarizationConvertedRows(),
+    );
     fakeModelClient.queueOutput('Summary one');
     fakeModelClient.queueError(new Error('first failure'));
 
@@ -228,17 +241,6 @@ function setup() {
   };
 }
 
-function seedConvertedArtifact(
-  fakeDatasetService: FakeDatasetService,
-  body: string,
-): void {
-  fakeDatasetService.artifacts.push({
-    key: 'datasets/demo-dataset/demo-dataset-converted.jsonl',
-    body,
-    contentType: 'application/jsonl',
-  });
-}
-
 function expectWrittenSyntheticRows(
   fakeDatasetService: FakeDatasetService,
 ): unknown[] {
@@ -257,25 +259,27 @@ function expectWrittenSyntheticRows(
     .map((line) => JSON.parse(line) as unknown);
 }
 
-function summarizationConvertedArtifact(): string {
+function summarizationConvertedRows(): ConvertedDatasetRow[] {
   return [
-    JSON.stringify({
+    {
       document_id: 'demo-dataset',
       chunk_id: 'demo-dataset-0',
       document: 'First document chunk',
-    }),
-    JSON.stringify({
+    },
+    {
       document_id: 'demo-dataset',
       chunk_id: 'demo-dataset-1',
       document: 'Second document chunk',
-    }),
-  ].join('\n');
+    },
+  ];
 }
 
-function classificationConvertedArtifact(): string {
-  return JSON.stringify({
-    document_id: 'demo-dataset',
-    chunk_id: 'demo-dataset-0',
-    document: 'Refunds are available after billing errors.',
-  });
+function classificationConvertedRows(): ConvertedDatasetRow[] {
+  return [
+    {
+      document_id: 'demo-dataset',
+      chunk_id: 'demo-dataset-0',
+      document: 'Refunds are available after billing errors.',
+    },
+  ];
 }
