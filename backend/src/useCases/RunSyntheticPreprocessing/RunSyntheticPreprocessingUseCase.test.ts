@@ -45,7 +45,7 @@ describe('RunSyntheticPreprocessingUseCase', () => {
       sampleCount: 2,
     });
     expect(
-      artifactBody(fakeDatasetService, 'datasets/demo-dataset.jsonl'),
+      artifactBody(fakeDatasetService, 'datasets/demo-dataset/demo-dataset.jsonl'),
     ).toBe(
       '{"document":"First document chunk","summary":"Summary one"}\n' +
         '{"document":"Second document chunk","summary":"Summary two"}\n',
@@ -111,7 +111,7 @@ describe('RunSyntheticPreprocessingUseCase', () => {
     ).toBe(true);
     expect(
       fakeDatasetService.artifacts.some(
-        (a) => a.key === 'datasets/demo-dataset.jsonl',
+        (a) => a.key === 'datasets/demo-dataset/demo-dataset.jsonl',
       ),
     ).toBe(false);
   });

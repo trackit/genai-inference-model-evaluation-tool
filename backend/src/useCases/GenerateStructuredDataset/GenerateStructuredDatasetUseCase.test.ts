@@ -70,7 +70,7 @@ describe('GenerateStructuredDatasetUseCase', () => {
     });
     expect(
       fakeDatasetService.artifacts.some(
-        (a) => a.key === 'datasets/demo-dataset.jsonl',
+        (a) => a.key === 'datasets/demo-dataset/demo-dataset.jsonl',
       ),
     ).toBe(false);
   });
@@ -125,10 +125,10 @@ function expectWrittenStructuredRows(
   fakeDatasetService: FakeDatasetService,
 ): unknown[] {
   const artifact = fakeDatasetService.artifacts.find(
-    (a) => a.key === 'datasets/demo-dataset.jsonl',
+    (a) => a.key === 'datasets/demo-dataset/demo-dataset.jsonl',
   );
   expect(artifact).toMatchObject({
-    key: 'datasets/demo-dataset.jsonl',
+    key: 'datasets/demo-dataset/demo-dataset.jsonl',
     contentType: 'application/jsonl',
   });
 

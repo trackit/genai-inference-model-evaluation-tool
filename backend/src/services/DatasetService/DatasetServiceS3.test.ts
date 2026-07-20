@@ -255,7 +255,7 @@ describe('DatasetServiceImpl', () => {
         s3ClientMock.commandCalls(PutObjectCommand)[0].args[0].input,
       ).toMatchObject({
         Bucket: 'test-bucket',
-        Key: 'datasets/demo-dataset.jsonl',
+        Key: 'datasets/demo-dataset/demo-dataset.jsonl',
         Body: '{"document":"First document chunk","summary":"Summary one"}\n',
         ContentType: 'application/jsonl',
         ServerSideEncryption: 'AES256',
