@@ -105,6 +105,9 @@ importers:
       '@trackit.io/di-container':
         specifier: 1.0.0
         version: 1.0.0
+      esbuild:
+        specifier: ^0.27.3
+        version: 0.27.3
       mammoth:
         specifier: ^1.12.0
         version: 1.12.0
@@ -124,9 +127,6 @@ importers:
       '@types/word-extractor':
         specifier: ^1.0.6
         version: 1.0.6
-      esbuild:
-        specifier: ^0.27.3
-        version: 0.27.3
 
   frontend:
     dependencies:

@@ -13,11 +13,11 @@
     "mammoth": "^1.12.0",
     "pdf-parse": "^2.4.5",
     "word-extractor": "^1.0.4",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "esbuild": "^0.27.3"
   },
   "devDependencies": {
     "@types/pdf-parse": "^1.1.5",
-    "@types/word-extractor": "^1.0.6",
-    "esbuild": "^0.27.3"
+    "@types/word-extractor": "^1.0.6"
   }
 }

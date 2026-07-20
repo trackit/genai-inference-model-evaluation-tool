@@ -1,6 +1,6 @@
-import { chunkDocumentByChapter } from 'backend/src/utils/chapterChunking';
 import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
+import { chunkDocumentByChapter } from '../../utils/chapterChunking';
 import { DocumentConversionServiceImpl } from './DocumentConversionServiceS3';
 
 describe('DocumentConversionService', () => {
