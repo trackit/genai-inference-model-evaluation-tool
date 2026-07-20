@@ -1,4 +1,9 @@
+import type { DatasetSample } from '../models/Dataset';
 import { DatasetFileType, DocumentUploadManifest } from '../models/Dataset';
+import type {
+  ConvertedDatasetRow,
+  SyntheticOutputRow,
+} from '../models/SyntheticOutput';
 
 export interface DatasetService {
   generatePresignedPost(
@@ -40,4 +45,22 @@ export interface DatasetService {
     documentId: string,
     fileType: DatasetFileType,
   ): Promise<Buffer>;
+
+  readConvertedDatasetRows(
+    convertedDatasetArtifactKey: string,
+  ): Promise<ConvertedDatasetRow[]>;
+
+  writeSyntheticDataset(
+    datasetId: string,
+    rows: SyntheticOutputRow[],
+  ): Promise<{ syntheticDatasetArtifactKey: string }>;
+
+  readSyntheticDatasetRows(
+    syntheticDatasetArtifactKey: string,
+  ): Promise<SyntheticOutputRow[]>;
+
+  writeStructuredDataset(
+    datasetId: string,
+    samples: DatasetSample[],
+  ): Promise<{ structuredDatasetArtifactKey: string }>;
 }

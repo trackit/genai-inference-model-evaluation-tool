@@ -118,6 +118,12 @@ Resources:
       LogGroupName: !Sub '/aws/lambda/${DocumentConversionFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
+  RunSyntheticPreprocessingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${RunSyntheticPreprocessingFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
   RequestAccessCodeFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -295,6 +301,53 @@ Resources:
           - .js=.mjs
         EntryPoints:
           - src/handlers/DocumentConversion/DocumentConversion.ts
+
+  RunSyntheticPreprocessingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: RunSyntheticPreprocessing.handler
+      Timeout: 60
+      MemorySize: 512
+      Tags:
+        Name: !Sub '${AWS::StackName}-run-synthetic-preprocessing-function'
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucketName
+          SYNTHETIC_OUTPUT_MODEL_ID: us.meta.llama4-maverick-17b-instruct-v1:0
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets/*'
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
+      Events:
+        RunSyntheticPreprocessingApi:
+          Type: HttpApi
+          Properties:
+            Path: /preprocessing/{datasetId}/synthetic
+            Method: POST
+            ApiId: !Ref Api
+            Auth:
+              Authorizer: AccessCodeAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/RunSyntheticPreprocessing/RunSyntheticPreprocessing.ts
 
   EvaluationLaunchFunction:
     Type: AWS::Serverless::Function
