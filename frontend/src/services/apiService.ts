@@ -1,6 +1,7 @@
 import { authHeaders, clearAccessCredentials } from '@/lib/accessCredentials';
 import type {
   CreateEvaluationRequest,
+  DatasetPreviewData,
   DatasetUploadData,
   EvaluationLaunchData,
   EvaluationResultsData,
@@ -190,6 +191,16 @@ export async function uploadDataset(files: File[]): Promise<DatasetUploadData> {
   );
 
   return handleResponse<DatasetUploadData>(confirmResponse);
+}
+
+export async function getDatasetPreview(
+  datasetId: string,
+): Promise<DatasetPreviewData> {
+  const response = await fetchWithTimeout(
+    `${getBaseUrl()}/datasets/${datasetId}/preview`,
+    { headers: authHeaders() },
+  );
+  return handleResponse<DatasetPreviewData>(response);
 }
 
 export async function createEvaluation(

@@ -7,6 +7,7 @@ import {
   ApiError,
   createEvaluation,
   getBaseUrl,
+  getDatasetPreview,
   getEvaluationResults,
   getEvaluationStatus,
   requestAccessCode,
@@ -548,6 +549,70 @@ describe('endpoint functions', () => {
         expect(err.code).toBe('TIMEOUT');
         expect(err.message).toBe('Request timed out');
       }
+    });
+  });
+
+  // --- dataset preview ---
+  describe('getDatasetPreview', () => {
+    it('calls GET /datasets/:id/preview and returns data', async () => {
+      const payload = {
+        dataset_id: 'd1',
+        samples: [
+          { document: 'Doc 1', summary: 'Summary 1' },
+          { document: 'Doc 2', class_label: 'positive' },
+        ],
+      };
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ success: true, data: payload }),
+      );
+
+      const result = await getDatasetPreview('d1');
+
+      expect(result).toEqual(payload);
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('http://localhost:3000/datasets/d1/preview');
+      expect(init.method).toBeUndefined();
+    });
+
+    it('includes access code headers when credentials are stored', async () => {
+      setAccessCredentials({
+        email: 'user@example.com',
+        code: '123456',
+        expiresAt: FUTURE_EXPIRES_AT,
+      });
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({
+          success: true,
+          data: { dataset_id: 'd1', samples: [] },
+        }),
+      );
+
+      await getDatasetPreview('d1');
+
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect((init.headers as Record<string, string>)['x-access-email']).toBe(
+        'user@example.com',
+      );
+      expect((init.headers as Record<string, string>)['x-access-code']).toBe(
+        '123456',
+      );
+    });
+
+    it('throws ApiError when preview is not found', async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse(
+          {
+            error: { code: 'DATASET_NOT_FOUND', message: 'Dataset not found' },
+          },
+          404,
+        ),
+      );
+
+      await expect(getDatasetPreview('missing')).rejects.toMatchObject({
+        code: 'DATASET_NOT_FOUND',
+        status: 404,
+        message: 'Dataset not found',
+      });
     });
   });
 });

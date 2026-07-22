@@ -1,12 +1,14 @@
 import type { ApiError } from '@/services/apiService';
 import {
   createEvaluation,
+  getDatasetPreview,
   getEvaluationResults,
   getEvaluationStatus,
   uploadDataset,
 } from '@/services/apiService';
 import type {
   CreateEvaluationRequest,
+  DatasetPreviewData,
   DatasetUploadData,
   EvaluationLaunchData,
   EvaluationResultsData,
@@ -17,6 +19,15 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 export function useUploadDataset() {
   return useMutation<DatasetUploadData, ApiError, File[]>({
     mutationFn: uploadDataset,
+  });
+}
+
+export function useDatasetPreview(datasetId: string | null) {
+  return useQuery<DatasetPreviewData, ApiError>({
+    queryKey: ['datasetPreview', datasetId],
+    queryFn: () => getDatasetPreview(datasetId!),
+    enabled: !!datasetId,
+    staleTime: Infinity,
   });
 }
 

@@ -4,7 +4,6 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from '@/test/render';
-import { DEFAULT_METRICS_TOGGLES } from '@/types/evaluation';
 
 import { DatasetUpload } from './DatasetUpload';
 
@@ -48,10 +47,7 @@ describe('DatasetUpload', () => {
   const defaultProps = {
     files: [],
     onChange: vi.fn(),
-    onStartEvaluation: vi.fn(),
     onUploadSuccess: vi.fn(),
-    metrics: DEFAULT_METRICS_TOGGLES,
-    onMetricsChange: vi.fn(),
   };
 
   beforeEach(() => {
@@ -207,8 +203,10 @@ describe('DatasetUpload', () => {
     await waitFor(() => {
       expect(mutateMock).toHaveBeenCalledWith([file], expect.any(Object));
       expect(onUploadSuccess).toHaveBeenCalledWith({
+        dataset_type: 'structured',
         dataset_id: 'dataset-1',
         taskType: 'summarization',
+        sample_count: 25,
       });
     });
   });
@@ -244,12 +242,6 @@ describe('DatasetUpload', () => {
     expect(
       screen.getByText('Select a task type to configure metrics.'),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Start Evaluation' }),
-    ).toBeDisabled();
-    expect(
-      screen.queryByText('Pick the metrics to compute'),
-    ).not.toBeInTheDocument();
   });
 
   it('requires task type selection for document uploads', async () => {
@@ -284,11 +276,12 @@ describe('DatasetUpload', () => {
 
     await waitFor(() => {
       expect(onUploadSuccess).toHaveBeenCalledWith({
+        dataset_type: 'documents',
         dataset_id: 'dataset-1',
         taskType: 'classification',
+        sample_count: 1,
       });
     });
-    expect(screen.getByText('Pick the metrics to compute')).toBeInTheDocument();
   });
 
   it('shows upload error message', () => {

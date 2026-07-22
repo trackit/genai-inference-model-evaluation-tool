@@ -241,6 +241,17 @@ export interface StructuredDatasetUploadData {
   has_class: boolean;
 }
 
+export interface DatasetSample {
+  document: string;
+  summary?: string;
+  class_label?: string;
+}
+
+export interface DatasetPreviewData {
+  dataset_id: string;
+  samples: DatasetSample[];
+}
+
 export interface DocumentDatasetUploadData {
   dataset_type: 'documents';
   dataset_id: string;

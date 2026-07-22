@@ -1,13 +1,6 @@
-import { MetricsPicker } from '@/components/evaluator/MetricsPicker';
-import { Button } from '@/components/ui/button';
 import { useUploadDataset } from '@/hooks/useEvaluation';
 import { cn } from '@/lib/utils';
-import type {
-  DatasetUploadData,
-  MetricsToggles,
-  TaskType,
-} from '@/types/evaluation';
-import { hasAtLeastOneMetric } from '@/utils/metrics';
+import type { DatasetUploadData, TaskType } from '@/types/evaluation';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -19,18 +12,17 @@ import {
   Upload,
 } from 'lucide-react';
 import { useState } from 'react';
+import { Button } from '../ui/button';
 
 interface DatasetUploadProps {
   files: File[];
   onChange: (files: File[]) => void;
-  onStartEvaluation: () => void;
   onUploadSuccess: (data: {
+    dataset_type: 'structured' | 'documents';
     dataset_id: string;
     taskType: TaskType | undefined;
+    sample_count?: number;
   }) => void;
-  isStarting?: boolean;
-  metrics: MetricsToggles;
-  onMetricsChange: (metrics: MetricsToggles) => void;
 }
 
 const TASK_TYPES: {
@@ -255,11 +247,7 @@ function TaskTypeButtons({
 export function DatasetUpload({
   files,
   onChange,
-  onStartEvaluation,
   onUploadSuccess,
-  isStarting = false,
-  metrics,
-  onMetricsChange,
 }: DatasetUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [datasetMode, setDatasetMode] = useState<DatasetMode>('structured');
@@ -276,12 +264,6 @@ export function DatasetUpload({
   const isDocumentUploadSuccess =
     uploadMutation.isSuccess &&
     uploadMutation.data?.dataset_type === 'documents';
-  const metricsTaskType = isDocumentUploadSuccess
-    ? (selectedDocumentTask ?? undefined)
-    : detectedTaskFromUpload(uploadMutation.data);
-  const canStartEvaluation =
-    hasAtLeastOneMetric(metrics) &&
-    (!isDocumentUploadSuccess || selectedDocumentTask !== null);
 
   const handleAddFiles = (newFiles: File[]) => {
     if (newFiles.length === 0) return;
@@ -312,8 +294,10 @@ export function DatasetUpload({
     setSelectedDocumentTask(task);
     if (uploadMutation.data?.dataset_type === 'documents') {
       onUploadSuccess({
+        dataset_type: 'documents',
         dataset_id: uploadMutation.data.dataset_id,
         taskType: task,
+        sample_count: uploadMutation.data.file_count,
       });
     }
   };
@@ -325,14 +309,15 @@ export function DatasetUpload({
       onSuccess: (data) => {
         if (data.dataset_type === 'structured') {
           onUploadSuccess({
+            dataset_type: 'structured',
             dataset_id: data.dataset_id,
             taskType: detectedTaskFromUpload(data),
+            sample_count: data.sample_count,
           });
         }
       },
     });
   };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
@@ -656,40 +641,6 @@ export function DatasetUpload({
             </p>
           )}
         </div>
-      )}
-
-      {uploadMutation.isSuccess &&
-        (!isDocumentUploadSuccess || selectedDocumentTask) && (
-          <div className="mt-6">
-            <MetricsPicker
-              metrics={metrics}
-              onChange={onMetricsChange}
-              taskType={metricsTaskType}
-            />
-            {!hasAtLeastOneMetric(metrics) && (
-              <p className="mt-2 text-xs text-destructive" role="alert">
-                Select at least one accuracy metric to continue.
-              </p>
-            )}
-          </div>
-        )}
-
-      {uploadMutation.isSuccess && (
-        <Button
-          onClick={onStartEvaluation}
-          className="mt-6 w-full"
-          size="lg"
-          disabled={isStarting || !canStartEvaluation}
-        >
-          {isStarting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Starting…
-            </>
-          ) : (
-            'Start Evaluation'
-          )}
-        </Button>
       )}
     </motion.div>
   );

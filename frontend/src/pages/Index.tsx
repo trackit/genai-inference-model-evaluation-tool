@@ -1,5 +1,7 @@
 import { AccessCodeGate } from '@/components/auth/AccessCodeGate';
+import { DatasetConfirm } from '@/components/evaluator/DatasetConfirm';
 import { DatasetUpload } from '@/components/evaluator/DatasetUpload';
+import { MetricsPicker } from '@/components/evaluator/MetricsPicker';
 import { MetricsWeights } from '@/components/evaluator/MetricsWeights';
 import { ModelSelection } from '@/components/evaluator/ModelSelection';
 import { ProgressView } from '@/components/evaluator/ProgressView';
@@ -35,6 +37,10 @@ export default function Index() {
     datasetFiles: [],
   });
   const [datasetId, setDatasetId] = useState<string | null>(null);
+  const [sampleCount, setSampleCount] = useState(0);
+  const [detectedTaskType, setDetectedTaskType] = useState<
+    TaskType | undefined
+  >(undefined);
   const [evaluationId, setEvaluationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -108,12 +114,20 @@ export default function Index() {
   ]);
 
   const handleUploadSuccess = useCallback(
-    (data: { dataset_id: string; taskType: TaskType | undefined }) => {
+    (data: {
+      dataset_type: 'structured' | 'documents';
+      dataset_id: string;
+      taskType: TaskType | undefined;
+      sample_count?: number;
+    }) => {
       setDatasetId(data.dataset_id);
+      setDetectedTaskType(data.taskType);
+      setSampleCount(data.sample_count ?? 0);
       setConfig((prev) => ({
         ...prev,
         metrics: buildDefaultsForTask(data.taskType),
       }));
+      setStep(3);
     },
     [],
   );
@@ -128,6 +142,8 @@ export default function Index() {
       datasetFiles: [],
     });
     setDatasetId(null);
+    setSampleCount(0);
+    setDetectedTaskType(undefined);
     setEvaluationId(null);
     setError(null);
   };
@@ -183,42 +199,67 @@ export default function Index() {
                   onChange={(files) =>
                     setConfig({ ...config, datasetFiles: files })
                   }
-                  onStartEvaluation={handleStartEvaluation}
                   onUploadSuccess={handleUploadSuccess}
-                  isStarting={createEvaluationMutation.isPending}
-                  metrics={config.metrics}
-                  onMetricsChange={(m) => setConfig({ ...config, metrics: m })}
                 />
               )}
-
-              {error && step === 2 && (
-                <div className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{error}</span>
-                </div>
+              {step === 3 && datasetId && (
+                <>
+                  <MetricsPicker
+                    metrics={config.metrics}
+                    onChange={(m) => setConfig({ ...config, metrics: m })}
+                    taskType={detectedTaskType}
+                  />
+                  {!hasAtLeastOneMetric(config.metrics) && (
+                    <p className="mt-2 text-xs text-destructive" role="alert">
+                      Select at least one accuracy metric to continue.
+                    </p>
+                  )}
+                  <div className="mt-4">
+                    <DatasetConfirm
+                      datasetId={datasetId}
+                      sampleCount={sampleCount}
+                      onConfirm={handleStartEvaluation}
+                      onBack={() => {
+                        setDatasetId(null);
+                        setSampleCount(0);
+                        setDetectedTaskType(undefined);
+                        setConfig((prev) => ({ ...prev, datasetFiles: [] }));
+                        setStep(2);
+                      }}
+                      isStarting={createEvaluationMutation.isPending}
+                    />
+                  </div>
+                  {error && (
+                    <div className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* Navigation */}
-              <div className="flex justify-between mt-10">
-                {' '}
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(step - 1)}
-                  disabled={step === 0}
-                  className="gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" /> Back
-                </Button>
-                {step < 2 && (
+              {/* Navigation — only steps 0–2; step 3 has its own buttons inside DatasetConfirm */}
+              {step < 3 && (
+                <div className="flex justify-between mt-10">
                   <Button
-                    onClick={() => setStep(step + 1)}
-                    disabled={!canNext}
+                    variant="outline"
+                    onClick={() => setStep(step - 1)}
+                    disabled={step === 0}
                     className="gap-2"
                   >
-                    Next <ArrowRight className="h-4 w-4" />
+                    <ArrowLeft className="h-4 w-4" /> Back
                   </Button>
-                )}
-              </div>
+                  {step < 2 && (
+                    <Button
+                      onClick={() => setStep(step + 1)}
+                      disabled={!canNext}
+                      className="gap-2"
+                    >
+                      Next <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
             </>
           )}
 

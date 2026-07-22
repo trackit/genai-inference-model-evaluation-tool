@@ -50,3 +50,8 @@ export type DocumentUploadManifest = {
 
 export const MIN_FILE_BYTES = 10;
 export const MAX_DATASET_BYTES = 209_715_200;
+
+export interface DatasetPreview {
+  dataset_id: string;
+  samples: DatasetSample[];
+}
