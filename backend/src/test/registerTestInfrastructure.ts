@@ -13,6 +13,10 @@ import { tokenEvaluationJobsRepository } from '../services/EvaluationJobsReposit
 import { tokenFakeEvaluationJobsRepository } from '../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
 import { tokenFakeFargateService } from '../services/FargateService/FakeFargateService';
 import { tokenFargateService } from '../services/FargateService/FargateService';
+import { tokenStepFunctionsService } from '../services/StepFunctionsService/StepFunctionsServiceImpl';
+import { tokenFakeStepFunctionsService } from '../services/StepFunctionsService/FakeStepFunctionsService';
+import { tokenStepFunctionsService } from '../services/StepFunctionsService/StepFunctionsServiceImpl';
+import { tokenFakeStepFunctionsService } from '../services/StepFunctionsService/FakeStepFunctionsService';
 import { tokenSyntheticOutputModelClient } from '../services/SyntheticOutputModelClient/BedrockSyntheticOutputModelClient';
 import { tokenFakeSyntheticOutputModelClient } from '../services/SyntheticOutputModelClient/FakeSyntheticOutputModelClient';
 
@@ -40,5 +44,8 @@ export const registerTestInfrastructure = (): void => {
   });
   register(tokenSyntheticOutputModelClient, {
     useFactory: () => inject(tokenFakeSyntheticOutputModelClient),
+  });
+  register(tokenStepFunctionsService, {
+    useFactory: () => inject(tokenFakeStepFunctionsService),
   });
 };
