@@ -38,6 +38,12 @@ export type GenerateSyntheticOutputsUseCase = {
   retryFailedRows(
     input: RetryFailedRowsInput,
   ): Promise<GenerateSyntheticOutputsOutput>;
+
+  generateSyntheticRow(input: {
+    convertedRow: ConvertedDatasetRow;
+    taskType: SyntheticOutputTaskType;
+    modelId?: string;
+  }): Promise<SyntheticOutputRow>;
 };
 
 export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOutputsUseCase {
@@ -115,30 +121,46 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
     };
   }
 
+  async generateSyntheticRow({
+    convertedRow,
+    taskType,
+    modelId,
+  }: {
+    convertedRow: ConvertedDatasetRow;
+    taskType: SyntheticOutputTaskType;
+    modelId?: string;
+  }): Promise<SyntheticOutputRow> {
+    const prompt = this.promptBuilder.buildPrompt({
+      document: convertedRow.document,
+      taskType,
+    });
+    const result = await this.modelClient.generate({ prompt, modelId });
+    const normalizedOutput = this.promptBuilder.normalizeOutput({
+      rawOutput: result.output,
+      taskType,
+    });
+
+    return {
+      chunk_id: convertedRow.chunk_id,
+      document_id: convertedRow.document_id,
+      text: convertedRow.document,
+      ...buildGeneratedField(taskType, normalizedOutput),
+      status: 'completed',
+      model_id: result.modelId,
+    };
+  }
+
   private async generateRow(
     convertedRow: ConvertedDatasetRow,
     taskType: SyntheticOutputTaskType,
     modelId: string | undefined,
   ): Promise<SyntheticOutputRow> {
     try {
-      const prompt = this.promptBuilder.buildPrompt({
-        document: convertedRow.document,
+      return await this.generateSyntheticRow({
+        convertedRow,
         taskType,
+        modelId,
       });
-      const result = await this.modelClient.generate({ prompt, modelId });
-      const normalizedOutput = this.promptBuilder.normalizeOutput({
-        rawOutput: result.output,
-        taskType,
-      });
-
-      return {
-        chunk_id: convertedRow.chunk_id,
-        document_id: convertedRow.document_id,
-        text: convertedRow.document,
-        ...buildGeneratedField(taskType, normalizedOutput),
-        status: 'completed',
-        model_id: result.modelId,
-      };
     } catch (error: unknown) {
       return {
         chunk_id: convertedRow.chunk_id,
