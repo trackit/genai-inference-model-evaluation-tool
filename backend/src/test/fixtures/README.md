@@ -1,12 +1,13 @@
 Document conversion fixtures.
 
 `sample.pdf` is a genuine PDF (built with ReportLab, not hand-assembled PDF
-syntax) containing two paragraphs, used by `pdf-parse` parsing tests. Note:
-`pdf-parse`'s `getText()` appends a `-- 1 of 1 --` page-separator line to the
-extracted text, which `DocumentConversionServiceS3.ts` does not currently
-strip — tests assert on this fixture with `toContain` rather than an exact
-match to stay robust to that, but it's worth knowing this artifact ends up in
-real extracted text for every PDF.
+syntax) containing two paragraphs, used by the PDF parsing tests. PDF text is
+extracted with `unpdf` (`extractText` with `mergePages: true`), a
+serverless-friendly pure-JS build of pdfjs — chosen over `pdf-parse` because
+that library pulled in a native `@napi-rs/canvas` dependency that breaks
+esbuild ESM bundling in Lambda. Tests assert on this fixture with `toContain`
+rather than an exact match to stay robust to minor whitespace/layout
+differences in extracted text.
 
 `sample.docx` is a minimal WordprocessingML document used by Mammoth parsing tests.
 

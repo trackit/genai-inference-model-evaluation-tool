@@ -127,9 +127,6 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
-      '@types/pdf-parse':
-        specifier: ^1.1.5
-        version: 1.1.5
       '@types/word-extractor':
         specifier: ^1.0.6
         version: 1.0.6
@@ -1979,9 +1976,6 @@ packages:
 
   '@types/node@24.12.0':
     resolution: {integrity: sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ==}
-
-  '@types/pdf-parse@1.1.5':
-    resolution: {integrity: sha512-kBfrSXsloMnUJOKi25s3+hRmkycHfLK6A09eRGqF/N8BkQoPUmaCr+q8Cli5FnfohEz/rsv82zAiPz/LXtOGhA==}
 
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
@@ -6428,10 +6422,6 @@ snapshots:
   '@types/node@24.12.0':
     dependencies:
       undici-types: 7.16.0
-
-  '@types/pdf-parse@1.1.5':
-    dependencies:
-      '@types/node': 24.12.0
 
   '@types/react-dom@19.2.3(@types/react@19.2.14)':
     dependencies:
