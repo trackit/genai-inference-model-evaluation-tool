@@ -19,4 +19,13 @@ describe('FakeDatasetService synthetic rows', () => {
     const rows = await service.readSyntheticRows('ds1');
     expect(rows.map((r) => r.chunk_id).sort()).toEqual(['c1', 'c2']);
   });
+
+  it('clears synthetic rows for a dataset', async () => {
+    const service = new FakeDatasetService();
+    await service.writeSyntheticRow('ds1', 'c1', row('c1'));
+
+    await service.deleteSyntheticRows('ds1');
+
+    expect(await service.readSyntheticRows('ds1')).toEqual([]);
+  });
 });

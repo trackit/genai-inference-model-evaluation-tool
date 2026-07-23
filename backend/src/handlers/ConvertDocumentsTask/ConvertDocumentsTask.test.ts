@@ -7,12 +7,15 @@ import { tokenDocumentConversionUseCase } from '../../useCases/DocumentConversio
 
 describe('ConvertDocumentsTask Handler', () => {
   const readUploadManifest = vi.fn();
+  const deleteSyntheticRows = vi.fn();
   const execute = vi.fn();
 
   beforeEach(() => {
     reset();
     vi.clearAllMocks();
-    register(tokenDatasetService, { useValue: { readUploadManifest } });
+    register(tokenDatasetService, {
+      useValue: { readUploadManifest, deleteSyntheticRows },
+    });
     register(tokenDocumentConversionUseCase, { useValue: { execute } });
   });
 
@@ -58,6 +61,7 @@ describe('ConvertDocumentsTask Handler', () => {
       taskType: 'summarization',
       convertedDatasetArtifactKey: 'datasets/ds1/ds1-converted.jsonl',
     });
+    expect(deleteSyntheticRows).toHaveBeenCalledWith('ds1');
   });
 
   it('throws when the manifest is missing', async () => {

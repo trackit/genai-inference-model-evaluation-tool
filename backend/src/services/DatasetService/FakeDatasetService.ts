@@ -255,6 +255,10 @@ export class FakeDatasetService implements DatasetService {
     return Object.values(this.syntheticRows[datasetId] ?? {});
   }
 
+  async deleteSyntheticRows(datasetId: string): Promise<void> {
+    delete this.syntheticRows[datasetId];
+  }
+
   private readArtifactContent(key: string): string {
     const artifact = this.artifacts.find((a) => a.key === key);
     if (!artifact) {

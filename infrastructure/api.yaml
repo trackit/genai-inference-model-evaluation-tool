@@ -34,9 +34,6 @@ Parameters:
   SyntheticOutputModelId:
     Type: String
     Default: us.meta.llama4-maverick-17b-instruct-v1:0
-  MapMaxConcurrency:
-    Type: Number
-    Default: 5
 
 Globals:
   Function:
@@ -765,7 +762,6 @@ Resources:
         GenerateSyntheticRowFunctionArn: !GetAtt GenerateSyntheticRowFunction.Arn
         CombineAndStructureFunctionArn: !GetAtt CombineAndStructureFunction.Arn
         DatasetBucketName: !Ref DatasetBucketName
-        MapMaxConcurrency: !Ref MapMaxConcurrency
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref ConvertDocumentsFunction
@@ -837,7 +833,7 @@ Resources:
                       MaxAttempts: 3
                       BackoffRate: 2
                   End: true
-            MaxConcurrency: ${MapMaxConcurrency}
+            MaxConcurrency: 5
             ToleratedFailurePercentage: 0
             ResultPath: null
             Next: CombineAndStructure
@@ -914,7 +910,7 @@ Resources:
             - Effect: Allow
               Action:
                 - states:DescribeExecution
-              Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${AWS::StackName}-preprocessing/*'
+              Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${AWS::StackName}-preprocessing:*'
       Events:
         GetPreprocessingStatusApi:
           Type: HttpApi

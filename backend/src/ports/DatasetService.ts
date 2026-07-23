@@ -71,4 +71,6 @@ export interface DatasetService {
   ): Promise<void>;
 
   readSyntheticRows(datasetId: string): Promise<SyntheticOutputRow[]>;
+
+  deleteSyntheticRows(datasetId: string): Promise<void>;
 }

@@ -1,4 +1,5 @@
 import {
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
@@ -395,17 +396,33 @@ export class DatasetServiceImpl implements DatasetService {
     );
   }
 
-  async readSyntheticRows(datasetId: string): Promise<SyntheticOutputRow[]> {
-    const listed = await this.s3Client.send(
-      new ListObjectsV2Command({
-        Bucket: this.bucketName,
-        Prefix: syntheticRowsPrefix(datasetId),
-      }),
-    );
+  private async listSyntheticRowKeys(datasetId: string): Promise<string[]> {
+    const keys: string[] = [];
+    let continuationToken: string | undefined;
 
-    const keys = (listed.Contents ?? [])
-      .map((object) => object.Key)
-      .filter((key): key is string => Boolean(key));
+    do {
+      const listed = await this.s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucketName,
+          Prefix: syntheticRowsPrefix(datasetId),
+          ContinuationToken: continuationToken,
+        }),
+      );
+
+      for (const object of listed.Contents ?? []) {
+        if (object.Key) keys.push(object.Key);
+      }
+
+      continuationToken = listed.IsTruncated
+        ? listed.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+
+    return keys;
+  }
+
+  async readSyntheticRows(datasetId: string): Promise<SyntheticOutputRow[]> {
+    const keys = await this.listSyntheticRowKeys(datasetId);
 
     const rows = await Promise.all(
       keys.map(async (key) => {
@@ -415,6 +432,22 @@ export class DatasetServiceImpl implements DatasetService {
     );
 
     return rows;
+  }
+
+  async deleteSyntheticRows(datasetId: string): Promise<void> {
+    const keys = await this.listSyntheticRowKeys(datasetId);
+    if (keys.length === 0) return;
+
+    // DeleteObjects accepts at most 1000 keys per request.
+    for (let i = 0; i < keys.length; i += 1000) {
+      const batch = keys.slice(i, i + 1000);
+      await this.s3Client.send(
+        new DeleteObjectsCommand({
+          Bucket: this.bucketName,
+          Delete: { Objects: batch.map((Key) => ({ Key })) },
+        }),
+      );
+    }
   }
 
   private async retrieveArtifact(key: string): Promise<string> {

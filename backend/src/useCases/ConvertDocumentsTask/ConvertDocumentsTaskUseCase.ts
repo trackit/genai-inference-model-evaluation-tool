@@ -75,6 +75,10 @@ export class ConvertDocumentsTaskUseCaseImpl
       );
     }
 
+    // Clear any synthetic rows left by a previous run so a re-run with a
+    // different chunking strategy or task type cannot mix stale rows in.
+    await this.datasetService.deleteSyntheticRows(datasetId);
+
     const convertedDatasetArtifactKey =
       await this.documentConversionUseCase.execute({
         dataset_id: datasetId,
