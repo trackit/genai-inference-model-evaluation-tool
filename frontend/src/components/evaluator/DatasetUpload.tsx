@@ -344,10 +344,7 @@ export function DatasetUpload({
   };
 
   const handleConfirmDocuments = () => {
-    if (
-      !documentTask ||
-      uploadMutation.data?.dataset_type !== 'documents'
-    ) {
+    if (!documentTask || uploadMutation.data?.dataset_type !== 'documents') {
       return;
     }
     onDocumentsConfirmed({
@@ -671,7 +668,10 @@ export function DatasetUpload({
             <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
               Task type
             </p>
-            <TaskTypeButtons selected={documentTask} onSelect={setDocumentTask} />
+            <TaskTypeButtons
+              selected={documentTask}
+              onSelect={setDocumentTask}
+            />
           </div>
 
           <div>

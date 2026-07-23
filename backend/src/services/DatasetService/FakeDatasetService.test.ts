@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { FakeDatasetService } from './FakeDatasetService';
 import type { SyntheticOutputRow } from '../../models/SyntheticOutput';
+import { FakeDatasetService } from './FakeDatasetService';
 
 const row = (chunkId: string): SyntheticOutputRow => ({
   chunk_id: chunkId,

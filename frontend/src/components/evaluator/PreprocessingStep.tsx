@@ -50,7 +50,9 @@ export function PreprocessingStep({
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
           <Button
-            onClick={() => void start(datasetId, { taskType, chunkingStrategy })}
+            onClick={() =>
+              void start(datasetId, { taskType, chunkingStrategy })
+            }
           >
             Retry
           </Button>

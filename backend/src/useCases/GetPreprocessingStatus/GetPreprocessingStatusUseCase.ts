@@ -16,9 +16,7 @@ export type GetPreprocessingStatusUseCase = {
   }): Promise<GetPreprocessingStatusResult>;
 };
 
-export class GetPreprocessingStatusUseCaseImpl
-  implements GetPreprocessingStatusUseCase
-{
+export class GetPreprocessingStatusUseCaseImpl implements GetPreprocessingStatusUseCase {
   private readonly stepFunctions = inject(tokenStepFunctionsService);
 
   async execute({

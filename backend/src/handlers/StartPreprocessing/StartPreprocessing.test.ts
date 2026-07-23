@@ -15,7 +15,10 @@ describe('StartPreprocessing Handler', () => {
 
   it('returns 201 with the execution arn', async () => {
     const { handler } = await import('./StartPreprocessing');
-    execute.mockResolvedValue({ executionArn: 'arn:exec:1', status: 'RUNNING' });
+    execute.mockResolvedValue({
+      executionArn: 'arn:exec:1',
+      status: 'RUNNING',
+    });
 
     const result = await handler(
       createEvent('ds1', {
@@ -41,7 +44,10 @@ describe('StartPreprocessing Handler', () => {
     const { handler } = await import('./StartPreprocessing');
 
     const result = await handler(
-      createEvent('ds1', { taskType: 'summarization', chunkingStrategy: 'nope' }),
+      createEvent('ds1', {
+        taskType: 'summarization',
+        chunkingStrategy: 'nope',
+      }),
     );
     const response = result as { statusCode: number; body: string };
 

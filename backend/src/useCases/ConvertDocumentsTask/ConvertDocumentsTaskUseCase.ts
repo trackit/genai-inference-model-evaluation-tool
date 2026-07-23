@@ -37,9 +37,7 @@ export type ConvertDocumentsTaskUseCase = {
   ): Promise<ConvertDocumentsTaskOutput>;
 };
 
-export class ConvertDocumentsTaskUseCaseImpl
-  implements ConvertDocumentsTaskUseCase
-{
+export class ConvertDocumentsTaskUseCaseImpl implements ConvertDocumentsTaskUseCase {
   private readonly datasetService = inject(tokenDatasetService);
   private readonly documentConversionUseCase = inject(
     tokenDocumentConversionUseCase,

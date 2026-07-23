@@ -19,9 +19,7 @@ export type StartPreprocessingUseCase = {
   execute(input: StartPreprocessingInput): Promise<StartPreprocessingResult>;
 };
 
-export class StartPreprocessingUseCaseImpl
-  implements StartPreprocessingUseCase
-{
+export class StartPreprocessingUseCaseImpl implements StartPreprocessingUseCase {
   private readonly stepFunctions = inject(tokenStepFunctionsService);
 
   async execute({

@@ -19,9 +19,7 @@ export type CombineAndStructureTaskUseCase = {
   ): Promise<CombineAndStructureTaskOutput>;
 };
 
-export class CombineAndStructureTaskUseCaseImpl
-  implements CombineAndStructureTaskUseCase
-{
+export class CombineAndStructureTaskUseCaseImpl implements CombineAndStructureTaskUseCase {
   private readonly datasetService = inject(tokenDatasetService);
   private readonly generateStructuredDataset = inject(
     tokenGenerateStructuredDatasetUseCase,
