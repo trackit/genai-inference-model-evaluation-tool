@@ -1,6 +1,6 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 import mammoth from 'mammoth';
-import { PDFParse } from 'pdf-parse';
+import { extractText, getDocumentProxy } from 'unpdf';
 import WordExtractor from 'word-extractor';
 
 import { DatasetFileType } from '../../models/Dataset';
@@ -24,9 +24,9 @@ export class DocumentConversionServiceImpl implements DocumentConversionService 
   ): Promise<string> {
     switch (file_type) {
       case 'pdf': {
-        const parser = new PDFParse({ data: new Uint8Array(raw_content) });
-        const result = await parser.getText();
-        return result.text;
+        const pdf = await getDocumentProxy(new Uint8Array(raw_content));
+        const { text } = await extractText(pdf, { mergePages: true });
+        return text;
       }
 
       case 'doc': {
