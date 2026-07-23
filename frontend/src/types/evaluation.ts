@@ -252,6 +252,20 @@ export interface DatasetPreviewData {
   samples: DatasetSample[];
 }
 
+export type PreprocessingTaskType = 'summarization' | 'classification';
+export type PreprocessingChunkingStrategy = 'DOCUMENT' | 'CHAPTER';
+
+export interface PreprocessingStartData {
+  executionArn: string;
+  status: 'RUNNING';
+}
+
+export interface PreprocessingStatusData {
+  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED';
+  structuredDatasetArtifactKey?: string;
+  sampleCount?: number;
+}
+
 export interface DocumentDatasetUploadData {
   dataset_type: 'documents';
   dataset_id: string;

@@ -10,7 +10,9 @@ import {
   getDatasetPreview,
   getEvaluationResults,
   getEvaluationStatus,
+  getPreprocessingStatus,
   requestAccessCode,
+  startPreprocessing,
   uploadDataset,
   verifyAccessCode,
 } from './apiService';
@@ -348,6 +350,50 @@ describe('endpoint functions', () => {
       const [, secondS3Init] = mockFetch.mock.calls[2] as [string, RequestInit];
       expect((secondS3Init.body as FormData).get('key')).toBe('notes');
       expect((secondS3Init.body as FormData).get('file')).toBe(doc2);
+    });
+  });
+
+  // --- preprocessing ---
+
+  describe('startPreprocessing', () => {
+    it('posts task type and chunking strategy to /datasets/:id/preprocess', async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse(
+          { success: true, data: { executionArn: 'arn:1', status: 'RUNNING' } },
+          201,
+        ),
+      );
+
+      const result = await startPreprocessing('ds1', {
+        taskType: 'summarization',
+        chunkingStrategy: 'CHAPTER',
+      });
+
+      expect(result).toEqual({ executionArn: 'arn:1', status: 'RUNNING' });
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('http://localhost:3000/datasets/ds1/preprocess');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body as string)).toEqual({
+        taskType: 'summarization',
+        chunkingStrategy: 'CHAPTER',
+      });
+    });
+  });
+
+  describe('getPreprocessingStatus', () => {
+    it('calls GET /datasets/:id/preprocess/status with the execution arn', async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ success: true, data: { status: 'RUNNING' } }),
+      );
+
+      const result = await getPreprocessingStatus('ds1', 'arn:exec:1');
+
+      expect(result).toEqual({ status: 'RUNNING' });
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe(
+        'http://localhost:3000/datasets/ds1/preprocess/status?executionArn=arn%3Aexec%3A1',
+      );
+      expect(init.method).toBeUndefined();
     });
   });
 
