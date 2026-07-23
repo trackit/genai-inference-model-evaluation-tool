@@ -31,6 +31,12 @@ Parameters:
     Type: String
   SesFromAddress:
     Type: String
+  SyntheticOutputModelId:
+    Type: String
+    Default: us.meta.llama4-maverick-17b-instruct-v1:0
+  MapMaxConcurrency:
+    Type: Number
+    Default: 5
 
 Globals:
   Function:
@@ -625,7 +631,329 @@ Resources:
         EntryPoints:
           - src/handlers/AccessCodeAuthorizer/AccessCodeAuthorizer.ts
 
+  # ---------------------------------------------------------------------------
+  # Preprocessing orchestration: task Lambdas + Step Functions state machine
+  # ---------------------------------------------------------------------------
+  ConvertDocumentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: ConvertDocumentsTask.handler
+      Timeout: 60
+      MemorySize: 1024
+      Tags:
+        Name: !Sub '${AWS::StackName}-convert-documents-function'
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucketName
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref DatasetBucketName
+        - S3WritePolicy:
+            BucketName: !Ref DatasetBucketName
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/ConvertDocumentsTask/ConvertDocumentsTask.ts
+
+  GenerateSyntheticRowFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: GenerateSyntheticRowTask.handler
+      Timeout: 60
+      MemorySize: 512
+      Tags:
+        Name: !Sub '${AWS::StackName}-generate-synthetic-row-function'
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucketName
+          SYNTHETIC_OUTPUT_MODEL_ID: !Ref SyntheticOutputModelId
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets/*'
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/GenerateSyntheticRowTask/GenerateSyntheticRowTask.ts
+
+  CombineAndStructureFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: CombineAndStructureTask.handler
+      Timeout: 60
+      MemorySize: 512
+      Tags:
+        Name: !Sub '${AWS::StackName}-combine-and-structure-function'
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucketName
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref DatasetBucketName
+        - S3WritePolicy:
+            BucketName: !Ref DatasetBucketName
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/CombineAndStructureTask/CombineAndStructureTask.ts
+
+  ConvertDocumentsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ConvertDocumentsFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  GenerateSyntheticRowFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GenerateSyntheticRowFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  CombineAndStructureFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${CombineAndStructureFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  PreprocessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub '${AWS::StackName}-preprocessing'
+      Type: STANDARD
+      Tags:
+        Owner: !Ref Owner
+        Project: !Ref Project
+      DefinitionSubstitutions:
+        ConvertDocumentsFunctionArn: !GetAtt ConvertDocumentsFunction.Arn
+        GenerateSyntheticRowFunctionArn: !GetAtt GenerateSyntheticRowFunction.Arn
+        CombineAndStructureFunctionArn: !GetAtt CombineAndStructureFunction.Arn
+        DatasetBucketName: !Ref DatasetBucketName
+        MapMaxConcurrency: !Ref MapMaxConcurrency
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ConvertDocumentsFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref GenerateSyntheticRowFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CombineAndStructureFunction
+        - S3ReadPolicy:
+            BucketName: !Ref DatasetBucketName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-preprocessing'
+            - Effect: Allow
+              Action:
+                - states:DescribeExecution
+                - states:StopExecution
+              Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${AWS::StackName}-preprocessing/*'
+      Definition:
+        Comment: Document preprocessing pipeline (parse -> synthetic -> structured)
+        StartAt: ConvertDocuments
+        States:
+          ConvertDocuments:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Parameters:
+              FunctionName: ${ConvertDocumentsFunctionArn}
+              Payload.$: $
+            ResultSelector:
+              datasetId.$: $.Payload.datasetId
+              taskType.$: $.Payload.taskType
+              convertedDatasetArtifactKey.$: $.Payload.convertedDatasetArtifactKey
+            ResultPath: $
+            Next: GenerateSyntheticOutputs
+            Catch:
+              - ErrorEquals:
+                  - States.ALL
+                Next: PreprocessingFailed
+          GenerateSyntheticOutputs:
+            Type: Map
+            ItemReader:
+              Resource: arn:aws:states:::s3:getObject
+              ReaderConfig:
+                InputType: JSONL
+              Parameters:
+                Bucket: ${DatasetBucketName}
+                Key.$: $.convertedDatasetArtifactKey
+            ItemSelector:
+              datasetId.$: $.datasetId
+              taskType.$: $.taskType
+              row.$: $$.Map.Item.Value
+            ItemProcessor:
+              ProcessorConfig:
+                Mode: DISTRIBUTED
+                ExecutionType: STANDARD
+              StartAt: GenerateSyntheticRow
+              States:
+                GenerateSyntheticRow:
+                  Type: Task
+                  Resource: arn:aws:states:::lambda:invoke
+                  Parameters:
+                    FunctionName: ${GenerateSyntheticRowFunctionArn}
+                    Payload.$: $
+                  Retry:
+                    - ErrorEquals:
+                        - States.ALL
+                      IntervalSeconds: 2
+                      MaxAttempts: 3
+                      BackoffRate: 2
+                  End: true
+            MaxConcurrency: ${MapMaxConcurrency}
+            ToleratedFailurePercentage: 0
+            ResultPath: null
+            Next: CombineAndStructure
+            Catch:
+              - ErrorEquals:
+                  - States.ALL
+                Next: PreprocessingFailed
+          CombineAndStructure:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Parameters:
+              FunctionName: ${CombineAndStructureFunctionArn}
+              Payload:
+                datasetId.$: $.datasetId
+            OutputPath: $.Payload
+            End: true
+            Catch:
+              - ErrorEquals:
+                  - States.ALL
+                Next: PreprocessingFailed
+          PreprocessingFailed:
+            Type: Fail
+            Error: PreprocessingFailed
+            Cause: A preprocessing state failed
+
+  StartPreprocessingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: StartPreprocessing.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-start-preprocessing-function'
+      Environment:
+        Variables:
+          PREPROCESSING_STATE_MACHINE_ARN: !Ref PreprocessingStateMachine
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Ref PreprocessingStateMachine
+      Events:
+        StartPreprocessingApi:
+          Type: HttpApi
+          Properties:
+            Path: /datasets/{datasetId}/preprocess
+            Method: POST
+            ApiId: !Ref Api
+            Auth:
+              Authorizer: AccessCodeAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/StartPreprocessing/StartPreprocessing.ts
+
+  GetPreprocessingStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: GetPreprocessingStatus.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-get-preprocessing-status-function'
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:DescribeExecution
+              Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${AWS::StackName}-preprocessing/*'
+      Events:
+        GetPreprocessingStatusApi:
+          Type: HttpApi
+          Properties:
+            Path: /datasets/{datasetId}/preprocess/status
+            Method: GET
+            ApiId: !Ref Api
+            Auth:
+              Authorizer: AccessCodeAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/GetPreprocessingStatus/GetPreprocessingStatus.ts
+
+  StartPreprocessingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${StartPreprocessingFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  GetPreprocessingStatusFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GetPreprocessingStatusFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
     Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com'
+  PreprocessingStateMachineArn:
+    Description: Preprocessing state machine ARN
+    Value: !Ref PreprocessingStateMachine
