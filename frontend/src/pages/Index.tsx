@@ -4,6 +4,7 @@ import { DatasetUpload } from '@/components/evaluator/DatasetUpload';
 import { MetricsPicker } from '@/components/evaluator/MetricsPicker';
 import { MetricsWeights } from '@/components/evaluator/MetricsWeights';
 import { ModelSelection } from '@/components/evaluator/ModelSelection';
+import { PreprocessingStep } from '@/components/evaluator/PreprocessingStep';
 import { ProgressView } from '@/components/evaluator/ProgressView';
 import { ResultsView } from '@/components/evaluator/ResultsView';
 import { StepIndicator } from '@/components/evaluator/StepIndicator';
@@ -37,6 +38,10 @@ export default function Index() {
     datasetFiles: [],
   });
   const [datasetId, setDatasetId] = useState<string | null>(null);
+  const [datasetKind, setDatasetKind] = useState<
+    'structured' | 'documents' | null
+  >(null);
+  const [preprocessingDone, setPreprocessingDone] = useState(false);
   const [sampleCount, setSampleCount] = useState(0);
   const [detectedTaskType, setDetectedTaskType] = useState<
     TaskType | undefined
@@ -121,8 +126,10 @@ export default function Index() {
       sample_count?: number;
     }) => {
       setDatasetId(data.dataset_id);
+      setDatasetKind(data.dataset_type);
       setDetectedTaskType(data.taskType);
       setSampleCount(data.sample_count ?? 0);
+      setPreprocessingDone(data.dataset_type === 'structured');
       setConfig((prev) => ({
         ...prev,
         metrics: buildDefaultsForTask(data.taskType),
@@ -131,6 +138,16 @@ export default function Index() {
     },
     [],
   );
+
+  const handlePreprocessingDone = useCallback((taskType: TaskType) => {
+    setDetectedTaskType(taskType);
+    setSampleCount(0);
+    setConfig((prev) => ({
+      ...prev,
+      metrics: buildDefaultsForTask(taskType),
+    }));
+    setPreprocessingDone(true);
+  }, []);
 
   const handleReset = () => {
     setPhase('config');
@@ -142,6 +159,8 @@ export default function Index() {
       datasetFiles: [],
     });
     setDatasetId(null);
+    setDatasetKind(null);
+    setPreprocessingDone(false);
     setSampleCount(0);
     setDetectedTaskType(undefined);
     setEvaluationId(null);
@@ -202,7 +221,24 @@ export default function Index() {
                   onUploadSuccess={handleUploadSuccess}
                 />
               )}
-              {step === 3 && datasetId && (
+              {step === 3 &&
+                datasetId &&
+                datasetKind === 'documents' &&
+                !preprocessingDone && (
+                  <PreprocessingStep
+                    datasetId={datasetId}
+                    onDone={handlePreprocessingDone}
+                    onBack={() => {
+                      setDatasetId(null);
+                      setDatasetKind(null);
+                      setSampleCount(0);
+                      setDetectedTaskType(undefined);
+                      setConfig((prev) => ({ ...prev, datasetFiles: [] }));
+                      setStep(2);
+                    }}
+                  />
+                )}
+              {step === 3 && datasetId && preprocessingDone && (
                 <>
                   <MetricsPicker
                     metrics={config.metrics}
