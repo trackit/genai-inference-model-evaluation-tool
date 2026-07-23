@@ -11,7 +11,7 @@ interface PreprocessingStepProps {
   datasetId: string;
   taskType: PreprocessingTaskType;
   chunkingStrategy: PreprocessingChunkingStrategy;
-  onDone: () => void;
+  onDone: (sampleCount: number | null) => void;
   onBack: () => void;
 }
 
@@ -22,15 +22,15 @@ export function PreprocessingStep({
   onDone,
   onBack,
 }: PreprocessingStepProps) {
-  const { status, error, start } = usePreprocessing();
+  const { status, error, sampleCount, start } = usePreprocessing();
 
   useEffect(() => {
     void start(datasetId, { taskType, chunkingStrategy });
   }, [datasetId, taskType, chunkingStrategy, start]);
 
   useEffect(() => {
-    if (status === 'succeeded') onDone();
-  }, [status, onDone]);
+    if (status === 'succeeded') onDone(sampleCount);
+  }, [status, sampleCount, onDone]);
 
   if (status === 'failed') {
     return (

@@ -167,7 +167,8 @@ export default function Index() {
     [],
   );
 
-  const handlePreprocessingDone = useCallback(() => {
+  const handlePreprocessingDone = useCallback((sampleCount: number | null) => {
+    if (sampleCount !== null) setSampleCount(sampleCount);
     setPreprocessingDone(true);
   }, []);
 

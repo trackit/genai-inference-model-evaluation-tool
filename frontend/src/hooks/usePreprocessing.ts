@@ -15,6 +15,7 @@ const POLL_INTERVAL_MS = 3000;
 export function usePreprocessing() {
   const [status, setStatus] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [sampleCount, setSampleCount] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clear = useCallback(() => {
@@ -33,6 +34,7 @@ export function usePreprocessing() {
       },
     ): Promise<void> => {
       setError(null);
+      setSampleCount(null);
       setStatus('running');
       try {
         const { executionArn } = await startPreprocessing(datasetId, params);
@@ -40,6 +42,7 @@ export function usePreprocessing() {
         const poll = async (): Promise<void> => {
           const result = await getPreprocessingStatus(datasetId, executionArn);
           if (result.status === 'SUCCEEDED') {
+            setSampleCount(result.sampleCount ?? null);
             setStatus('succeeded');
             return;
           }
@@ -60,5 +63,5 @@ export function usePreprocessing() {
     [],
   );
 
-  return { status, error, start };
+  return { status, error, sampleCount, start };
 }
