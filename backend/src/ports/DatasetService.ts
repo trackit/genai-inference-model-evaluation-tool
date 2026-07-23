@@ -63,4 +63,12 @@ export interface DatasetService {
     datasetId: string,
     samples: DatasetSample[],
   ): Promise<{ structuredDatasetArtifactKey: string }>;
+
+  writeSyntheticRow(
+    datasetId: string,
+    chunkId: string,
+    row: SyntheticOutputRow,
+  ): Promise<void>;
+
+  readSyntheticRows(datasetId: string): Promise<SyntheticOutputRow[]>;
 }

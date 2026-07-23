@@ -239,6 +239,22 @@ export class FakeDatasetService implements DatasetService {
     return stored.content;
   }
 
+  private syntheticRows: Record<string, Record<string, SyntheticOutputRow>> =
+    {};
+
+  async writeSyntheticRow(
+    datasetId: string,
+    chunkId: string,
+    row: SyntheticOutputRow,
+  ): Promise<void> {
+    this.syntheticRows[datasetId] ??= {};
+    this.syntheticRows[datasetId][chunkId] = row;
+  }
+
+  async readSyntheticRows(datasetId: string): Promise<SyntheticOutputRow[]> {
+    return Object.values(this.syntheticRows[datasetId] ?? {});
+  }
+
   private readArtifactContent(key: string): string {
     const artifact = this.artifacts.find((a) => a.key === key);
     if (!artifact) {

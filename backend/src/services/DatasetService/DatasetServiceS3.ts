@@ -1,6 +1,7 @@
 import {
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -58,6 +59,14 @@ export function syntheticDatasetS3Key(datasetId: string): string {
 
 export function structuredDatasetS3Key(datasetId: string): string {
   return `datasets/${datasetId}/${datasetId}.jsonl`;
+}
+
+export function syntheticRowsPrefix(datasetId: string): string {
+  return `datasets/${datasetId}/synthetic-rows/`;
+}
+
+export function syntheticRowS3Key(datasetId: string, chunkId: string): string {
+  return `${syntheticRowsPrefix(datasetId)}${encodeURIComponent(chunkId)}.json`;
 }
 
 export class DatasetServiceImpl implements DatasetService {
@@ -373,6 +382,39 @@ export class DatasetServiceImpl implements DatasetService {
     );
 
     return { structuredDatasetArtifactKey };
+  }
+
+  async writeSyntheticRow(
+    datasetId: string,
+    chunkId: string,
+    row: SyntheticOutputRow,
+  ): Promise<void> {
+    await this.writeArtifact(
+      syntheticRowS3Key(datasetId, chunkId),
+      JSON.stringify(row),
+    );
+  }
+
+  async readSyntheticRows(datasetId: string): Promise<SyntheticOutputRow[]> {
+    const listed = await this.s3Client.send(
+      new ListObjectsV2Command({
+        Bucket: this.bucketName,
+        Prefix: syntheticRowsPrefix(datasetId),
+      }),
+    );
+
+    const keys = (listed.Contents ?? [])
+      .map((object) => object.Key)
+      .filter((key): key is string => Boolean(key));
+
+    const rows = await Promise.all(
+      keys.map(async (key) => {
+        const content = await this.retrieveArtifact(key);
+        return JSON.parse(content) as SyntheticOutputRow;
+      }),
+    );
+
+    return rows;
   }
 
   private async retrieveArtifact(key: string): Promise<string> {
