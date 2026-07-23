@@ -306,6 +306,11 @@ Resources:
         Minify: true
         Target: es2023
         Sourcemap: false
+        # Document parsers (pdf-parse/mammoth/word-extractor) use CommonJS
+        # `require()` at runtime; inject a real `require` so the esbuild ESM
+        # dynamic-require shim resolves builtins instead of throwing.
+        Banner:
+          - "js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);"
         OutExtension:
           - .js=.mjs
         EntryPoints:
@@ -657,6 +662,11 @@ Resources:
         Minify: true
         Target: es2023
         Sourcemap: false
+        # Document parsers (pdf-parse/mammoth/word-extractor) use CommonJS
+        # `require()` at runtime; inject a real `require` so the esbuild ESM
+        # dynamic-require shim resolves builtins instead of throwing.
+        Banner:
+          - "js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);"
         OutExtension:
           - .js=.mjs
         EntryPoints:
