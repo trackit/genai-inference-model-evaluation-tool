@@ -15,7 +15,11 @@ import {
   useEvaluationResults,
   useEvaluationStatus,
 } from '@/hooks/useEvaluation';
-import type { EvaluationConfig, TaskType } from '@/types/evaluation';
+import type {
+  EvaluationConfig,
+  PreprocessingChunkingStrategy,
+  TaskType,
+} from '@/types/evaluation';
 import { DEFAULT_METRICS_TOGGLES } from '@/types/evaluation';
 import {
   buildDefaultsForTask,
@@ -42,6 +46,8 @@ export default function Index() {
     'structured' | 'documents' | null
   >(null);
   const [preprocessingDone, setPreprocessingDone] = useState(false);
+  const [chunkingStrategy, setChunkingStrategy] =
+    useState<PreprocessingChunkingStrategy>('CHAPTER');
   const [sampleCount, setSampleCount] = useState(0);
   const [detectedTaskType, setDetectedTaskType] = useState<
     TaskType | undefined
@@ -139,13 +145,29 @@ export default function Index() {
     [],
   );
 
-  const handlePreprocessingDone = useCallback((taskType: TaskType) => {
-    setDetectedTaskType(taskType);
-    setSampleCount(0);
-    setConfig((prev) => ({
-      ...prev,
-      metrics: buildDefaultsForTask(taskType),
-    }));
+  const handleDocumentsConfirmed = useCallback(
+    (data: {
+      dataset_id: string;
+      taskType: TaskType;
+      chunkingStrategy: PreprocessingChunkingStrategy;
+      file_count: number;
+    }) => {
+      setDatasetId(data.dataset_id);
+      setDatasetKind('documents');
+      setDetectedTaskType(data.taskType);
+      setChunkingStrategy(data.chunkingStrategy);
+      setSampleCount(data.file_count);
+      setPreprocessingDone(false);
+      setConfig((prev) => ({
+        ...prev,
+        metrics: buildDefaultsForTask(data.taskType),
+      }));
+      setStep(3);
+    },
+    [],
+  );
+
+  const handlePreprocessingDone = useCallback(() => {
     setPreprocessingDone(true);
   }, []);
 
@@ -161,6 +183,7 @@ export default function Index() {
     setDatasetId(null);
     setDatasetKind(null);
     setPreprocessingDone(false);
+    setChunkingStrategy('CHAPTER');
     setSampleCount(0);
     setDetectedTaskType(undefined);
     setEvaluationId(null);
@@ -219,6 +242,7 @@ export default function Index() {
                     setConfig({ ...config, datasetFiles: files })
                   }
                   onUploadSuccess={handleUploadSuccess}
+                  onDocumentsConfirmed={handleDocumentsConfirmed}
                 />
               )}
               {step === 3 &&
@@ -227,6 +251,8 @@ export default function Index() {
                 !preprocessingDone && (
                   <PreprocessingStep
                     datasetId={datasetId}
+                    taskType={detectedTaskType ?? 'summarization'}
+                    chunkingStrategy={chunkingStrategy}
                     onDone={handlePreprocessingDone}
                     onBack={() => {
                       setDatasetId(null);
