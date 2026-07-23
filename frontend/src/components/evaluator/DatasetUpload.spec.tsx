@@ -239,27 +239,32 @@ describe('DatasetUpload', () => {
     );
 
     expect(screen.getByText(/2 files uploaded/)).toBeInTheDocument();
-    expect(
-      screen.getByText('Select a task type to configure metrics.'),
-    ).toBeInTheDocument();
   });
 
-  it('requires task type selection for document uploads', async () => {
+  it('advances documents straight to the preprocessing step on upload', async () => {
     const onUploadSuccess = vi.fn();
     const file = new File(['doc'], 'report.pdf', { type: 'application/pdf' });
 
-    mutationState = {
-      isPending: false,
-      isSuccess: true,
-      isError: false,
-      data: {
-        dataset_type: 'documents',
-        dataset_id: 'dataset-1',
-        file_count: 1,
-        documents: [],
+    mutateMock.mockImplementation(
+      (
+        _files: File[],
+        options?: {
+          onSuccess?: (data: {
+            dataset_type: 'documents';
+            dataset_id: string;
+            file_count: number;
+            documents: Array<{ filename: string; file_type: string }>;
+          }) => void;
+        },
+      ) => {
+        options?.onSuccess?.({
+          dataset_type: 'documents',
+          dataset_id: 'dataset-1',
+          file_count: 1,
+          documents: [],
+        });
       },
-      error: null,
-    };
+    );
 
     renderWithProviders(
       <DatasetUpload
@@ -272,13 +277,13 @@ describe('DatasetUpload', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /documents \(pdf \/ doc \/ docx\)/i }),
     );
-    fireEvent.click(screen.getByRole('button', { name: /classification/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^upload$/i }));
 
     await waitFor(() => {
       expect(onUploadSuccess).toHaveBeenCalledWith({
         dataset_type: 'documents',
         dataset_id: 'dataset-1',
-        taskType: 'classification',
+        taskType: undefined,
         sample_count: 1,
       });
     });

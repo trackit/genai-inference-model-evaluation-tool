@@ -252,8 +252,6 @@ export function DatasetUpload({
   const [dragOver, setDragOver] = useState(false);
   const [datasetMode, setDatasetMode] = useState<DatasetMode>('structured');
   const [activeTask, setActiveTask] = useState<TaskType>('summarization');
-  const [selectedDocumentTask, setSelectedDocumentTask] =
-    useState<TaskType | null>(null);
   const [formatTab, setFormatTab] = useState<FormatTab>('csv');
   const uploadMutation = useUploadDataset();
   const activeDatasetMode = DATASET_MODES.find(
@@ -261,14 +259,10 @@ export function DatasetUpload({
   )!;
   const validationError = getValidationError(files, datasetMode);
   const showStructuredGuidance = datasetMode === 'structured';
-  const isDocumentUploadSuccess =
-    uploadMutation.isSuccess &&
-    uploadMutation.data?.dataset_type === 'documents';
 
   const handleAddFiles = (newFiles: File[]) => {
     if (newFiles.length === 0) return;
     uploadMutation.reset();
-    setSelectedDocumentTask(null);
     onChange(
       datasetMode === 'structured'
         ? newFiles.slice(0, 1)
@@ -279,32 +273,17 @@ export function DatasetUpload({
   const handleDatasetModeChange = (mode: DatasetMode) => {
     if (mode === datasetMode) return;
     uploadMutation.reset();
-    setSelectedDocumentTask(null);
     setDatasetMode(mode);
     onChange(files.filter((file) => fileMatchesMode(file, mode)));
   };
 
   const handleRemoveFile = (index: number) => {
     uploadMutation.reset();
-    setSelectedDocumentTask(null);
     onChange(files.filter((_, fileIndex) => fileIndex !== index));
-  };
-
-  const handleSelectDocumentTask = (task: TaskType) => {
-    setSelectedDocumentTask(task);
-    if (uploadMutation.data?.dataset_type === 'documents') {
-      onUploadSuccess({
-        dataset_type: 'documents',
-        dataset_id: uploadMutation.data.dataset_id,
-        taskType: task,
-        sample_count: uploadMutation.data.file_count,
-      });
-    }
   };
 
   const handleUpload = () => {
     if (files.length === 0 || validationError) return;
-    setSelectedDocumentTask(null);
     uploadMutation.mutate(files, {
       onSuccess: (data) => {
         if (data.dataset_type === 'structured') {
@@ -313,6 +292,15 @@ export function DatasetUpload({
             dataset_id: data.dataset_id,
             taskType: detectedTaskFromUpload(data),
             sample_count: data.sample_count,
+          });
+        } else {
+          // Documents advance straight to the preprocessing step, where the
+          // task type and chunking strategy are chosen before launching.
+          onUploadSuccess({
+            dataset_type: 'documents',
+            dataset_id: data.dataset_id,
+            taskType: undefined,
+            sample_count: data.file_count,
           });
         }
       },
@@ -348,8 +336,8 @@ export function DatasetUpload({
           </>
         ) : (
           <>
-            Upload one or more PDF, DOC, or DOCX files. Choose the task type
-            after upload completes.
+            Upload one or more PDF, DOC, or DOCX files. You'll choose the task
+            type and chunking strategy on the next step.
           </>
         )}
       </p>
@@ -626,22 +614,6 @@ export function DatasetUpload({
         </div>
       )}
 
-      {isDocumentUploadSuccess && (
-        <div className="mt-6">
-          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
-            Task type
-          </p>
-          <TaskTypeButtons
-            selected={selectedDocumentTask}
-            onSelect={handleSelectDocumentTask}
-          />
-          {!selectedDocumentTask && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Select a task type to configure metrics.
-            </p>
-          )}
-        </div>
-      )}
     </motion.div>
   );
 }
