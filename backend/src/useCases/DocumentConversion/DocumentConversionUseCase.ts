@@ -6,6 +6,8 @@ import {
   ChunkingStrategy,
   DocumentChunk,
   ExtractedDocument,
+  SUPPORTED_DOCUMENT_FILE_TYPES,
+  SupportedDocumentFileType,
 } from '../../models/DocumentConversion';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
@@ -22,8 +24,15 @@ export type DocumentRequestEntry = {
 
 export interface DocumentConversionRequest {
   dataset_id: string;
-  documents: DocumentRequestEntry[];
   chunking_strategy: ChunkingStrategy;
+}
+
+function isSupportedDocumentType(
+  fileType: DatasetFileType,
+): fileType is SupportedDocumentFileType {
+  return (SUPPORTED_DOCUMENT_FILE_TYPES as readonly string[]).includes(
+    fileType,
+  );
 }
 
 export function chunkDocuments(
@@ -66,7 +75,11 @@ export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase 
   private readonly datasetService = inject(tokenDatasetService);
 
   async execute(request: DocumentConversionRequest): Promise<string> {
-    const extracted = await this.fetchAndParseAll(request);
+    const documents = await this.resolveDocuments(request.dataset_id);
+    const extracted = await this.fetchAndParseAll(
+      request.dataset_id,
+      documents,
+    );
 
     const chunks = chunkDocuments(extracted, request.chunking_strategy);
 
@@ -78,13 +91,49 @@ export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase 
     return storedJsonlKey;
   }
 
+  /**
+   * Resolves which uploaded documents to convert from the dataset's upload
+   * manifest (the state machine only carries a datasetId, not the file list).
+   */
+  private async resolveDocuments(
+    datasetId: string,
+  ): Promise<DocumentRequestEntry[]> {
+    const manifest = await this.datasetService.readUploadManifest(datasetId);
+    if (!manifest) {
+      throw new BasicError(
+        BasicErrorType.NOT_FOUND,
+        'UPLOAD_MANIFEST_NOT_FOUND',
+        'Upload manifest not found',
+        `No manifest found for dataset ${datasetId}`,
+      );
+    }
+
+    const documents = manifest.files
+      .filter((file) => isSupportedDocumentType(file.file_type))
+      .map((file) => ({
+        document_id: file.document_id,
+        file_type: file.file_type,
+      }));
+
+    if (documents.length === 0) {
+      throw new BasicError(
+        BasicErrorType.UNPROCESSABLE_ENTITY,
+        'NO_DOCUMENTS_TO_CONVERT',
+        'No pdf/doc/docx documents found for this dataset',
+      );
+    }
+
+    return documents;
+  }
+
   private async fetchAndParseAll(
-    request: DocumentConversionRequest,
+    datasetId: string,
+    documents: DocumentRequestEntry[],
   ): Promise<ExtractedDocument[]> {
     return Promise.all(
-      request.documents.map(async ({ document_id, file_type }) => {
+      documents.map(async ({ document_id, file_type }) => {
         const rawContent = await this.datasetService.fetchRawContent(
-          request.dataset_id,
+          datasetId,
           document_id,
           file_type,
         );

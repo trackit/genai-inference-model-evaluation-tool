@@ -1,8 +1,6 @@
 import {
-  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
-  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -60,14 +58,6 @@ export function syntheticDatasetS3Key(datasetId: string): string {
 
 export function structuredDatasetS3Key(datasetId: string): string {
   return `datasets/${datasetId}/${datasetId}.jsonl`;
-}
-
-export function syntheticRowsPrefix(datasetId: string): string {
-  return `datasets/${datasetId}/synthetic-rows/`;
-}
-
-export function syntheticRowS3Key(datasetId: string, chunkId: string): string {
-  return `${syntheticRowsPrefix(datasetId)}${encodeURIComponent(chunkId)}.json`;
 }
 
 export class DatasetServiceImpl implements DatasetService {
@@ -383,71 +373,6 @@ export class DatasetServiceImpl implements DatasetService {
     );
 
     return { structuredDatasetArtifactKey };
-  }
-
-  async writeSyntheticRow(
-    datasetId: string,
-    chunkId: string,
-    row: SyntheticOutputRow,
-  ): Promise<void> {
-    await this.writeArtifact(
-      syntheticRowS3Key(datasetId, chunkId),
-      JSON.stringify(row),
-    );
-  }
-
-  private async listSyntheticRowKeys(datasetId: string): Promise<string[]> {
-    const keys: string[] = [];
-    let continuationToken: string | undefined;
-
-    do {
-      const listed = await this.s3Client.send(
-        new ListObjectsV2Command({
-          Bucket: this.bucketName,
-          Prefix: syntheticRowsPrefix(datasetId),
-          ContinuationToken: continuationToken,
-        }),
-      );
-
-      for (const object of listed.Contents ?? []) {
-        if (object.Key) keys.push(object.Key);
-      }
-
-      continuationToken = listed.IsTruncated
-        ? listed.NextContinuationToken
-        : undefined;
-    } while (continuationToken);
-
-    return keys;
-  }
-
-  async readSyntheticRows(datasetId: string): Promise<SyntheticOutputRow[]> {
-    const keys = await this.listSyntheticRowKeys(datasetId);
-
-    const rows = await Promise.all(
-      keys.map(async (key) => {
-        const content = await this.retrieveArtifact(key);
-        return JSON.parse(content) as SyntheticOutputRow;
-      }),
-    );
-
-    return rows;
-  }
-
-  async deleteSyntheticRows(datasetId: string): Promise<void> {
-    const keys = await this.listSyntheticRowKeys(datasetId);
-    if (keys.length === 0) return;
-
-    // DeleteObjects accepts at most 1000 keys per request.
-    for (let i = 0; i < keys.length; i += 1000) {
-      const batch = keys.slice(i, i + 1000);
-      await this.s3Client.send(
-        new DeleteObjectsCommand({
-          Bucket: this.bucketName,
-          Delete: { Objects: batch.map((Key) => ({ Key })) },
-        }),
-      );
-    }
   }
 
   private async retrieveArtifact(key: string): Promise<string> {
