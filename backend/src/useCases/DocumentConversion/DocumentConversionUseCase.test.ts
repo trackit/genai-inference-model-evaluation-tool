@@ -7,6 +7,7 @@ import {
   FakeDatasetService,
   tokenFakeDatasetService,
 } from '../../services/DatasetService/FakeDatasetService';
+import { documentS3Key } from '../../services/DatasetService/DatasetServiceS3';
 import { tokenFakeDocumentConversionService } from '../../services/DocumentConversionService/FakeDocumentConversionService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { tokenDocumentConversionUseCase } from './DocumentConversionUseCase';
@@ -34,7 +35,7 @@ const seedManifest = (
       document_id: doc.document_id,
       filename: `doc-${index}.${doc.file_type}`,
       file_type: doc.file_type,
-      s3_key: `datasets/${datasetId}/${doc.document_id}.${doc.file_type}`,
+      s3_key: documentS3Key(datasetId, doc.document_id, doc.file_type),
       size_bytes: 100,
     })),
   });
