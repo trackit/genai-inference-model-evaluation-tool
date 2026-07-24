@@ -6,10 +6,6 @@ export const SYNTHETIC_OUTPUT_TASK_TYPES = [
 export type SyntheticOutputTaskType =
   (typeof SYNTHETIC_OUTPUT_TASK_TYPES)[number];
 
-export const CHUNKING_STRATEGIES = ['document', 'chapter'] as const;
-
-export type ChunkingStrategy = (typeof CHUNKING_STRATEGIES)[number];
-
 export interface ConvertedDatasetRow {
   chunk_id: string;
   document_id: string;

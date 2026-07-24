@@ -6,6 +6,7 @@ import type {
 import { z } from 'zod';
 
 import { ChunkingStrategy } from '../../models/DocumentConversion';
+import { SYNTHETIC_OUTPUT_TASK_TYPES } from '../../models/SyntheticOutput';
 import { tokenStartPreprocessingUseCase } from '../../useCases/StartPreprocessing/StartPreprocessingUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
 import { parseApiEvent } from '../api/parseApiEvent';
@@ -13,7 +14,7 @@ import { parseApiEvent } from '../api/parseApiEvent';
 const PathSchema = z.object({ datasetId: z.string().min(1) });
 
 const BodySchema = z.object({
-  taskType: z.enum(['summarization', 'classification']),
+  taskType: z.enum(SYNTHETIC_OUTPUT_TASK_TYPES),
   chunkingStrategy: z.enum(ChunkingStrategy),
 });
 
