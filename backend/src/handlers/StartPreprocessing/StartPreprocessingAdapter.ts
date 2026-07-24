@@ -11,9 +11,9 @@ import { tokenStartPreprocessingUseCase } from '../../useCases/StartPreprocessin
 import { handleHttpRequest } from '../api/handleHttpRequest';
 import { parseApiEvent } from '../api/parseApiEvent';
 
-const PathSchema = z.object({ datasetId: z.string().min(1) });
+const StartPreprocessingModulePathSchema = z.object({ datasetId: z.string().min(1) });
 
-const BodySchema = z.object({
+const RunSyntheticPreprocessingBodySchema = z.object({
   taskType: z.enum(SYNTHETIC_OUTPUT_TASK_TYPES),
   chunkingStrategy: z.enum(ChunkingStrategy),
 });
@@ -33,8 +33,8 @@ export class StartPreprocessingAdapter {
 
   private async processRequest(event: APIGatewayProxyEventV2) {
     const { pathParameters, body } = parseApiEvent(event, {
-      pathSchema: PathSchema,
-      bodySchema: BodySchema,
+      pathSchema: StartPreprocessingModulePathSchema,
+      bodySchema: RunSyntheticPreprocessingBodySchema,
     });
 
     return this.useCase.execute({
