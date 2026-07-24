@@ -6,7 +6,7 @@ export type ExecutionStatus =
   | 'ABORTED'
   | 'PENDING_REDRIVE';
 
-export interface StepFunctionsService {
+export interface StateMachineService {
   startExecution(input: {
     name: string;
     input: string;

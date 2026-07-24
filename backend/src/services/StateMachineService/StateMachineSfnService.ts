@@ -6,10 +6,10 @@ import {
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 import {
   ExecutionStatus,
-  StepFunctionsService,
-} from '../../ports/StepFunctionsService';
+  StateMachineService,
+} from '../../ports/StateMachineService';
 
-export class StepFunctionsServiceImpl implements StepFunctionsService {
+export class StateMachineSfnService implements StateMachineService {
   private readonly stateMachineArn =
     process.env.PREPROCESSING_STATE_MACHINE_ARN!;
   private readonly sfnClient = inject(tokenClientSFN);
@@ -48,7 +48,7 @@ export const tokenClientSFN = createInjectionToken<SFNClient>('ClientSFN', {
   useClass: SFNClient,
 });
 
-export const tokenStepFunctionsService =
-  createInjectionToken<StepFunctionsService>('StepFunctionsService', {
-    useClass: StepFunctionsServiceImpl,
+export const tokenStateMachineService =
+  createInjectionToken<StateMachineService>('StateMachineService', {
+    useClass: StateMachineSfnService,
   });

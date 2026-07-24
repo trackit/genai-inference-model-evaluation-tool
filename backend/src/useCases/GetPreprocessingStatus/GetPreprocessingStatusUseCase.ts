@@ -1,6 +1,6 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
-import { tokenStepFunctionsService } from '../../services/StepFunctionsService/StepFunctionsServiceImpl';
+import { tokenStateMachineService } from '../../services/StateMachineService/StateMachineSfnService';
 
 export type PreprocessingStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED';
 
@@ -17,7 +17,7 @@ export type GetPreprocessingStatusUseCase = {
 };
 
 export class GetPreprocessingStatusUseCaseImpl implements GetPreprocessingStatusUseCase {
-  private readonly stepFunctions = inject(tokenStepFunctionsService);
+  private readonly stateMachine = inject(tokenStateMachineService);
 
   async execute({
     executionArn,
@@ -25,7 +25,7 @@ export class GetPreprocessingStatusUseCaseImpl implements GetPreprocessingStatus
     executionArn: string;
   }): Promise<GetPreprocessingStatusResult> {
     const { status, output } =
-      await this.stepFunctions.describeExecution(executionArn);
+      await this.stateMachine.describeExecution(executionArn);
 
     if (status === 'SUCCEEDED') {
       const parsed = output

@@ -116,9 +116,6 @@ Resources:
       LogGroupName: !Sub '/aws/lambda/${ConfirmDatasetUploadFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
-  # DocumentConversion + RunSyntheticPreprocessing (and the state machine that
-  # orchestrates them) live in the preprocessing substack.
-
   GetDatasetPreviewFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:

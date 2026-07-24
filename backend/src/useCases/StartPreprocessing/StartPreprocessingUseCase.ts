@@ -2,7 +2,7 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { ChunkingStrategy } from '../../models/DocumentConversion';
 import { SyntheticOutputTaskType } from '../../models/SyntheticOutput';
-import { tokenStepFunctionsService } from '../../services/StepFunctionsService/StepFunctionsServiceImpl';
+import { tokenStateMachineService } from '../../services/StateMachineService/StateMachineSfnService';
 
 export interface StartPreprocessingInput {
   datasetId: string;
@@ -20,7 +20,7 @@ export type StartPreprocessingUseCase = {
 };
 
 export class StartPreprocessingUseCaseImpl implements StartPreprocessingUseCase {
-  private readonly stepFunctions = inject(tokenStepFunctionsService);
+  private readonly stateMachine = inject(tokenStateMachineService);
 
   async execute({
     datasetId,
@@ -30,7 +30,7 @@ export class StartPreprocessingUseCaseImpl implements StartPreprocessingUseCase 
     const name = `${datasetId}-${Date.now()}`;
     const input = JSON.stringify({ datasetId, taskType, chunkingStrategy });
 
-    const { executionArn } = await this.stepFunctions.startExecution({
+    const { executionArn } = await this.stateMachine.startExecution({
       name,
       input,
     });

@@ -1,10 +1,10 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 import {
   ExecutionStatus,
-  StepFunctionsService,
-} from '../../ports/StepFunctionsService';
+  StateMachineService,
+} from '../../ports/StateMachineService';
 
-export class FakeStepFunctionsService implements StepFunctionsService {
+export class FakeStateMachineService implements StateMachineService {
   public readonly started: Array<{ name: string; input: string }> = [];
   public statusByArn: Record<
     string,
@@ -32,7 +32,7 @@ export class FakeStepFunctionsService implements StepFunctionsService {
   }
 }
 
-export const tokenFakeStepFunctionsService =
-  createInjectionToken<FakeStepFunctionsService>('FakeStepFunctionsService', {
-    useClass: FakeStepFunctionsService,
+export const tokenFakeStateMachineService =
+  createInjectionToken<FakeStateMachineService>('FakeStateMachineService', {
+    useClass: FakeStateMachineService,
   });
