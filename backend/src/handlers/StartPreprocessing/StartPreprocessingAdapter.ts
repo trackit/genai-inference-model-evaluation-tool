@@ -11,7 +11,9 @@ import { tokenStartPreprocessingUseCase } from '../../useCases/StartPreprocessin
 import { handleHttpRequest } from '../api/handleHttpRequest';
 import { parseApiEvent } from '../api/parseApiEvent';
 
-const StartPreprocessingModulePathSchema = z.object({ datasetId: z.string().min(1) });
+const StartPreprocessingModulePathSchema = z.object({
+  datasetId: z.string().min(1),
+});
 
 const RunSyntheticPreprocessingBodySchema = z.object({
   taskType: z.enum(SYNTHETIC_OUTPUT_TASK_TYPES),

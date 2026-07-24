@@ -3,11 +3,11 @@ import { randomUUID } from 'crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { DatasetFileType } from '../../models/Dataset';
 import { ChunkingStrategy } from '../../models/DocumentConversion';
+import { documentS3Key } from '../../services/DatasetService/DatasetServiceS3';
 import {
   FakeDatasetService,
   tokenFakeDatasetService,
 } from '../../services/DatasetService/FakeDatasetService';
-import { documentS3Key } from '../../services/DatasetService/DatasetServiceS3';
 import { tokenFakeDocumentConversionService } from '../../services/DocumentConversionService/FakeDocumentConversionService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { tokenDocumentConversionUseCase } from './DocumentConversionUseCase';

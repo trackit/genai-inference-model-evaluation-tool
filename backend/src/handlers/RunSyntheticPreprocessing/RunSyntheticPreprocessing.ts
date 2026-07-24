@@ -14,19 +14,18 @@ const RunSyntheticPreprocessingTaskInputSchema = z.object({
   modelId: z.string().min(1).optional(),
 });
 
-
 export const handler = async (
   event: Record<string, unknown>,
 ): Promise<RunSyntheticPreprocessingResult> => {
   const { datasetId, taskType, convertedDatasetArtifactKey, modelId } =
     RunSyntheticPreprocessingTaskInputSchema.parse(event);
 
-  return inject(tokenRunSyntheticPreprocessingUseCase).runSyntheticPreprocessing(
-    {
-      datasetId,
-      convertedDatasetArtifactKey,
-      taskType,
-      modelId,
-    },
-  );
+  return inject(
+    tokenRunSyntheticPreprocessingUseCase,
+  ).runSyntheticPreprocessing({
+    datasetId,
+    convertedDatasetArtifactKey,
+    taskType,
+    modelId,
+  });
 };
