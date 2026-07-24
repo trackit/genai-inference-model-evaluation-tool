@@ -141,6 +141,7 @@ Resources:
             Catch:
               - ErrorEquals:
                   - States.ALL
+                ResultPath: $.error
                 Next: PreprocessingFailed
           RunSyntheticPreprocessing:
             Type: Task
@@ -156,6 +157,7 @@ Resources:
             Catch:
               - ErrorEquals:
                   - States.ALL
+                ResultPath: $.error
                 Next: PreprocessingFailed
           PreprocessingFailed:
             Type: Fail
