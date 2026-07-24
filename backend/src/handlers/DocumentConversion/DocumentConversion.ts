@@ -20,10 +20,6 @@ export interface DocumentConversionTaskOutput {
   convertedDatasetArtifactKey: string;
 }
 
-/**
- * Step Functions task: parses the dataset's uploaded documents into a converted
- * JSONL artifact. Invoked with a plain JSON payload (not an API Gateway event).
- */
 export const handler = async (
   event: Record<string, unknown>,
 ): Promise<DocumentConversionTaskOutput> => {

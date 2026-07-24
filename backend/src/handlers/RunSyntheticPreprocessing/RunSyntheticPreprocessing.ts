@@ -14,10 +14,7 @@ const RunSyntheticPreprocessingTaskInputSchema = z.object({
   modelId: z.string().min(1).optional(),
 });
 
-/**
- * Step Functions task: generates synthetic outputs (with retries) and assembles
- * the final structured dataset. Invoked with a plain JSON payload.
- */
+
 export const handler = async (
   event: Record<string, unknown>,
 ): Promise<RunSyntheticPreprocessingResult> => {
