@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { useDatasetPreview } from '@/hooks/useEvaluation';
+import { useDatasetPreview, useEditGroundTruth } from '@/hooks/useEvaluation';
+import type { DatasetSample } from '@/types/evaluation';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -18,6 +19,38 @@ interface DatasetConfirmProps {
   isStarting?: boolean;
 }
 
+function groundTruthValue(sample: DatasetSample): string {
+  if (sample.summary !== undefined) return sample.summary;
+  if (sample.class_label !== undefined) return sample.class_label;
+  return '';
+}
+
+function isEditableSummary(sample: DatasetSample): boolean {
+  return sample.sample_id !== undefined && sample.summary !== undefined;
+}
+
+function isEditableClass(sample: DatasetSample): boolean {
+  return sample.sample_id !== undefined && sample.class_label !== undefined;
+}
+
+function buildDirtyEdits(
+  samples: DatasetSample[],
+  drafts: Record<string, string>,
+): Record<string, string> {
+  const edits: Record<string, string> = {};
+  for (const sample of samples) {
+    if (!sample.sample_id) continue;
+    if (!isEditableSummary(sample) && !isEditableClass(sample)) continue;
+
+    const draft = drafts[sample.sample_id] ?? groundTruthValue(sample);
+    const original = groundTruthValue(sample);
+    if (draft.trim() !== original.trim()) {
+      edits[sample.sample_id] = draft.trim();
+    }
+  }
+  return edits;
+}
+
 export function DatasetConfirm({
   datasetId,
   sampleCount,
@@ -27,11 +60,19 @@ export function DatasetConfirm({
 }: DatasetConfirmProps) {
   const { data, isLoading, isError, error, refetch } =
     useDatasetPreview(datasetId);
+  const editGroundTruthMutation = useEditGroundTruth(datasetId);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   const samples = data?.samples ?? [];
+  const dirtyEdits = buildDirtyEdits(samples, drafts);
+  const hasPendingEdits = Object.keys(dirtyEdits).length > 0;
   const hasSummary = samples.some((s) => s.summary !== undefined);
   const hasClass = samples.some((s) => s.class_label !== undefined);
+  const hasEditableSamples = samples.some(
+    (sample) => isEditableSummary(sample) || isEditableClass(sample),
+  );
+
   const toggleRow = (index: number) => {
     setExpandedRows((prev) => {
       const next = new Set(prev);
@@ -40,7 +81,25 @@ export function DatasetConfirm({
       return next;
     });
   };
+
   const colSpan = 2 + (hasSummary ? 1 : 0) + (hasClass ? 1 : 0);
+
+  const handleDraftChange = (sampleId: string, value: string) => {
+    setDrafts((prev) => ({ ...prev, [sampleId]: value }));
+  };
+
+  const handleSaveAll = async () => {
+    if (!hasPendingEdits) return;
+
+    await editGroundTruthMutation.mutateAsync({ edits: dirtyEdits });
+    setDrafts((prev) => {
+      const next = { ...prev };
+      for (const sampleId of Object.keys(dirtyEdits)) {
+        delete next[sampleId];
+      }
+      return next;
+    });
+  };
 
   return (
     <motion.div
@@ -51,8 +110,10 @@ export function DatasetConfirm({
       <h1 className="text-2xl font-semibold tracking-tight">Confirm Dataset</h1>
       <p className="text-sm text-muted-foreground mt-1 mb-6">
         Review the first {samples.length > 0 ? samples.length : '…'} of{' '}
-        {sampleCount} samples. Confirm to start evaluation, or go back to
-        re-upload.
+        {sampleCount} samples.
+        {hasEditableSamples
+          ? ' Edit any inaccurate ground truth and save before starting evaluation, or go back to re-upload.'
+          : ' Confirm to start evaluation, or go back to re-upload.'}
       </p>
 
       {isLoading && (
@@ -106,9 +167,18 @@ export function DatasetConfirm({
                     sample.document.length > 80 ||
                     (sample.summary?.length ?? 0) > 80 ||
                     (sample.class_label?.length ?? 0) > 80;
+                  const editableSummary = isEditableSummary(sample);
+                  const editableClass = isEditableClass(sample);
+                  const sampleId = sample.sample_id;
+                  const draft =
+                    sampleId !== undefined
+                      ? (drafts[sampleId] ?? groundTruthValue(sample))
+                      : '';
+                  const isDirty =
+                    sampleId !== undefined && sampleId in dirtyEdits;
 
                   return (
-                    <Fragment key={i}>
+                    <Fragment key={sampleId ?? i}>
                       <tr className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">
                           {i + 1}
@@ -126,24 +196,43 @@ export function DatasetConfirm({
                         </td>
                         {hasSummary && (
                           <td className="px-4 py-3 text-foreground/80 max-w-xs">
-                            <span
-                              className={
-                                isExpanded
-                                  ? 'line-clamp-5 whitespace-pre-wrap break-words'
-                                  : 'line-clamp-2'
-                              }
-                            >
-                              {sample.summary ?? (
-                                <span className="text-muted-foreground italic">
-                                  —
-                                </span>
-                              )}
-                            </span>
+                            {editableSummary && sampleId ? (
+                              <GroundTruthEditor
+                                multiline
+                                value={draft}
+                                onChange={(value) =>
+                                  handleDraftChange(sampleId, value)
+                                }
+                                isDirty={isDirty}
+                              />
+                            ) : (
+                              <span
+                                className={
+                                  isExpanded
+                                    ? 'line-clamp-5 whitespace-pre-wrap break-words'
+                                    : 'line-clamp-2'
+                                }
+                              >
+                                {sample.summary ?? (
+                                  <span className="text-muted-foreground italic">
+                                    —
+                                  </span>
+                                )}
+                              </span>
+                            )}
                           </td>
                         )}
                         {hasClass && (
                           <td className="px-4 py-3">
-                            {sample.class_label !== undefined ? (
+                            {editableClass && sampleId ? (
+                              <GroundTruthEditor
+                                value={draft}
+                                onChange={(value) =>
+                                  handleDraftChange(sampleId, value)
+                                }
+                                isDirty={isDirty}
+                              />
+                            ) : sample.class_label !== undefined ? (
                               <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs font-mono">
                                 {sample.class_label}
                               </span>
@@ -187,26 +276,30 @@ export function DatasetConfirm({
                                 {sample.document}
                               </p>
                             </div>
-                            {hasSummary && sample.summary && (
-                              <div>
-                                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                                  Summary
-                                </p>
-                                <p className="line-clamp-5 whitespace-pre-wrap break-words">
-                                  {sample.summary}
-                                </p>
-                              </div>
-                            )}
-                            {hasClass && sample.class_label !== undefined && (
-                              <div>
-                                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                                  Class
-                                </p>
-                                <p className="font-mono">
-                                  {sample.class_label}
-                                </p>
-                              </div>
-                            )}
+                            {hasSummary &&
+                              sample.summary &&
+                              !editableSummary && (
+                                <div>
+                                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                                    Summary
+                                  </p>
+                                  <p className="line-clamp-5 whitespace-pre-wrap break-words">
+                                    {sample.summary}
+                                  </p>
+                                </div>
+                              )}
+                            {hasClass &&
+                              sample.class_label !== undefined &&
+                              !editableClass && (
+                                <div>
+                                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                                    Class
+                                  </p>
+                                  <p className="font-mono">
+                                    {sample.class_label}
+                                  </p>
+                                </div>
+                              )}
                           </td>
                         </tr>
                       )}
@@ -219,13 +312,38 @@ export function DatasetConfirm({
         </div>
       )}
 
+      {editGroundTruthMutation.isError && (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {editGroundTruthMutation.error.message}
+        </p>
+      )}
+
+      {hasEditableSamples && hasPendingEdits && (
+        <div className="mt-4 flex justify-end">
+          <Button
+            type="button"
+            onClick={() => void handleSaveAll()}
+            disabled={editGroundTruthMutation.isPending}
+            className="gap-2"
+          >
+            {editGroundTruthMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Saving changes…
+              </>
+            ) : (
+              'Save changes'
+            )}
+          </Button>
+        </div>
+      )}
+
       <div className="flex justify-between mt-8">
         <Button variant="outline" onClick={onBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
         <Button
           onClick={onConfirm}
-          disabled={!data || isStarting}
+          disabled={!data || isStarting || editGroundTruthMutation.isPending}
           className="gap-2"
           size="lg"
         >
@@ -239,5 +357,36 @@ export function DatasetConfirm({
         </Button>
       </div>
     </motion.div>
+  );
+}
+
+function GroundTruthEditor({
+  value,
+  onChange,
+  isDirty,
+  multiline = false,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  isDirty: boolean;
+  multiline?: boolean;
+}) {
+  const fieldClassName =
+    'w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
+
+  return multiline ? (
+    <textarea
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      rows={3}
+      className={`${fieldClassName} resize-y min-h-[4.5rem] ${isDirty ? 'border-primary' : ''}`}
+    />
+  ) : (
+    <input
+      type="text"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className={`${fieldClassName} ${isDirty ? 'border-primary' : ''}`}
+    />
   );
 }

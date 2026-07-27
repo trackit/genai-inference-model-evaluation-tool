@@ -3,6 +3,8 @@ import type {
   CreateEvaluationRequest,
   DatasetPreviewData,
   DatasetUploadData,
+  EditGroundTruthData,
+  EditGroundTruthRequest,
   EvaluationLaunchData,
   EvaluationResultsData,
   EvaluationStatusData,
@@ -238,6 +240,24 @@ export async function getPreprocessingStatus(
     { headers: authHeaders() },
   );
   return handleResponse<PreprocessingStatusData>(response);
+}
+
+export async function editGroundTruth(
+  datasetId: string,
+  request: EditGroundTruthRequest,
+): Promise<EditGroundTruthData> {
+  const response = await fetchWithTimeout(
+    `${getBaseUrl()}/datasets/${datasetId}/edit`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(),
+      },
+      body: JSON.stringify(request),
+    },
+  );
+  return handleResponse<EditGroundTruthData>(response);
 }
 
 export async function createEvaluation(

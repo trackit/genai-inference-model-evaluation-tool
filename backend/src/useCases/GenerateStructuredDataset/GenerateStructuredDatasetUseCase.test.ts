@@ -25,14 +25,14 @@ describe('GenerateStructuredDatasetUseCase', () => {
       sampleCount: 2,
     });
     expect(expectWrittenStructuredRows(fakeDatasetService)).toEqual([
-      {
+      expect.objectContaining({
         document: 'First document chunk',
         summary: 'Summary one',
-      },
-      {
+      }),
+      expect.objectContaining({
         document: 'Second document chunk',
         summary: 'Summary two',
-      },
+      }),
     ]);
   });
 
@@ -49,10 +49,12 @@ describe('GenerateStructuredDatasetUseCase', () => {
         'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
     });
 
-    expect(expectWrittenStructuredRows(fakeDatasetService)[0]).toEqual({
-      document: 'Refunds are available after billing errors.',
-      class: 'support_policy',
-    });
+    expect(expectWrittenStructuredRows(fakeDatasetService)[0]).toEqual(
+      expect.objectContaining({
+        document: 'Refunds are available after billing errors.',
+        class: 'support_policy',
+      }),
+    );
   });
 
   it('rejects failed synthetic rows before writing the final dataset', async () => {

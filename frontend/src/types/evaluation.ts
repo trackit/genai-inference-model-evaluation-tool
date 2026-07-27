@@ -280,6 +280,7 @@ export interface StructuredDatasetUploadData {
 }
 
 export interface DatasetSample {
+  sample_id?: string;
   document: string;
   summary?: string;
   class_label?: string;
@@ -302,6 +303,14 @@ export interface PreprocessingStatusData {
   status: 'RUNNING' | 'SUCCEEDED' | 'FAILED';
   structuredDatasetArtifactKey?: string;
   sampleCount?: number;
+}
+export interface EditGroundTruthRequest {
+  edits: Record<string, string>;
+}
+
+export interface EditGroundTruthData {
+  datasetId: string;
+  edits: Record<string, string>;
 }
 
 export interface DocumentDatasetUploadData {
