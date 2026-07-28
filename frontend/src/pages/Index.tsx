@@ -214,7 +214,12 @@ export default function Index() {
       )}
       <main className="flex-1 overflow-y-auto">
         <div
-          className={`mx-auto px-6 py-10 ${activePhase === 'results' ? 'max-w-6xl' : 'max-w-2xl px-8'}`}
+          className={`mx-auto px-6 py-10 ${
+            activePhase === 'results' ||
+            (activePhase === 'config' && step === 3)
+              ? 'max-w-6xl'
+              : 'max-w-2xl px-8'
+          }`}
         >
           <div className="mb-8">
             <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">

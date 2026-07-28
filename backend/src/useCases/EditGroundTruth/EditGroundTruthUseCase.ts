@@ -77,15 +77,19 @@ export class EditGroundTruthUseCaseImpl implements EditGroundTruthUseCase {
   }: EditGroundTruthInput): Promise<EditGroundTruthOutput> {
     const trimmedEdits = this.trimEdits(edits);
 
-    const { content, fileExtension } =
-      await this.datasetService.retrieveDataset(datasetId);
+    let content: string;
+    try {
+      content = await this.datasetService.retrieveDataset(datasetId, 'jsonl');
+    } catch (error) {
+      if (error instanceof BasicError && error.code === 'DATASET_NOT_FOUND') {
+        throw new BasicError(
+          BasicErrorType.UNPROCESSABLE_ENTITY,
+          'DATASET_NOT_FOUND',
+          'Dataset not found',
+        );
+      }
 
-    if (fileExtension !== 'jsonl') {
-      throw new BasicError(
-        BasicErrorType.UNPROCESSABLE_ENTITY,
-        'INVALID_FILE_FORMAT',
-        'Dataset file must be in JSONL format for editing ground truth',
-      );
+      throw error;
     }
 
     const dataset: Dataset = this.jsonlParser.parse(content);

@@ -221,6 +221,28 @@ describe('DatasetConfirm', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
+  it('shows download button only when a row is expanded', () => {
+    previewState = {
+      ...previewState,
+      data: {
+        dataset_id: 'dataset-1',
+        samples: [{ document: 'Doc 1', summary: 'Summary 1' }],
+      },
+    };
+
+    renderWithProviders(<DatasetConfirm {...defaultProps} />);
+
+    expect(
+      screen.queryByRole('button', { name: /download sample 1 as jsonl/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /expand row 1/i }));
+
+    expect(
+      screen.getByRole('button', { name: /download sample 1 as jsonl/i }),
+    ).toBeInTheDocument();
+  });
+
   it('allows editing and saving ground truth when samples have ids', async () => {
     previewState = {
       ...previewState,

@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
+  Download,
   Loader2,
 } from 'lucide-react';
 import { Fragment, useState } from 'react';
@@ -138,7 +139,26 @@ export function DatasetConfirm({
       {data && (
         <div className="rounded-xl border border-border overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed text-sm">
+              <colgroup>
+                <col className="w-10" />
+                <col
+                  className={hasSummary && hasClass ? 'w-[32%]' : 'w-[38%]'}
+                />
+                {hasSummary && (
+                  <col
+                    className={
+                      hasClass
+                        ? 'w-[48%]'
+                        : hasEditableSamples
+                          ? 'w-[54%]'
+                          : 'w-[50%]'
+                    }
+                  />
+                )}
+                {hasClass && <col className="w-[40%]" />}
+                <col className="w-10" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground w-8">
@@ -163,10 +183,6 @@ export function DatasetConfirm({
               <tbody>
                 {samples.map((sample, i) => {
                   const isExpanded = expandedRows.has(i);
-                  const canExpand =
-                    sample.document.length > 80 ||
-                    (sample.summary?.length ?? 0) > 80 ||
-                    (sample.class_label?.length ?? 0) > 80;
                   const editableSummary = isEditableSummary(sample);
                   const editableClass = isEditableClass(sample);
                   const sampleId = sample.sample_id;
@@ -183,7 +199,7 @@ export function DatasetConfirm({
                         <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">
                           {i + 1}
                         </td>
-                        <td className="px-4 py-3 text-foreground/80 max-w-xs">
+                        <td className="px-4 py-3 text-foreground/80 align-top">
                           <span
                             className={
                               isExpanded
@@ -195,7 +211,7 @@ export function DatasetConfirm({
                           </span>
                         </td>
                         {hasSummary && (
-                          <td className="px-4 py-3 text-foreground/80 max-w-xs">
+                          <td className="px-4 py-3 text-foreground/80 align-top">
                             {editableSummary && sampleId ? (
                               <GroundTruthEditor
                                 multiline
@@ -223,7 +239,7 @@ export function DatasetConfirm({
                           </td>
                         )}
                         {hasClass && (
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 align-top">
                             {editableClass && sampleId ? (
                               <GroundTruthEditor
                                 value={draft}
@@ -243,8 +259,8 @@ export function DatasetConfirm({
                             )}
                           </td>
                         )}
-                        <td className="px-2 py-3">
-                          {canExpand && (
+                        <td className="px-2 py-3 align-top">
+                          <div className="flex flex-col items-center gap-1">
                             <button
                               type="button"
                               onClick={() => toggleRow(i)}
@@ -258,7 +274,19 @@ export function DatasetConfirm({
                                 <ChevronDown className="h-4 w-4" />
                               )}
                             </button>
-                          )}
+                            {isExpanded && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  downloadSampleJsonl(sample, drafts)
+                                }
+                                aria-label={`Download sample ${i + 1} as JSONL`}
+                                className="rounded p-1 text-muted-foreground hover:text-foreground"
+                              >
+                                <Download className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
 
@@ -360,6 +388,44 @@ export function DatasetConfirm({
   );
 }
 
+function downloadSampleJsonl(
+  sample: DatasetSample,
+  drafts: Record<string, string>,
+): void {
+  const line = `${JSON.stringify(sampleToJsonlObject(sample, drafts))}\n`;
+  const blob = new Blob([line], { type: 'application/jsonl' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `sample.jsonl`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function sampleToJsonlObject(
+  sample: DatasetSample,
+  drafts: Record<string, string>,
+): Record<string, string> {
+  const row: Record<string, string> = { document: sample.document };
+  if (sample.sample_id) row.sample_id = sample.sample_id;
+
+  if (sample.summary !== undefined) {
+    row.summary =
+      sample.sample_id !== undefined
+        ? (drafts[sample.sample_id] ?? sample.summary)
+        : sample.summary;
+  }
+
+  if (sample.class_label !== undefined) {
+    row.class =
+      sample.sample_id !== undefined
+        ? (drafts[sample.sample_id] ?? sample.class_label)
+        : sample.class_label;
+  }
+
+  return row;
+}
+
 function GroundTruthEditor({
   value,
   onChange,
@@ -378,8 +444,8 @@ function GroundTruthEditor({
     <textarea
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      rows={3}
-      className={`${fieldClassName} resize-y min-h-[4.5rem] ${isDirty ? 'border-primary' : ''}`}
+      rows={4}
+      className={`${fieldClassName} resize-y min-h-[6rem] ${isDirty ? 'border-primary' : ''}`}
     />
   ) : (
     <input
