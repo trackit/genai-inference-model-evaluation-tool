@@ -115,7 +115,7 @@ Resources:
   PreprocessingStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      Name: !Sub '${RootStackName}-preprocessing'
+      Name: !Sub '${RootStackName}-preprocessing-sfn'
       Type: STANDARD
       Tags:
         Owner: !Ref Owner
