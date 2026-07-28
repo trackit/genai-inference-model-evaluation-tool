@@ -13,6 +13,12 @@ Parameters:
     Default: genai-inference-evaluation-tool
   DatasetBucketName:
     Type: String
+  RootStackName:
+    Type: String
+    Description: >-
+      Name of the root stack. Used for naming resources with length limits,
+      since AWS::StackName inside a nested stack resolves to the long
+      CloudFormation-generated name.
 
 Globals:
   Function:
@@ -109,7 +115,7 @@ Resources:
   PreprocessingStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      Name: !Sub '${AWS::StackName}-preprocessing'
+      Name: !Sub '${RootStackName}-preprocessing'
       Type: STANDARD
       Tags:
         Owner: !Ref Owner
