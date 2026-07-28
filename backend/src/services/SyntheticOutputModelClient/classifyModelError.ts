@@ -76,6 +76,12 @@ function getErrorName(error: unknown): string {
 export function classifyModelError(
   error: unknown,
 ): TransientModelError | PermanentModelError {
+
+  // Idempotency
+  if (error instanceof TransientModelError || error instanceof PermanentModelError) {
+    return error;
+  }
+
   const name = getErrorName(error);
 
   if (TRANSIENT_ERROR_NAMES.has(name)) {

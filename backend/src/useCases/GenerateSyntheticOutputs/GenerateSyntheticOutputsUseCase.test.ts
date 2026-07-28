@@ -6,6 +6,10 @@ import {
   FakeDatasetService,
   tokenFakeDatasetService,
 } from '../../services/DatasetService/FakeDatasetService';
+import {
+  PermanentModelError,
+  TransientModelError,
+} from '../../services/SyntheticOutputModelClient/classifyModelError';
 import { tokenFakeSyntheticOutputModelClient } from '../../services/SyntheticOutputModelClient/FakeSyntheticOutputModelClient';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { GenerateSyntheticOutputsUseCaseImpl } from './GenerateSyntheticOutputsUseCase';
@@ -98,33 +102,53 @@ describe('GenerateSyntheticOutputsUseCase', () => {
     );
   });
 
-  it('records failed rows when model generation fails', async () => {
+  it('propagates a classified error when model generation fails', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
     fakeDatasetService.seedConvertedDatasetRows(
       'datasets/demo-dataset/demo-dataset-converted.jsonl',
       summarizationConvertedRows(),
     );
     fakeModelClient.queueOutput('Summary one');
-    fakeModelClient.queueError(new Error('model failed'));
+    fakeModelClient.queueError(
+      new PermanentModelError('ValidationException', new Error('model failed')),
+    );
 
-    const result = await useCase.generateSyntheticOutputs({
-      datasetId: 'demo-dataset',
-      convertedDatasetArtifactKey:
-        'datasets/demo-dataset/demo-dataset-converted.jsonl',
-      taskType: 'summarization',
-    });
-
-    expect(result.generatedCount).toBe(1);
-    expect(result.failedCount).toBe(1);
-    expect(expectWrittenSyntheticRows(fakeDatasetService)[1]).toMatchObject({
-      chunk_id: 'demo-dataset-1',
-      summary: '',
-      status: 'failed',
-      error_message: 'model failed',
+    await expect(
+      useCase.generateSyntheticOutputs({
+        datasetId: 'demo-dataset',
+        convertedDatasetArtifactKey:
+          'datasets/demo-dataset/demo-dataset-converted.jsonl',
+        taskType: 'summarization',
+      }),
+    ).rejects.toMatchObject({
+      name: 'PermanentModelError',
+      originalErrorName: 'ValidationException',
     });
   });
 
-  it('records failed rows when normalized model output is empty', async () => {
+  it('propagates a TransientModelError when Bedrock is throttled', async () => {
+    const { fakeDatasetService, fakeModelClient, useCase } = setup();
+    fakeDatasetService.seedConvertedDatasetRows(
+      'datasets/demo-dataset/demo-dataset-converted.jsonl',
+      summarizationConvertedRows(),
+    );
+    fakeModelClient.queueOutput('Summary one');
+    fakeModelClient.queueError(new TransientModelError('ThrottlingException'));
+
+    await expect(
+      useCase.generateSyntheticOutputs({
+        datasetId: 'demo-dataset',
+        convertedDatasetArtifactKey:
+          'datasets/demo-dataset/demo-dataset-converted.jsonl',
+        taskType: 'summarization',
+      }),
+    ).rejects.toMatchObject({
+      name: 'TransientModelError',
+      originalErrorName: 'ThrottlingException',
+    });
+  });
+
+  it('propagates a PermanentModelError when normalized model output is empty', async () => {
     const { fakeDatasetService, fakeModelClient, useCase } = setup();
     fakeDatasetService.seedConvertedDatasetRows(
       'datasets/demo-dataset/demo-dataset-converted.jsonl',
@@ -132,102 +156,28 @@ describe('GenerateSyntheticOutputsUseCase', () => {
     );
     fakeModelClient.queueOutput('   ');
 
-    const result = await useCase.generateSyntheticOutputs({
-      datasetId: 'demo-dataset',
-      convertedDatasetArtifactKey:
-        'datasets/demo-dataset/demo-dataset-converted.jsonl',
-      taskType: 'classification',
-    });
-
-    expect(result.generatedCount).toBe(0);
-    expect(result.failedCount).toBe(1);
-    expect(expectWrittenSyntheticRows(fakeDatasetService)[0]).toMatchObject({
-      class: '',
-      status: 'failed',
-      error_message: 'Synthetic output cannot be empty',
-    });
-  });
-
-  it('retries only failed rows and preserves completed rows', async () => {
-    const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    fakeDatasetService.seedConvertedDatasetRows(
-      'datasets/demo-dataset/demo-dataset-converted.jsonl',
-      summarizationConvertedRows(),
-    );
-    fakeModelClient.queueOutput('Summary one');
-    fakeModelClient.queueError(new Error('transient failure'));
-
-    const initial = await useCase.generateSyntheticOutputs({
-      datasetId: 'demo-dataset',
-      convertedDatasetArtifactKey:
-        'datasets/demo-dataset/demo-dataset-converted.jsonl',
-      taskType: 'summarization',
-      modelId: 'test-model',
-    });
-
-    expect(initial.failedCount).toBe(1);
-
-    fakeModelClient.queueOutput('Summary two recovered');
-
-    const retried = await useCase.retryFailedRows({
-      datasetId: 'demo-dataset',
-      syntheticDatasetArtifactKey: initial.syntheticDatasetArtifactKey,
-      convertedDatasetArtifactKey:
-        'datasets/demo-dataset/demo-dataset-converted.jsonl',
-      taskType: 'summarization',
-      modelId: 'test-model',
-    });
-
-    expect(retried.generatedCount).toBe(2);
-    expect(retried.failedCount).toBe(0);
-    expect(expectWrittenSyntheticRows(fakeDatasetService)).toEqual([
-      expect.objectContaining({
-        chunk_id: 'demo-dataset-0',
-        summary: 'Summary one',
-        status: 'completed',
+    await expect(
+      useCase.generateSyntheticOutputs({
+        datasetId: 'demo-dataset',
+        convertedDatasetArtifactKey:
+          'datasets/demo-dataset/demo-dataset-converted.jsonl',
+        taskType: 'classification',
       }),
-      expect.objectContaining({
-        chunk_id: 'demo-dataset-1',
-        summary: 'Summary two recovered',
-        status: 'completed',
+    ).rejects.toMatchObject({
+      name: 'PermanentModelError',
+      // normalizeOutput throws a plain BasicError (not a Bedrock SDK
+      // exception), which classifyModelError fails closed on as Permanent.
+      // The original descriptive message survives via `cause`.
+      cause: expect.objectContaining({
+        message: 'Synthetic output cannot be empty',
       }),
-    ]);
-  });
-
-  it('keeps rows as failed if retry also fails', async () => {
-    const { fakeDatasetService, fakeModelClient, useCase } = setup();
-    fakeDatasetService.seedConvertedDatasetRows(
-      'datasets/demo-dataset/demo-dataset-converted.jsonl',
-      summarizationConvertedRows(),
-    );
-    fakeModelClient.queueOutput('Summary one');
-    fakeModelClient.queueError(new Error('first failure'));
-
-    const initial = await useCase.generateSyntheticOutputs({
-      datasetId: 'demo-dataset',
-      convertedDatasetArtifactKey:
-        'datasets/demo-dataset/demo-dataset-converted.jsonl',
-      taskType: 'summarization',
-    });
-
-    fakeModelClient.queueError(new Error('second failure'));
-
-    const retried = await useCase.retryFailedRows({
-      datasetId: 'demo-dataset',
-      syntheticDatasetArtifactKey: initial.syntheticDatasetArtifactKey,
-      convertedDatasetArtifactKey:
-        'datasets/demo-dataset/demo-dataset-converted.jsonl',
-      taskType: 'summarization',
-    });
-
-    expect(retried.generatedCount).toBe(1);
-    expect(retried.failedCount).toBe(1);
-    expect(expectWrittenSyntheticRows(fakeDatasetService)[1]).toMatchObject({
-      chunk_id: 'demo-dataset-1',
-      status: 'failed',
-      error_message: 'second failure',
     });
   });
+
+  // 'retries only failed rows...' and 'keeps rows as failed if retry also
+  // fails' were removed here. retryFailedRows itself is slated to be repurposed to re-drive
+  // the Step Functions Distributed Map's failure manifest,
+  // at which point it gets its own tests against that new contract.
 });
 
 function setup() {

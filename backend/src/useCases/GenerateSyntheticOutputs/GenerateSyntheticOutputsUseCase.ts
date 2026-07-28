@@ -6,6 +6,7 @@ import {
   SyntheticOutputTaskType,
 } from '../../models/SyntheticOutput';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
+import { classifyModelError } from '../../services/SyntheticOutputModelClient/classifyModelError';
 import { tokenSyntheticOutputModelClient } from '../../services/SyntheticOutputModelClient/BedrockSyntheticOutputModelClient';
 import { tokenSyntheticOutputPromptBuilder } from '../../services/SyntheticOutputPromptBuilder/SyntheticOutputPromptBuilder';
 
@@ -57,6 +58,9 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
 
     const rows: SyntheticOutputRow[] = [];
 
+    // Transitional NOTE: generateRow now throws instead of returning a 'failed' row, and
+    // this loop has no try/catch of its own. This means the whole call now
+    // REJECTS on the first failing row, and no dataset artifact is written.
     for (const convertedRow of convertedRows) {
       rows.push(await this.generateRow(convertedRow, taskType, modelId));
     }
@@ -102,6 +106,7 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
         continue;
       }
 
+      // Transitional NOTE: Same caveat as generateSyntheticOutputs above: this now rejects on
       updatedRows.push(await this.generateRow(convertedRow, taskType, modelId));
     }
 
@@ -115,6 +120,14 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
     };
   }
 
+  /**
+   * Generates a single row. Throws a classified TransientModelError or
+   * PermanentModelError on any failure (model call, prompt building, or
+   * output normalization)
+   *
+   * Transitional NOTE: No longer continue past a failing row 
+   * and return generatedCount/failedCount; they now reject on the first failure.
+   */
   private async generateRow(
     convertedRow: ConvertedDatasetRow,
     taskType: SyntheticOutputTaskType,
@@ -140,15 +153,7 @@ export class GenerateSyntheticOutputsUseCaseImpl implements GenerateSyntheticOut
         model_id: result.modelId,
       };
     } catch (error: unknown) {
-      return {
-        chunk_id: convertedRow.chunk_id,
-        document_id: convertedRow.document_id,
-        text: convertedRow.document,
-        ...buildGeneratedField(taskType, ''),
-        status: 'failed',
-        error_message:
-          error instanceof Error ? error.message : 'Unknown generation error',
-      };
+      throw classifyModelError(error);
     }
   }
 }
