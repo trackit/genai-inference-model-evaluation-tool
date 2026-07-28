@@ -13,6 +13,8 @@ import { tokenEvaluationJobsRepository } from '../services/EvaluationJobsReposit
 import { tokenFakeEvaluationJobsRepository } from '../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
 import { tokenFakeFargateService } from '../services/FargateService/FakeFargateService';
 import { tokenFargateService } from '../services/FargateService/FargateService';
+import { tokenFakeStateMachineService } from '../services/StateMachineService/FakeStateMachineService';
+import { tokenStateMachineService } from '../services/StateMachineService/StateMachineSfnService';
 import { tokenSyntheticOutputModelClient } from '../services/SyntheticOutputModelClient/BedrockSyntheticOutputModelClient';
 import { tokenFakeSyntheticOutputModelClient } from '../services/SyntheticOutputModelClient/FakeSyntheticOutputModelClient';
 
@@ -40,5 +42,8 @@ export const registerTestInfrastructure = (): void => {
   });
   register(tokenSyntheticOutputModelClient, {
     useFactory: () => inject(tokenFakeSyntheticOutputModelClient),
+  });
+  register(tokenStateMachineService, {
+    useFactory: () => inject(tokenFakeStateMachineService),
   });
 };

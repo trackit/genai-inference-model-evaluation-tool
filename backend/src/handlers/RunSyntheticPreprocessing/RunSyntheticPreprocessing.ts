@@ -1,11 +1,31 @@
-import type {
-  APIGatewayProxyEventV2,
-  APIGatewayProxyResultV2,
-} from 'aws-lambda';
+import { inject } from '@trackit.io/di-container';
+import { z } from 'zod';
 
-import { RunSyntheticPreprocessingAdapter } from './RunSyntheticPreprocessingAdapter';
+import { SYNTHETIC_OUTPUT_TASK_TYPES } from '../../models/SyntheticOutput';
+import {
+  RunSyntheticPreprocessingResult,
+  tokenRunSyntheticPreprocessingUseCase,
+} from '../../useCases/RunSyntheticPreprocessing/RunSyntheticPreprocessingUseCase';
+
+const RunSyntheticPreprocessingTaskInputSchema = z.object({
+  datasetId: z.string().min(1),
+  taskType: z.enum(SYNTHETIC_OUTPUT_TASK_TYPES),
+  convertedDatasetArtifactKey: z.string().min(1),
+  modelId: z.string().min(1).optional(),
+});
 
 export const handler = async (
-  event: APIGatewayProxyEventV2,
-): Promise<APIGatewayProxyResultV2> =>
-  new RunSyntheticPreprocessingAdapter().handle(event);
+  event: Record<string, unknown>,
+): Promise<RunSyntheticPreprocessingResult> => {
+  const { datasetId, taskType, convertedDatasetArtifactKey, modelId } =
+    RunSyntheticPreprocessingTaskInputSchema.parse(event);
+
+  return inject(
+    tokenRunSyntheticPreprocessingUseCase,
+  ).runSyntheticPreprocessing({
+    datasetId,
+    convertedDatasetArtifactKey,
+    taskType,
+    modelId,
+  });
+};

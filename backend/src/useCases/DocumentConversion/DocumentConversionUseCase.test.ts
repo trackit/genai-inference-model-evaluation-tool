@@ -1,7 +1,9 @@
 import { inject, reset } from '@trackit.io/di-container';
 import { randomUUID } from 'crypto';
 import { describe, expect, it, vi } from 'vitest';
+import { DatasetFileType } from '../../models/Dataset';
 import { ChunkingStrategy } from '../../models/DocumentConversion';
+import { documentS3Key } from '../../services/DatasetService/DatasetServiceS3';
 import {
   FakeDatasetService,
   tokenFakeDatasetService,
@@ -20,6 +22,23 @@ const setup = () => {
     datasetService: inject(tokenFakeDatasetService),
   };
 };
+
+/** Seeds the upload manifest the use case reads to resolve which docs to convert. */
+const seedManifest = (
+  datasetService: FakeDatasetService,
+  datasetId: string,
+  documents: { document_id: string; file_type: DatasetFileType }[],
+): Promise<void> =>
+  datasetService.writeUploadManifest(datasetId, {
+    max_total_bytes: 209_715_200,
+    files: documents.map((doc, index) => ({
+      document_id: doc.document_id,
+      filename: `doc-${index}.${doc.file_type}`,
+      file_type: doc.file_type,
+      s3_key: documentS3Key(datasetId, doc.document_id, doc.file_type),
+      size_bytes: 100,
+    })),
+  });
 
 /** JSONL string from the most recent storeConversionJsonl call recorded on the fake. */
 const getStoredJsonl = (datasetService: FakeDatasetService): string =>
@@ -44,13 +63,13 @@ describe('DocumentConversionUseCase execute', () => {
     const buffer2 = Buffer.from('Only one paragraph');
     datasetService.seedRawContent(dataset_id, document_id1, 'pdf', buffer1);
     datasetService.seedRawContent(dataset_id, document_id2, 'pdf', buffer2);
+    await seedManifest(datasetService, dataset_id, [
+      { document_id: document_id1, file_type: 'pdf' },
+      { document_id: document_id2, file_type: 'pdf' },
+    ]);
 
     const result = await useCase.execute({
       dataset_id: dataset_id,
-      documents: [
-        { document_id: document_id1, file_type: 'pdf' },
-        { document_id: document_id2, file_type: 'pdf' },
-      ],
       chunking_strategy: ChunkingStrategy.CHAPTER,
     });
 
@@ -90,13 +109,13 @@ describe('DocumentConversionUseCase execute', () => {
     const buffer2 = Buffer.from('Only one paragraph');
     datasetService.seedRawContent(dataset_id, document_id1, 'pdf', buffer1);
     datasetService.seedRawContent(dataset_id, document_id2, 'pdf', buffer2);
+    await seedManifest(datasetService, dataset_id, [
+      { document_id: document_id1, file_type: 'pdf' },
+      { document_id: document_id2, file_type: 'pdf' },
+    ]);
 
     const result = await useCase.execute({
       dataset_id: dataset_id,
-      documents: [
-        { document_id: document_id1, file_type: 'pdf' },
-        { document_id: document_id2, file_type: 'pdf' },
-      ],
       chunking_strategy: ChunkingStrategy.DOCUMENT,
     });
 
@@ -131,10 +150,12 @@ describe('DocumentConversionUseCase execute', () => {
       'pdf',
       Buffer.from('\n\nOnly one paragraph with padding.\n\n'),
     );
+    await seedManifest(datasetService, dataset_id, [
+      { document_id, file_type: 'pdf' },
+    ]);
 
     await useCase.execute({
       dataset_id,
-      documents: [{ document_id, file_type: 'pdf' }],
       chunking_strategy: ChunkingStrategy.DOCUMENT,
     });
 
@@ -155,10 +176,12 @@ describe('DocumentConversionUseCase execute', () => {
     const document_id = randomUUID();
     const buffer = Buffer.from('Docx body content');
     datasetService.seedRawContent(dataset_id, document_id, 'docx', buffer);
+    await seedManifest(datasetService, dataset_id, [
+      { document_id, file_type: 'docx' },
+    ]);
 
     await useCase.execute({
       dataset_id,
-      documents: [{ document_id, file_type: 'docx' }],
       chunking_strategy: ChunkingStrategy.DOCUMENT,
     });
 
@@ -174,6 +197,33 @@ describe('DocumentConversionUseCase execute', () => {
     ]);
   });
 
+  it('throws when the upload manifest is missing', async () => {
+    const { useCase } = setup();
+
+    await expect(
+      useCase.execute({
+        dataset_id: randomUUID(),
+        chunking_strategy: ChunkingStrategy.DOCUMENT,
+      }),
+    ).rejects.toThrow(/manifest/i);
+  });
+
+  it('throws when no pdf/doc/docx documents are present', async () => {
+    const { useCase, datasetService } = setup();
+    const dataset_id = randomUUID();
+    await datasetService.writeUploadManifest(dataset_id, {
+      max_total_bytes: 209_715_200,
+      files: [],
+    });
+
+    await expect(
+      useCase.execute({
+        dataset_id,
+        chunking_strategy: ChunkingStrategy.DOCUMENT,
+      }),
+    ).rejects.toThrow(/no pdf\/doc\/docx documents/i);
+  });
+
   it('throws when extracted text is empty', async () => {
     const { useCase, datasetService } = setup();
     const dataset_id = randomUUID();
@@ -185,11 +235,13 @@ describe('DocumentConversionUseCase execute', () => {
       'pdf',
       Buffer.from('   \n\n   '),
     );
+    await seedManifest(datasetService, dataset_id, [
+      { document_id, file_type: 'pdf' },
+    ]);
 
     await expect(
       useCase.execute({
         dataset_id,
-        documents: [{ document_id, file_type: 'pdf' }],
         chunking_strategy: ChunkingStrategy.DOCUMENT,
       }),
     ).rejects.toThrow(
@@ -198,17 +250,19 @@ describe('DocumentConversionUseCase execute', () => {
   });
 
   it('propagates a not-found error when raw content is missing for a document', async () => {
-    const { useCase } = setup();
+    const { useCase, datasetService } = setup();
     const dataset_id = randomUUID();
     const document_id = randomUUID();
 
-    // Intentionally not seeded — fetchRawContent should reject, and that
-    // rejection must surface out of execute() rather than being swallowed
-    // inside the Promise.all in fetchAndParseAll.
+    await seedManifest(datasetService, dataset_id, [
+      { document_id, file_type: 'pdf' },
+    ]);
+
+    // Manifest present but raw content intentionally not seeded — fetchRawContent
+    // should reject, and that must surface out of execute().
     await expect(
       useCase.execute({
         dataset_id,
-        documents: [{ document_id, file_type: 'pdf' }],
         chunking_strategy: ChunkingStrategy.DOCUMENT,
       }),
     ).rejects.toThrow('Raw content not found');

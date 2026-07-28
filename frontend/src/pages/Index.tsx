@@ -4,6 +4,7 @@ import { DatasetUpload } from '@/components/evaluator/DatasetUpload';
 import { MetricsPicker } from '@/components/evaluator/MetricsPicker';
 import { MetricsWeights } from '@/components/evaluator/MetricsWeights';
 import { ModelSelection } from '@/components/evaluator/ModelSelection';
+import { PreprocessingStep } from '@/components/evaluator/PreprocessingStep';
 import { ProgressView } from '@/components/evaluator/ProgressView';
 import { ResultsView } from '@/components/evaluator/ResultsView';
 import { StepIndicator } from '@/components/evaluator/StepIndicator';
@@ -14,7 +15,11 @@ import {
   useEvaluationResults,
   useEvaluationStatus,
 } from '@/hooks/useEvaluation';
-import type { EvaluationConfig, TaskType } from '@/types/evaluation';
+import type {
+  EvaluationConfig,
+  PreprocessingChunkingStrategy,
+  TaskType,
+} from '@/types/evaluation';
 import { DEFAULT_METRICS_TOGGLES } from '@/types/evaluation';
 import {
   buildDefaultsForTask,
@@ -37,6 +42,12 @@ export default function Index() {
     datasetFiles: [],
   });
   const [datasetId, setDatasetId] = useState<string | null>(null);
+  const [datasetKind, setDatasetKind] = useState<
+    'structured' | 'documents' | null
+  >(null);
+  const [preprocessingDone, setPreprocessingDone] = useState(false);
+  const [chunkingStrategy, setChunkingStrategy] =
+    useState<PreprocessingChunkingStrategy>('CHAPTER');
   const [sampleCount, setSampleCount] = useState(0);
   const [detectedTaskType, setDetectedTaskType] = useState<
     TaskType | undefined
@@ -121,8 +132,10 @@ export default function Index() {
       sample_count?: number;
     }) => {
       setDatasetId(data.dataset_id);
+      setDatasetKind(data.dataset_type);
       setDetectedTaskType(data.taskType);
       setSampleCount(data.sample_count ?? 0);
+      setPreprocessingDone(data.dataset_type === 'structured');
       setConfig((prev) => ({
         ...prev,
         metrics: buildDefaultsForTask(data.taskType),
@@ -131,6 +144,33 @@ export default function Index() {
     },
     [],
   );
+
+  const handleDocumentsConfirmed = useCallback(
+    (data: {
+      dataset_id: string;
+      taskType: TaskType;
+      chunkingStrategy: PreprocessingChunkingStrategy;
+      file_count: number;
+    }) => {
+      setDatasetId(data.dataset_id);
+      setDatasetKind('documents');
+      setDetectedTaskType(data.taskType);
+      setChunkingStrategy(data.chunkingStrategy);
+      setSampleCount(data.file_count);
+      setPreprocessingDone(false);
+      setConfig((prev) => ({
+        ...prev,
+        metrics: buildDefaultsForTask(data.taskType),
+      }));
+      setStep(3);
+    },
+    [],
+  );
+
+  const handlePreprocessingDone = useCallback((sampleCount: number | null) => {
+    if (sampleCount !== null) setSampleCount(sampleCount);
+    setPreprocessingDone(true);
+  }, []);
 
   const handleReset = () => {
     setPhase('config');
@@ -142,6 +182,9 @@ export default function Index() {
       datasetFiles: [],
     });
     setDatasetId(null);
+    setDatasetKind(null);
+    setPreprocessingDone(false);
+    setChunkingStrategy('CHAPTER');
     setSampleCount(0);
     setDetectedTaskType(undefined);
     setEvaluationId(null);
@@ -200,9 +243,29 @@ export default function Index() {
                     setConfig({ ...config, datasetFiles: files })
                   }
                   onUploadSuccess={handleUploadSuccess}
+                  onDocumentsConfirmed={handleDocumentsConfirmed}
                 />
               )}
-              {step === 3 && datasetId && (
+              {step === 3 &&
+                datasetId &&
+                datasetKind === 'documents' &&
+                !preprocessingDone && (
+                  <PreprocessingStep
+                    datasetId={datasetId}
+                    taskType={detectedTaskType ?? 'summarization'}
+                    chunkingStrategy={chunkingStrategy}
+                    onDone={handlePreprocessingDone}
+                    onBack={() => {
+                      setDatasetId(null);
+                      setDatasetKind(null);
+                      setSampleCount(0);
+                      setDetectedTaskType(undefined);
+                      setConfig((prev) => ({ ...prev, datasetFiles: [] }));
+                      setStep(2);
+                    }}
+                  />
+                )}
+              {step === 3 && datasetId && preprocessingDone && (
                 <>
                   <MetricsPicker
                     metrics={config.metrics}

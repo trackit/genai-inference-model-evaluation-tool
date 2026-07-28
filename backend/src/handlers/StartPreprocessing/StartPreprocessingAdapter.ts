@@ -5,22 +5,23 @@ import type {
 } from 'aws-lambda';
 import { z } from 'zod';
 
-import { tokenRunSyntheticPreprocessingUseCase } from '../../useCases/RunSyntheticPreprocessing/RunSyntheticPreprocessingUseCase';
+import { ChunkingStrategy } from '../../models/DocumentConversion';
+import { SYNTHETIC_OUTPUT_TASK_TYPES } from '../../models/SyntheticOutput';
+import { tokenStartPreprocessingUseCase } from '../../useCases/StartPreprocessing/StartPreprocessingUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
 import { parseApiEvent } from '../api/parseApiEvent';
 
-const RunSyntheticPreprocessingPathSchema = z.object({
+const StartPreprocessingModulePathSchema = z.object({
   datasetId: z.string().min(1),
 });
 
 const RunSyntheticPreprocessingBodySchema = z.object({
-  convertedDatasetArtifactKey: z.string().min(1),
-  taskType: z.enum(['summarization', 'classification']),
-  modelId: z.string().min(1).optional(),
+  taskType: z.enum(SYNTHETIC_OUTPUT_TASK_TYPES),
+  chunkingStrategy: z.enum(ChunkingStrategy),
 });
 
-export class RunSyntheticPreprocessingAdapter {
-  private readonly useCase = inject(tokenRunSyntheticPreprocessingUseCase);
+export class StartPreprocessingAdapter {
+  private readonly useCase = inject(tokenStartPreprocessingUseCase);
 
   public async handle(
     event: APIGatewayProxyEventV2,
@@ -34,15 +35,14 @@ export class RunSyntheticPreprocessingAdapter {
 
   private async processRequest(event: APIGatewayProxyEventV2) {
     const { pathParameters, body } = parseApiEvent(event, {
-      pathSchema: RunSyntheticPreprocessingPathSchema,
+      pathSchema: StartPreprocessingModulePathSchema,
       bodySchema: RunSyntheticPreprocessingBodySchema,
     });
 
-    return this.useCase.runSyntheticPreprocessing({
+    return this.useCase.execute({
       datasetId: pathParameters.datasetId,
-      convertedDatasetArtifactKey: body.convertedDatasetArtifactKey,
       taskType: body.taskType,
-      modelId: body.modelId,
+      chunkingStrategy: body.chunkingStrategy,
     });
   }
 }

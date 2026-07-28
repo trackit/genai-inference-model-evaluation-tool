@@ -31,6 +31,10 @@ Parameters:
     Type: String
   SesFromAddress:
     Type: String
+  PreprocessingStateMachineArn:
+    Type: String
+  PreprocessingStateMachineName:
+    Type: String
 
 Globals:
   Function:
@@ -110,18 +114,6 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/aws/lambda/${ConfirmDatasetUploadFunction}'
-      RetentionInDays: !Ref LogRetentionInDays
-
-  DocumentConversionFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/lambda/${DocumentConversionFunction}'
-      RetentionInDays: !Ref LogRetentionInDays
-
-  RunSyntheticPreprocessingFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/lambda/${RunSyntheticPreprocessingFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
   GetDatasetPreviewFunctionLogGroup:
@@ -267,93 +259,6 @@ Resources:
           - .js=.mjs
         EntryPoints:
           - src/handlers/ConfirmDatasetUpload/ConfirmDatasetUpload.ts
-
-  DocumentConversionFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Runtime: nodejs20.x
-      Handler: DocumentConversion.handler
-      Timeout: 60
-      MemorySize: 1024
-      Tags:
-        Name: !Sub '${AWS::StackName}-document-conversion-function'
-      Environment:
-        Variables:
-          DATASET_BUCKET: !Ref DatasetBucketName
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref DatasetBucketName
-        - S3WritePolicy:
-            BucketName: !Ref DatasetBucketName
-      Events:
-        ConvertApi:
-          Type: HttpApi
-          Properties:
-            Path: /documents/convert
-            Method: POST
-            ApiId: !Ref Api
-            Auth:
-              Authorizer: AccessCodeAuthorizer
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: esm
-        External:
-          - '@aws-sdk'
-        Minify: true
-        Target: es2023
-        Sourcemap: false
-        OutExtension:
-          - .js=.mjs
-        EntryPoints:
-          - src/handlers/DocumentConversion/DocumentConversion.ts
-
-  RunSyntheticPreprocessingFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Runtime: nodejs20.x
-      Handler: RunSyntheticPreprocessing.handler
-      Timeout: 60
-      MemorySize: 512
-      Tags:
-        Name: !Sub '${AWS::StackName}-run-synthetic-preprocessing-function'
-      Environment:
-        Variables:
-          DATASET_BUCKET: !Ref DatasetBucketName
-          SYNTHETIC_OUTPUT_MODEL_ID: us.meta.llama4-maverick-17b-instruct-v1:0
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-                - s3:PutObject
-              Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets/*'
-            - Effect: Allow
-              Action:
-                - bedrock:InvokeModel
-              Resource: '*'
-      Events:
-        RunSyntheticPreprocessingApi:
-          Type: HttpApi
-          Properties:
-            Path: /preprocessing/{datasetId}/synthetic
-            Method: POST
-            ApiId: !Ref Api
-            Auth:
-              Authorizer: AccessCodeAuthorizer
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: esm
-        External:
-          - '@aws-sdk'
-        Minify: true
-        Target: es2023
-        Sourcemap: false
-        OutExtension:
-          - .js=.mjs
-        EntryPoints:
-          - src/handlers/RunSyntheticPreprocessing/RunSyntheticPreprocessing.ts
 
   GetDatasetPreviewFunction:
     Type: AWS::Serverless::Function
@@ -624,6 +529,93 @@ Resources:
           - .js=.mjs
         EntryPoints:
           - src/handlers/AccessCodeAuthorizer/AccessCodeAuthorizer.ts
+
+  StartPreprocessingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: StartPreprocessing.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-start-preprocessing-function'
+      Environment:
+        Variables:
+          PREPROCESSING_STATE_MACHINE_ARN: !Ref PreprocessingStateMachineArn
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Ref PreprocessingStateMachineArn
+      Events:
+        StartPreprocessingApi:
+          Type: HttpApi
+          Properties:
+            Path: /datasets/{datasetId}/preprocess
+            Method: POST
+            ApiId: !Ref Api
+            Auth:
+              Authorizer: AccessCodeAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/StartPreprocessing/StartPreprocessing.ts
+
+  GetPreprocessingStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: GetPreprocessingStatus.handler
+      Tags:
+        Name: !Sub '${AWS::StackName}-get-preprocessing-status-function'
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:DescribeExecution
+              Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${PreprocessingStateMachineName}:*'
+      Events:
+        GetPreprocessingStatusApi:
+          Type: HttpApi
+          Properties:
+            Path: /datasets/{datasetId}/preprocess/status
+            Method: GET
+            ApiId: !Ref Api
+            Auth:
+              Authorizer: AccessCodeAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/GetPreprocessingStatus/GetPreprocessingStatus.ts
+
+  StartPreprocessingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${StartPreprocessingFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  GetPreprocessingStatusFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GetPreprocessingStatusFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
 
 Outputs:
   ApiUrl:

@@ -6,6 +6,10 @@ import type {
   EvaluationLaunchData,
   EvaluationResultsData,
   EvaluationStatusData,
+  PreprocessingChunkingStrategy,
+  PreprocessingStartData,
+  PreprocessingStatusData,
+  PreprocessingTaskType,
 } from '@/types/evaluation';
 
 export function getBaseUrl(): string {
@@ -201,6 +205,37 @@ export async function getDatasetPreview(
     { headers: authHeaders() },
   );
   return handleResponse<DatasetPreviewData>(response);
+}
+
+export async function startPreprocessing(
+  datasetId: string,
+  params: {
+    taskType: PreprocessingTaskType;
+    chunkingStrategy: PreprocessingChunkingStrategy;
+  },
+): Promise<PreprocessingStartData> {
+  const response = await fetchWithTimeout(
+    `${getBaseUrl()}/datasets/${datasetId}/preprocess`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(params),
+    },
+  );
+  return handleResponse<PreprocessingStartData>(response);
+}
+
+export async function getPreprocessingStatus(
+  datasetId: string,
+  executionArn: string,
+): Promise<PreprocessingStatusData> {
+  const response = await fetchWithTimeout(
+    `${getBaseUrl()}/datasets/${datasetId}/preprocess/status?executionArn=${encodeURIComponent(
+      executionArn,
+    )}`,
+    { headers: authHeaders() },
+  );
+  return handleResponse<PreprocessingStatusData>(response);
 }
 
 export async function createEvaluation(

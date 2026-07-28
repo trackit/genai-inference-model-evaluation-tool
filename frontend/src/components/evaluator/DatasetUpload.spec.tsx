@@ -48,6 +48,7 @@ describe('DatasetUpload', () => {
     files: [],
     onChange: vi.fn(),
     onUploadSuccess: vi.fn(),
+    onDocumentsConfirmed: vi.fn(),
   };
 
   beforeEach(() => {
@@ -239,13 +240,10 @@ describe('DatasetUpload', () => {
     );
 
     expect(screen.getByText(/2 files uploaded/)).toBeInTheDocument();
-    expect(
-      screen.getByText('Select a task type to configure metrics.'),
-    ).toBeInTheDocument();
   });
 
-  it('requires task type selection for document uploads', async () => {
-    const onUploadSuccess = vi.fn();
+  it('reveals task type + chunking and confirms documents for preprocessing', () => {
+    const onDocumentsConfirmed = vi.fn();
     const file = new File(['doc'], 'report.pdf', { type: 'application/pdf' });
 
     mutationState = {
@@ -255,7 +253,7 @@ describe('DatasetUpload', () => {
       data: {
         dataset_type: 'documents',
         dataset_id: 'dataset-1',
-        file_count: 1,
+        file_count: 2,
         documents: [],
       },
       error: null,
@@ -265,7 +263,7 @@ describe('DatasetUpload', () => {
       <DatasetUpload
         {...defaultProps}
         files={[file]}
-        onUploadSuccess={onUploadSuccess}
+        onDocumentsConfirmed={onDocumentsConfirmed}
       />,
     );
 
@@ -273,14 +271,16 @@ describe('DatasetUpload', () => {
       screen.getByRole('button', { name: /documents \(pdf \/ doc \/ docx\)/i }),
     );
     fireEvent.click(screen.getByRole('button', { name: /classification/i }));
+    fireEvent.click(screen.getByRole('button', { name: /whole document/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /confirm & preprocess/i }),
+    );
 
-    await waitFor(() => {
-      expect(onUploadSuccess).toHaveBeenCalledWith({
-        dataset_type: 'documents',
-        dataset_id: 'dataset-1',
-        taskType: 'classification',
-        sample_count: 1,
-      });
+    expect(onDocumentsConfirmed).toHaveBeenCalledWith({
+      dataset_id: 'dataset-1',
+      taskType: 'classification',
+      chunkingStrategy: 'DOCUMENT',
+      file_count: 2,
     });
   });
 

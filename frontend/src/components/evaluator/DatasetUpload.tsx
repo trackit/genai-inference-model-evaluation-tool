@@ -1,6 +1,10 @@
 import { useUploadDataset } from '@/hooks/useEvaluation';
 import { cn } from '@/lib/utils';
-import type { DatasetUploadData, TaskType } from '@/types/evaluation';
+import type {
+  DatasetUploadData,
+  PreprocessingChunkingStrategy,
+  TaskType,
+} from '@/types/evaluation';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -23,7 +27,30 @@ interface DatasetUploadProps {
     taskType: TaskType | undefined;
     sample_count?: number;
   }) => void;
+  onDocumentsConfirmed: (data: {
+    dataset_id: string;
+    taskType: TaskType;
+    chunkingStrategy: PreprocessingChunkingStrategy;
+    file_count: number;
+  }) => void;
 }
+
+const CHUNKING_STRATEGIES: {
+  id: PreprocessingChunkingStrategy;
+  label: string;
+  description: string;
+}[] = [
+  {
+    id: 'CHAPTER',
+    label: 'By chapter',
+    description: 'One dataset sample per detected chapter/section.',
+  },
+  {
+    id: 'DOCUMENT',
+    label: 'Whole document',
+    description: 'One dataset sample per uploaded file.',
+  },
+];
 
 const TASK_TYPES: {
   id: TaskType;
@@ -248,12 +275,14 @@ export function DatasetUpload({
   files,
   onChange,
   onUploadSuccess,
+  onDocumentsConfirmed,
 }: DatasetUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [datasetMode, setDatasetMode] = useState<DatasetMode>('structured');
   const [activeTask, setActiveTask] = useState<TaskType>('summarization');
-  const [selectedDocumentTask, setSelectedDocumentTask] =
-    useState<TaskType | null>(null);
+  const [documentTask, setDocumentTask] = useState<TaskType | null>(null);
+  const [chunkingStrategy, setChunkingStrategy] =
+    useState<PreprocessingChunkingStrategy>('CHAPTER');
   const [formatTab, setFormatTab] = useState<FormatTab>('csv');
   const uploadMutation = useUploadDataset();
   const activeDatasetMode = DATASET_MODES.find(
@@ -265,10 +294,15 @@ export function DatasetUpload({
     uploadMutation.isSuccess &&
     uploadMutation.data?.dataset_type === 'documents';
 
+  const resetPreprocessingChoices = () => {
+    setDocumentTask(null);
+    setChunkingStrategy('CHAPTER');
+  };
+
   const handleAddFiles = (newFiles: File[]) => {
     if (newFiles.length === 0) return;
     uploadMutation.reset();
-    setSelectedDocumentTask(null);
+    resetPreprocessingChoices();
     onChange(
       datasetMode === 'structured'
         ? newFiles.slice(0, 1)
@@ -279,32 +313,20 @@ export function DatasetUpload({
   const handleDatasetModeChange = (mode: DatasetMode) => {
     if (mode === datasetMode) return;
     uploadMutation.reset();
-    setSelectedDocumentTask(null);
+    resetPreprocessingChoices();
     setDatasetMode(mode);
     onChange(files.filter((file) => fileMatchesMode(file, mode)));
   };
 
   const handleRemoveFile = (index: number) => {
     uploadMutation.reset();
-    setSelectedDocumentTask(null);
+    resetPreprocessingChoices();
     onChange(files.filter((_, fileIndex) => fileIndex !== index));
-  };
-
-  const handleSelectDocumentTask = (task: TaskType) => {
-    setSelectedDocumentTask(task);
-    if (uploadMutation.data?.dataset_type === 'documents') {
-      onUploadSuccess({
-        dataset_type: 'documents',
-        dataset_id: uploadMutation.data.dataset_id,
-        taskType: task,
-        sample_count: uploadMutation.data.file_count,
-      });
-    }
   };
 
   const handleUpload = () => {
     if (files.length === 0 || validationError) return;
-    setSelectedDocumentTask(null);
+    resetPreprocessingChoices();
     uploadMutation.mutate(files, {
       onSuccess: (data) => {
         if (data.dataset_type === 'structured') {
@@ -315,7 +337,21 @@ export function DatasetUpload({
             sample_count: data.sample_count,
           });
         }
+        // Documents stay on this screen and reveal the task type + chunking
+        // selectors below; the user confirms to launch preprocessing.
       },
+    });
+  };
+
+  const handleConfirmDocuments = () => {
+    if (!documentTask || uploadMutation.data?.dataset_type !== 'documents') {
+      return;
+    }
+    onDocumentsConfirmed({
+      dataset_id: uploadMutation.data.dataset_id,
+      taskType: documentTask,
+      chunkingStrategy,
+      file_count: uploadMutation.data.file_count,
     });
   };
   const handleDrop = (e: React.DragEvent) => {
@@ -348,8 +384,8 @@ export function DatasetUpload({
           </>
         ) : (
           <>
-            Upload one or more PDF, DOC, or DOCX files. Choose the task type
-            after upload completes.
+            Upload one or more PDF, DOC, or DOCX files, then choose the task
+            type and chunking strategy below to start preprocessing.
           </>
         )}
       </p>
@@ -627,17 +663,63 @@ export function DatasetUpload({
       )}
 
       {isDocumentUploadSuccess && (
-        <div className="mt-6">
-          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
-            Task type
-          </p>
-          <TaskTypeButtons
-            selected={selectedDocumentTask}
-            onSelect={handleSelectDocumentTask}
-          />
-          {!selectedDocumentTask && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Select a task type to configure metrics.
+        <div className="mt-6 space-y-6 rounded-xl border border-border bg-surface p-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
+              Task type
+            </p>
+            <TaskTypeButtons
+              selected={documentTask}
+              onSelect={setDocumentTask}
+            />
+          </div>
+
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
+              Chunking strategy
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {CHUNKING_STRATEGIES.map((strategy) => {
+                const isActive = strategy.id === chunkingStrategy;
+                return (
+                  <button
+                    key={strategy.id}
+                    type="button"
+                    onClick={() => setChunkingStrategy(strategy.id)}
+                    className={cn(
+                      'rounded-lg border px-4 py-3 text-left transition-all',
+                      isActive
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border bg-background hover:border-primary/40',
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        'text-sm font-medium',
+                        isActive ? 'text-primary' : 'text-foreground',
+                      )}
+                    >
+                      {strategy.label}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {strategy.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <Button
+            className="w-full"
+            disabled={!documentTask}
+            onClick={handleConfirmDocuments}
+          >
+            Confirm & preprocess
+          </Button>
+          {!documentTask && (
+            <p className="text-xs text-muted-foreground">
+              Select a task type to continue.
             </p>
           )}
         </div>
