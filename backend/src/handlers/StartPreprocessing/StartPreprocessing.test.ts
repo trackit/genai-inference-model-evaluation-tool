@@ -23,7 +23,7 @@ describe('StartPreprocessing Handler', () => {
     const result = await handler(
       createEvent('ds1', {
         taskType: 'summarization',
-        chunkingStrategy: 'CHAPTER',
+        chunkingStrategy: 'SECTION',
       }),
     );
     const response = result as { statusCode: number; body: string };
@@ -36,7 +36,7 @@ describe('StartPreprocessing Handler', () => {
     expect(execute).toHaveBeenCalledWith({
       datasetId: 'ds1',
       taskType: 'summarization',
-      chunkingStrategy: 'CHAPTER',
+      chunkingStrategy: 'SECTION',
     });
   });
 

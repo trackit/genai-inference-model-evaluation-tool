@@ -41,9 +41,9 @@ const CHUNKING_STRATEGIES: {
   description: string;
 }[] = [
   {
-    id: 'CHAPTER',
-    label: 'By chapter',
-    description: 'One dataset sample per detected chapter/section.',
+    id: 'SECTION',
+    label: 'By section',
+    description: 'One dataset sample per detected section.',
   },
   {
     id: 'DOCUMENT',
@@ -282,7 +282,7 @@ export function DatasetUpload({
   const [activeTask, setActiveTask] = useState<TaskType>('summarization');
   const [documentTask, setDocumentTask] = useState<TaskType | null>(null);
   const [chunkingStrategy, setChunkingStrategy] =
-    useState<PreprocessingChunkingStrategy>('CHAPTER');
+    useState<PreprocessingChunkingStrategy>('DOCUMENT');
   const [formatTab, setFormatTab] = useState<FormatTab>('csv');
   const uploadMutation = useUploadDataset();
   const activeDatasetMode = DATASET_MODES.find(
@@ -296,7 +296,7 @@ export function DatasetUpload({
 
   const resetPreprocessingChoices = () => {
     setDocumentTask(null);
-    setChunkingStrategy('CHAPTER');
+    setChunkingStrategy('DOCUMENT');
   };
 
   const handleAddFiles = (newFiles: File[]) => {

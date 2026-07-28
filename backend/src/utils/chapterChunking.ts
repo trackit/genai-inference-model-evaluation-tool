@@ -120,7 +120,7 @@ function splitByParagraphs(text: string): string[] {
   return paragraphs.length > 0 ? paragraphs : [text];
 }
 
-export function chunkDocumentByChapter(
+export function chunkDocumentBySection(
   document: ExtractedDocument,
 ): DocumentChunk[] {
   const normalizedText = document.text.replace(/\r\n/g, '\n').trim();

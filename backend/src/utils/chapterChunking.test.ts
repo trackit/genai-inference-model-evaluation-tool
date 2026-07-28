@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { randomUUID } from 'crypto';
 import {
-  chunkDocumentByChapter,
+  chunkDocumentBySection,
   isChapterOrSectionHeading,
 } from './chapterChunking';
 
@@ -40,7 +40,7 @@ describe('chunkDocumentByChapter', () => {
   const document_id = randomUUID();
 
   it('splits on explicit chapter headings', () => {
-    const chunks = chunkDocumentByChapter({
+    const chunks = chunkDocumentBySection({
       document_id,
       text: [
         'Chapter 1: Introduction',
@@ -59,7 +59,7 @@ describe('chunkDocumentByChapter', () => {
   });
 
   it('splits on numbered section headings', () => {
-    const chunks = chunkDocumentByChapter({
+    const chunks = chunkDocumentBySection({
       document_id,
       text: [
         '1. Introduction',
@@ -75,7 +75,7 @@ describe('chunkDocumentByChapter', () => {
   });
 
   it('keeps a preamble before the first detected heading', () => {
-    const chunks = chunkDocumentByChapter({
+    const chunks = chunkDocumentBySection({
       document_id,
       text: [
         'Document preamble text.',
@@ -90,7 +90,7 @@ describe('chunkDocumentByChapter', () => {
   });
 
   it('ignores table-of-contents lines when splitting on headings', () => {
-    const chunks = chunkDocumentByChapter({
+    const chunks = chunkDocumentBySection({
       document_id,
       text: [
         'Chapter 1 .......... 5',
@@ -109,7 +109,7 @@ describe('chunkDocumentByChapter', () => {
   });
 
   it('splits on word-form and appendix headings', () => {
-    const chunks = chunkDocumentByChapter({
+    const chunks = chunkDocumentBySection({
       document_id,
       text: [
         'Chapter One: The Beginning',
@@ -125,7 +125,7 @@ describe('chunkDocumentByChapter', () => {
   });
 
   it('falls back to paragraph splitting when no headings are detected', () => {
-    const chunks = chunkDocumentByChapter({
+    const chunks = chunkDocumentBySection({
       document_id,
       text: 'First paragraph.\n\nSecond paragraph.',
     });
@@ -136,7 +136,7 @@ describe('chunkDocumentByChapter', () => {
   });
 
   it('collapses multiple consecutive blank lines into a single paragraph break', () => {
-    const chunks = chunkDocumentByChapter({
+    const chunks = chunkDocumentBySection({
       document_id,
       text: 'First paragraph.\n\n\nSecond paragraph.\n\nThird paragraph.',
     });
@@ -148,7 +148,7 @@ describe('chunkDocumentByChapter', () => {
   });
 
   it('returns a single chunk when there are no headings or paragraph breaks', () => {
-    const chunks = chunkDocumentByChapter({
+    const chunks = chunkDocumentBySection({
       document_id,
       text: 'A single paragraph without blank lines.',
     });

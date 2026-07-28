@@ -253,7 +253,7 @@ export interface DatasetPreviewData {
 }
 
 export type PreprocessingTaskType = 'summarization' | 'classification';
-export type PreprocessingChunkingStrategy = 'DOCUMENT' | 'CHAPTER';
+export type PreprocessingChunkingStrategy = 'DOCUMENT' | 'SECTION';
 
 export interface PreprocessingStartData {
   executionArn: string;

@@ -20,12 +20,12 @@ describe('DocumentConversion task handler', () => {
     const output = await handler({
       datasetId: 'ds1',
       taskType: 'summarization',
-      chunkingStrategy: ChunkingStrategy.CHAPTER,
+      chunkingStrategy: ChunkingStrategy.SECTION,
     });
 
     expect(execute).toHaveBeenCalledWith({
       dataset_id: 'ds1',
-      chunking_strategy: ChunkingStrategy.CHAPTER,
+      chunking_strategy: ChunkingStrategy.SECTION,
     });
     expect(output).toEqual({
       datasetId: 'ds1',
@@ -42,7 +42,7 @@ describe('DocumentConversion task handler', () => {
       handler({
         datasetId: 'ds1',
         taskType: 'summarization',
-        chunkingStrategy: ChunkingStrategy.CHAPTER,
+        chunkingStrategy: ChunkingStrategy.SECTION,
       }),
     ).rejects.toThrow('manifest not found');
   });
