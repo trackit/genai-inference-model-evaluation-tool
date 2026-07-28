@@ -83,8 +83,9 @@ describe('BedrockSyntheticOutputModelClient', () => {
     });
   });
 
-  it('rejects empty Bedrock responses', async () => {
+  it('classifies empty Bedrock responses as non-retryable', async () => {
     const { client, bedrockRuntimeClientMock } = setup();
+
     bedrockRuntimeClientMock.on(ConverseCommand).resolves({
       output: {
         message: {
@@ -95,20 +96,34 @@ describe('BedrockSyntheticOutputModelClient', () => {
     });
 
     await expect(client.generate({ prompt: 'Prompt' })).rejects.toMatchObject({
-      code: 'EMPTY_BEDROCK_SYNTHETIC_OUTPUT',
+      name: 'PermanentModelError',
+      originalErrorName: 'EmptyModelOutputError',
     });
   });
+});
 
-  it('maps Bedrock failures to a service unavailable BasicError', async () => {
+describe('classifies Bedrock errors as retryable or non-retryable', () => {
+  it.each([
+    ['ThrottlingException', 'TransientModelError'],
+    ['ModelTimeoutException', 'TransientModelError'],
+    ['ServiceUnavailableException', 'TransientModelError'],
+    ['InternalServerException', 'TransientModelError'],
+    ['ModelNotReadyException', 'TransientModelError'],
+    ['ValidationException', 'PermanentModelError'],
+    ['AccessDeniedException', 'PermanentModelError'],
+    ['ResourceNotFoundException', 'PermanentModelError'],
+    ['ModelErrorException', 'PermanentModelError'],
+  ])('%s -> %s', async (bedrockErrorName, expectedClassification) => {
     const { client, bedrockRuntimeClientMock } = setup();
-    bedrockRuntimeClientMock
-      .on(ConverseCommand)
-      .rejects(new Error('access denied'));
+
+    bedrockRuntimeClientMock.on(ConverseCommand).rejects({
+      name: bedrockErrorName,
+      message: `simulated ${bedrockErrorName}`,
+    });
 
     await expect(client.generate({ prompt: 'Prompt' })).rejects.toMatchObject({
-      type: 'SERVICE_UNAVAILABLE',
-      code: 'BEDROCK_SYNTHETIC_OUTPUT_GENERATION_FAILED',
-      description: 'access denied',
+      name: expectedClassification,
+      originalErrorName: bedrockErrorName,
     });
   });
 });
