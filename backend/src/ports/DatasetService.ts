@@ -32,6 +32,8 @@ export interface DatasetService {
     file_type: 'csv' | 'jsonl',
   ): Promise<string>;
 
+  getDatasetFileType(datasetId: string): Promise<DatasetFileType | null>;
+
   /**
    * Stores the converted dataset in JSONL format and returns the path to the stored file.
    */

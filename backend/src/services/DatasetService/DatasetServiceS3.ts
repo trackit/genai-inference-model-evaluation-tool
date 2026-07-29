@@ -381,6 +381,20 @@ export class DatasetServiceImpl implements DatasetService {
       }),
     );
   }
+
+  async getDatasetFileType(datasetId: string): Promise<DatasetFileType | null> {
+    const manifest = await this.readUploadManifest(datasetId);
+
+    if (!manifest) {
+      return null;
+    }
+
+    return (
+      manifest.files.find(
+        (file) => file.file_type === 'csv' || file.file_type === 'jsonl',
+      )?.file_type ?? 'jsonl'
+    );
+  }
 }
 
 export const tokenClientS3 = createInjectionToken<S3Client>('ClientS3', {

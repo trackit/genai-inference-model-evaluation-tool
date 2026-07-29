@@ -119,15 +119,37 @@ export class FakeDatasetService implements DatasetService {
     const stored = this.uploads.find(
       (u) => u.datasetId === datasetId && u.fileExtension === fileType,
     );
-    if (!stored) {
-      throw new BasicError(
-        BasicErrorType.NOT_FOUND,
-        'DATASET_NOT_FOUND',
-        'Dataset not found',
-        `No dataset found with ID: ${datasetId}`,
-      );
+    if (stored) {
+      return stored.content;
     }
-    return stored.content;
+
+    const artifact = this.artifacts.find(
+      (a) => a.key === datasetS3Key(datasetId, fileType),
+    );
+    if (artifact) {
+      return artifact.body;
+    }
+
+    throw new BasicError(
+      BasicErrorType.NOT_FOUND,
+      'DATASET_NOT_FOUND',
+      'Dataset not found',
+      `No dataset found with ID: ${datasetId}`,
+    );
+  }
+
+  async getDatasetFileType(datasetId: string): Promise<DatasetFileType | null> {
+    const manifest = await this.readUploadManifest(datasetId);
+
+    if (!manifest) {
+      return null;
+    }
+
+    return (
+      manifest.files.find(
+        (file) => file.file_type === 'csv' || file.file_type === 'jsonl',
+      )?.file_type ?? 'jsonl'
+    );
   }
 
   async writeUploadManifest(
