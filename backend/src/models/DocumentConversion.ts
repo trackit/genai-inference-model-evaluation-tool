@@ -1,6 +1,6 @@
 export enum ChunkingStrategy {
   DOCUMENT = 'DOCUMENT',
-  CHAPTER = 'CHAPTER',
+  SECTION = 'SECTION',
 }
 
 export const SUPPORTED_DOCUMENT_FILE_TYPES = ['pdf', 'doc', 'docx'] as const;

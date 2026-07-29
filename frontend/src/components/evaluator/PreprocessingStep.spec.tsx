@@ -47,7 +47,7 @@ describe('PreprocessingStep', () => {
       <PreprocessingStep
         datasetId="ds1"
         taskType="summarization"
-        chunkingStrategy="CHAPTER"
+        chunkingStrategy="DOCUMENT"
         onDone={() => {}}
         onBack={() => {}}
       />,

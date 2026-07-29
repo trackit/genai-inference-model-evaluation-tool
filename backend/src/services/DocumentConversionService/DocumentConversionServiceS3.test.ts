@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
-import { chunkDocumentByChapter } from '../../utils/chapterChunking';
+import { chunkDocumentBySection } from '../../utils/chapterChunking';
 import { DocumentConversionServiceImpl } from './DocumentConversionServiceS3';
 
 describe('DocumentConversionService', () => {
@@ -61,7 +61,7 @@ describe('DocumentConversionService', () => {
         );
         const extractedText = await service.parse(docxBuffer, 'docx');
 
-        const chunks = chunkDocumentByChapter({
+        const chunks = chunkDocumentBySection({
           document_id: 'docx-1',
           text: extractedText,
         });
@@ -101,7 +101,7 @@ describe('DocumentConversionService', () => {
         );
         const extractedText = await service.parse(docBuffer, 'doc');
 
-        const chunks = chunkDocumentByChapter({
+        const chunks = chunkDocumentBySection({
           document_id: 'doc-1',
           text: extractedText,
         });

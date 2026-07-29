@@ -11,7 +11,7 @@ import {
 } from '../../models/DocumentConversion';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
-import { chunkDocumentByChapter } from '../../utils/chapterChunking';
+import { chunkDocumentBySection } from '../../utils/chapterChunking';
 
 export type DocumentConversionUseCase = {
   execute(request: DocumentConversionRequest): Promise<string>;
@@ -50,7 +50,7 @@ export function chunkDocuments(
       ];
     }
 
-    return chunkDocumentByChapter(document);
+    return chunkDocumentBySection(document);
   });
 }
 

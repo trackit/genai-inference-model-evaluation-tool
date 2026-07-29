@@ -47,7 +47,7 @@ export default function Index() {
   >(null);
   const [preprocessingDone, setPreprocessingDone] = useState(false);
   const [chunkingStrategy, setChunkingStrategy] =
-    useState<PreprocessingChunkingStrategy>('CHAPTER');
+    useState<PreprocessingChunkingStrategy>('DOCUMENT');
   const [sampleCount, setSampleCount] = useState(0);
   const [detectedTaskType, setDetectedTaskType] = useState<
     TaskType | undefined
@@ -184,7 +184,7 @@ export default function Index() {
     setDatasetId(null);
     setDatasetKind(null);
     setPreprocessingDone(false);
-    setChunkingStrategy('CHAPTER');
+    setChunkingStrategy('DOCUMENT');
     setSampleCount(0);
     setDetectedTaskType(undefined);
     setEvaluationId(null);
