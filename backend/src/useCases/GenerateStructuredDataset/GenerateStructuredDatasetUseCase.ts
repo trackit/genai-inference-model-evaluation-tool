@@ -14,6 +14,7 @@ export interface StructuredDatasetGenerationOutput {
   datasetId: string;
   structuredDatasetArtifactKey: string;
   sampleCount: number;
+  failedCount: number;
 }
 
 export type GenerateStructuredDatasetUseCase = {
@@ -32,7 +33,22 @@ export class GenerateStructuredDatasetUseCaseImpl implements GenerateStructuredD
     const syntheticRows = await this.datasetService.readSyntheticDatasetRows(
       syntheticDatasetArtifactKey,
     );
-    const samples = syntheticRows.map(toDatasetSample);
+
+    const completedRows = syntheticRows.filter(
+      (row) => row.status === 'completed',
+    );
+    const failedCount = syntheticRows.length - completedRows.length;
+
+    if (completedRows.length === 0) {
+      throw new BasicError(
+        BasicErrorType.UNPROCESSABLE_ENTITY,
+        'SYNTHETIC_GENERATION_ALL_FAILED',
+        'All rows failed synthetic generation',
+        `${syntheticRows.length} row(s) all failed; no structured dataset could be produced`,
+      );
+    }
+
+    const samples = completedRows.map(toDatasetSample);
     const { structuredDatasetArtifactKey } =
       await this.datasetService.writeStructuredDataset(datasetId, samples);
 
@@ -40,6 +56,7 @@ export class GenerateStructuredDatasetUseCaseImpl implements GenerateStructuredD
       datasetId,
       structuredDatasetArtifactKey,
       sampleCount: samples.length,
+      failedCount,
     };
   }
 }
@@ -53,8 +70,6 @@ export const tokenGenerateStructuredDatasetUseCase =
   );
 
 function toDatasetSample(row: SyntheticOutputRow): DatasetSample {
-  assertCompleted(row);
-
   if (row.summary !== undefined) {
     if (!row.summary.trim()) {
       throw incompleteSyntheticOutput(row, 'summary');
@@ -82,19 +97,6 @@ function toDatasetSample(row: SyntheticOutputRow): DatasetSample {
     'SYNTHETIC_OUTPUT_FIELD_MISSING',
     'Synthetic row must include summary or class',
     `Chunk ${row.chunk_id} has no generated output field`,
-  );
-}
-
-function assertCompleted(row: SyntheticOutputRow): void {
-  if (row.status === 'completed') return;
-
-  throw new BasicError(
-    BasicErrorType.UNPROCESSABLE_ENTITY,
-    'SYNTHETIC_OUTPUT_INCOMPLETE',
-    'Synthetic dataset contains failed rows',
-    `Chunk ${row.chunk_id} failed synthetic generation: ${
-      row.error_message ?? 'Unknown error'
-    }`,
   );
 }
 

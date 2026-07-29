@@ -3,6 +3,16 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 import { PreprocessingStatusReport } from '../../models/PreprocessingLifecycle';
 import { tokenStateMachineService } from '../../services/StateMachineService/StateMachineSfnService';
 
+export type PreprocessingStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED';
+
+export interface GetPreprocessingStatusResult {
+  status: PreprocessingStatus;
+  structuredDatasetArtifactKey?: string;
+  sampleCount?: number;
+  generatedCount?: number;
+  failedCount?: number;
+}
+
 export type GetPreprocessingStatusUseCase = {
   execute(input: { executionArn: string }): Promise<PreprocessingStatusReport>;
 };

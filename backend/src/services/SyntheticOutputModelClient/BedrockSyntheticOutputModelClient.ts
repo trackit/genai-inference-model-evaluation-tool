@@ -11,7 +11,10 @@ import type {
   SyntheticOutputModelRequest,
   SyntheticOutputModelResult,
 } from '../../ports/SyntheticOutputModelClient';
-import { classifyModelError, EmptyModelOutputError } from './classifyModelError';
+import {
+  classifyModelError,
+  EmptyModelOutputError,
+} from './classifyModelError';
 
 const DEFAULT_SYNTHETIC_OUTPUT_MODEL_ID =
   process.env.SYNTHETIC_OUTPUT_MODEL_ID?.trim() ||
@@ -24,7 +27,8 @@ const TEMPERATURE = 0.2;
 
 export const tokenBedrockRuntimeClient =
   createInjectionToken<BedrockRuntimeClient>('BedrockRuntimeClient', {
-    useClass: BedrockRuntimeClient,
+    // Disable the SDK's own retry and let ASL be the single source of truth
+    useFactory: () => new BedrockRuntimeClient({ maxAttempts: 1 }),
   });
 
 export class BedrockSyntheticOutputModelClient implements SyntheticOutputModelClient {

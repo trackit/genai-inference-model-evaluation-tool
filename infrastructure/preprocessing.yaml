@@ -63,25 +63,20 @@ Resources:
         EntryPoints:
           - src/handlers/DocumentConversion/DocumentConversion.ts
 
-  RunSyntheticPreprocessingFunction:
+  GenerateSyntheticOutputRowFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: RunSyntheticPreprocessing.handler
-      Timeout: 900
-      MemorySize: 1024
+      Handler: GenerateSyntheticOutputRow.handler
+      Timeout: 30
+      MemorySize: 512
       Tags:
-        Name: !Sub '${AWS::StackName}-run-synthetic-preprocessing-function'
+        Name: !Sub '${AWS::StackName}-generate-synthetic-output-row-function'
       Environment:
         Variables:
           DATASET_BUCKET: !Ref DatasetBucketName
           SYNTHETIC_OUTPUT_MODEL_ID: us.meta.llama4-maverick-17b-instruct-v1:0
       Policies:
         - Statement:
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-                - s3:PutObject
-              Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/datasets/*'
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
@@ -98,7 +93,39 @@ Resources:
         OutExtension:
           - .js=.mjs
         EntryPoints:
-          - src/handlers/RunSyntheticPreprocessing/RunSyntheticPreprocessing.ts
+          - src/handlers/GenerateSyntheticOutputRow/GenerateSyntheticOutputRow.ts
+
+  FinalizeSyntheticDatasetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: FinalizeSyntheticDataset.handler
+      Timeout: 60
+      MemorySize: 1024
+      Tags:
+        Name: !Sub '${AWS::StackName}-finalize-synthetic-dataset-function'
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucketName
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: !Sub 'arn:aws:s3:::${DatasetBucketName}/*'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/FinalizeSyntheticDataset/FinalizeSyntheticDataset.ts
 
   DocumentConversionFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -106,10 +133,16 @@ Resources:
       LogGroupName: !Sub '/aws/lambda/${DocumentConversionFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
-  RunSyntheticPreprocessingFunctionLogGroup:
+  GenerateSyntheticOutputRowFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/lambda/${RunSyntheticPreprocessingFunction}'
+      LogGroupName: !Sub '/aws/lambda/${GenerateSyntheticOutputRowFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
+  FinalizeSyntheticDatasetFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${FinalizeSyntheticDatasetFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
   PreprocessingStateMachine:
@@ -122,12 +155,37 @@ Resources:
         Project: !Ref Project
       DefinitionSubstitutions:
         DocumentConversionFunctionArn: !GetAtt DocumentConversionFunction.Arn
-        RunSyntheticPreprocessingFunctionArn: !GetAtt RunSyntheticPreprocessingFunction.Arn
+        GenerateSyntheticOutputRowFunctionArn: !GetAtt GenerateSyntheticOutputRowFunction.Arn
+        FinalizeSyntheticDatasetFunctionArn: !GetAtt FinalizeSyntheticDatasetFunction.Arn
+        DatasetBucketName: !Ref DatasetBucketName
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref DocumentConversionFunction
         - LambdaInvokePolicy:
-            FunctionName: !Ref RunSyntheticPreprocessingFunction
+            FunctionName: !Ref GenerateSyntheticOutputRowFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref FinalizeSyntheticDatasetFunction
+        - S3ReadPolicy:
+            BucketName: !Ref DatasetBucketName
+        - S3WritePolicy:
+            BucketName: !Ref DatasetBucketName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Sub 'arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-preprocessing'
+            - Effect: Allow
+              Action:
+                - states:DescribeExecution
+                - states:StopExecution
+              Resource: !Sub 'arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:${AWS::StackName}-preprocessing:*'
+            - Effect: Allow
+              Action:
+                - events:PutTargets
+                - events:PutRule
+                - events:DescribeRule
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule'
       Definition:
         Comment: Document preprocessing pipeline (convert -> synthetic + structured)
         StartAt: DocumentConversion
@@ -143,21 +201,100 @@ Resources:
               taskType.$: $.Payload.taskType
               convertedDatasetArtifactKey.$: $.Payload.convertedDatasetArtifactKey
             ResultPath: $
-            Next: RunSyntheticPreprocessing
+            Next: SyntheticOutputsGeneration
             Catch:
               - ErrorEquals:
                   - States.ALL
                 ResultPath: $.error
                 Next: PreprocessingFailed
-          RunSyntheticPreprocessing:
+          SyntheticOutputsGeneration:
+            Type: Map
+            ItemProcessor:
+              ProcessorConfig:
+                Mode: DISTRIBUTED
+                ExecutionType: STANDARD
+              StartAt: GenerateSyntheticOutputRow
+              States:
+                GenerateSyntheticOutputRow:
+                  Type: Task
+                  Resource: arn:aws:states:::lambda:invoke
+                  Parameters:
+                    FunctionName: ${GenerateSyntheticOutputRowFunctionArn}
+                    Payload.$: $
+                  OutputPath: $.Payload
+                  Retry:
+                    - ErrorEquals:
+                        - TransientModelError
+                      IntervalSeconds: 2
+                      MaxAttempts: 5
+                      BackoffRate: 2.0
+                      MaxDelaySeconds: 30
+                      JitterStrategy: FULL
+                    - ErrorEquals:
+                        - Lambda.ServiceException
+                        - Lambda.TooManyRequestsException
+                        - Lambda.SdkClientException
+                      IntervalSeconds: 1
+                      MaxAttempts: 3
+                      BackoffRate: 2.0
+                  Catch:
+                    - ErrorEquals:
+                        - TransientModelError
+                      ResultPath: $.error
+                      Next: RowFailedAfterRetries
+                  End: true
+                RowFailedAfterRetries:
+                  Type: Pass
+                  Parameters:
+                    chunk_id.$: $.chunk_id
+                    document_id.$: $.document_id
+                    text.$: $.document
+                    status: failed
+                    error_message.$: "States.Format('Transient error persisted after retries: {}', $.error.Cause)"
+                  End: true
+            ItemReader:
+              Resource: arn:aws:states:::s3:getObject
+              ReaderConfig:
+                InputType: JSONL
+              Parameters:
+                Bucket: ${DatasetBucketName}
+                Key.$: $.convertedDatasetArtifactKey
+            ItemSelector:
+              chunk_id.$: $$.Map.Item.Value.chunk_id
+              document_id.$: $$.Map.Item.Value.document_id
+              document.$: $$.Map.Item.Value.document
+              taskType.$: $.taskType
+            ResultWriter:
+              Resource: arn:aws:states:::s3:putObject
+              Parameters:
+                Bucket: ${DatasetBucketName}
+                Prefix.$: "States.Format('preprocessing-results/{}', $.datasetId)"
+              WriterConfig:
+                Transformation: COMPACT
+                OutputType: JSONL
+            # Circuit breaker only, NOT a business-failure tolerance: with
+            # partial success, per-document failures resolve as
+            # normal completed iterations via the Catch blocks above and
+            # never count here. This threshold only trips on genuine
+            # iteration-level losses - a Lambda crash, OOM, or malformed input
+            ToleratedFailureCount: 3
+            ToleratedFailurePercentage: 5
+            MaxConcurrency: 5
+            ResultPath: $.mapResult
+            Next: FinalizeSyntheticDataset
+            Catch:
+              - ErrorEquals:
+                  - States.ALL
+                ResultPath: $.error
+                Next: PreprocessingFailed
+          FinalizeSyntheticDataset:
             Type: Task
             Resource: arn:aws:states:::lambda:invoke
             Parameters:
-              FunctionName: ${RunSyntheticPreprocessingFunctionArn}
+              FunctionName: ${FinalizeSyntheticDatasetFunctionArn}
               Payload:
                 datasetId.$: $.datasetId
-                taskType.$: $.taskType
-                convertedDatasetArtifactKey.$: $.convertedDatasetArtifactKey
+                manifestKey.$: $.mapResult.ResultWriterDetails.Key
             OutputPath: $.Payload
             End: true
             Catch:

@@ -46,7 +46,9 @@ describe('classifyModelError', () => {
   });
 
   it('fails closed: classifies an unrecognized error name as PermanentModelError', () => {
-    const result = classifyModelError(bedrockError('SomeFutureBedrockException'));
+    const result = classifyModelError(
+      bedrockError('SomeFutureBedrockException'),
+    );
 
     expect(result).toBeInstanceOf(PermanentModelError);
     expect(result.originalErrorName).toBe('SomeFutureBedrockException');

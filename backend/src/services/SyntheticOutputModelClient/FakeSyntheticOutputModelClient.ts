@@ -5,11 +5,13 @@ import type {
   SyntheticOutputModelRequest,
   SyntheticOutputModelResult,
 } from '../../ports/SyntheticOutputModelClient';
-import { TransientModelError, PermanentModelError } from './classifyModelError';
+import { PermanentModelError, TransientModelError } from './classifyModelError';
 
 export class FakeSyntheticOutputModelClient implements SyntheticOutputModelClient {
   public readonly requests: SyntheticOutputModelRequest[] = [];
-  private readonly queuedResults: Array<string | TransientModelError | PermanentModelError> = [];
+  private readonly queuedResults: Array<
+    string | TransientModelError | PermanentModelError
+  > = [];
 
   queueOutput(output: string): void {
     this.queuedResults.push(output);
@@ -25,7 +27,10 @@ export class FakeSyntheticOutputModelClient implements SyntheticOutputModelClien
     this.requests.push(request);
 
     const nextResult = this.queuedResults.shift();
-    if (nextResult instanceof TransientModelError || nextResult instanceof PermanentModelError) {
+    if (
+      nextResult instanceof TransientModelError ||
+      nextResult instanceof PermanentModelError
+    ) {
       throw nextResult;
     }
 

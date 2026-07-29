@@ -65,4 +65,10 @@ export interface DatasetService {
     datasetId: string,
     samples: DatasetSample[],
   ): Promise<{ structuredDatasetArtifactKey: string }>;
+
+  /**
+   * Used for reading Step Functions
+   * Distributed Map ResultWriter output (manifest.json, SUCCEEDED_n.json)
+   */
+  readRawObject(key: string): Promise<string>;
 }

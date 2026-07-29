@@ -2,6 +2,10 @@ import { inject, reset } from '@trackit.io/di-container';
 import { describe, expect, it } from 'vitest';
 
 import {
+  structuredDatasetS3Key,
+  syntheticDatasetS3Key,
+} from 'backend/src/services/DatasetService/DatasetServiceS3';
+import {
   FakeDatasetService,
   tokenFakeDatasetService,
 } from '../../services/DatasetService/FakeDatasetService';
@@ -15,14 +19,14 @@ describe('GenerateStructuredDatasetUseCase', () => {
 
     const result = await useCase.generateStructuredDataset({
       datasetId: 'demo-dataset',
-      syntheticDatasetArtifactKey:
-        'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+      syntheticDatasetArtifactKey: syntheticDatasetS3Key('demo-dataset'),
     });
 
     expect(result).toEqual({
       datasetId: 'demo-dataset',
-      structuredDatasetArtifactKey: 'datasets/demo-dataset/demo-dataset.jsonl',
+      structuredDatasetArtifactKey: structuredDatasetS3Key('demo-dataset'),
       sampleCount: 2,
+      failedCount: 0,
     });
     expect(expectWrittenStructuredRows(fakeDatasetService)).toEqual([
       {
@@ -45,8 +49,7 @@ describe('GenerateStructuredDatasetUseCase', () => {
 
     await useCase.generateStructuredDataset({
       datasetId: 'demo-dataset',
-      syntheticDatasetArtifactKey:
-        'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+      syntheticDatasetArtifactKey: syntheticDatasetS3Key('demo-dataset'),
     });
 
     expect(expectWrittenStructuredRows(fakeDatasetService)[0]).toEqual({
@@ -55,22 +58,36 @@ describe('GenerateStructuredDatasetUseCase', () => {
     });
   });
 
-  it('rejects failed synthetic rows before writing the final dataset', async () => {
+  it('excludes failed rows from the structured dataset but still succeeds with the rest', async () => {
+    const { fakeDatasetService, useCase } = setup();
+    seedSyntheticArtifact(fakeDatasetService, mixedSyntheticArtifact());
+
+    const result = await useCase.generateStructuredDataset({
+      datasetId: 'demo-dataset',
+      syntheticDatasetArtifactKey: syntheticDatasetS3Key('demo-dataset'),
+    });
+
+    expect(result).toMatchObject({ sampleCount: 1, failedCount: 1 });
+    expect(expectWrittenStructuredRows(fakeDatasetService)).toEqual([
+      { document: 'First document chunk', summary: 'Summary one' },
+    ]);
+  });
+
+  it('throws only when every row failed - nothing usable to build a dataset from', async () => {
     const { fakeDatasetService, useCase } = setup();
     seedSyntheticArtifact(fakeDatasetService, failedSyntheticArtifact());
 
     await expect(
       useCase.generateStructuredDataset({
         datasetId: 'demo-dataset',
-        syntheticDatasetArtifactKey:
-          'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+        syntheticDatasetArtifactKey: syntheticDatasetS3Key('demo-dataset'),
       }),
     ).rejects.toMatchObject({
-      code: 'SYNTHETIC_OUTPUT_INCOMPLETE',
+      code: 'SYNTHETIC_GENERATION_ALL_FAILED',
     });
     expect(
       fakeDatasetService.artifacts.some(
-        (a) => a.key === 'datasets/demo-dataset/demo-dataset.jsonl',
+        (a) => a.key === structuredDatasetS3Key('demo-dataset'),
       ),
     ).toBe(false);
   });
@@ -91,8 +108,7 @@ describe('GenerateStructuredDatasetUseCase', () => {
     await expect(
       useCase.generateStructuredDataset({
         datasetId: 'demo-dataset',
-        syntheticDatasetArtifactKey:
-          'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+        syntheticDatasetArtifactKey: syntheticDatasetS3Key('demo-dataset'),
       }),
     ).rejects.toMatchObject({
       code: 'SYNTHETIC_OUTPUT_INCOMPLETE',
@@ -115,7 +131,7 @@ function seedSyntheticArtifact(
   body: string,
 ): void {
   fakeDatasetService.artifacts.push({
-    key: 'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
+    key: syntheticDatasetS3Key('demo-dataset'),
     body,
     contentType: 'application/jsonl',
   });
@@ -125,10 +141,10 @@ function expectWrittenStructuredRows(
   fakeDatasetService: FakeDatasetService,
 ): unknown[] {
   const artifact = fakeDatasetService.artifacts.find(
-    (a) => a.key === 'datasets/demo-dataset/demo-dataset.jsonl',
+    (a) => a.key === structuredDatasetS3Key('demo-dataset'),
   );
   expect(artifact).toMatchObject({
-    key: 'datasets/demo-dataset/demo-dataset.jsonl',
+    key: structuredDatasetS3Key('demo-dataset'),
     contentType: 'application/jsonl',
   });
 
@@ -166,6 +182,25 @@ function classificationSyntheticArtifact(): string {
     class: 'support_policy',
     status: 'completed',
   });
+}
+
+function mixedSyntheticArtifact(): string {
+  return [
+    JSON.stringify({
+      document_id: 'demo-dataset',
+      chunk_id: 'demo-dataset-0',
+      text: 'First document chunk',
+      summary: 'Summary one',
+      status: 'completed',
+    }),
+    JSON.stringify({
+      document_id: 'demo-dataset',
+      chunk_id: 'demo-dataset-1',
+      text: 'Second document chunk',
+      status: 'failed',
+      error_message: 'model failed',
+    }),
+  ].join('\n');
 }
 
 function failedSyntheticArtifact(): string {
