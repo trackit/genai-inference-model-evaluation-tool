@@ -18,6 +18,7 @@ describe('InitializeDatasetUploadUseCase', () => {
     const datasetKey = result.uploads[0].fields.key;
 
     expect(result.uploads).toHaveLength(1);
+    expect(result.file_type).toBe('csv');
     expect(datasetService.presignedMaxBytes).toEqual([sizeBytes]);
     expect(result.uploads[0].upload_url).toBe(
       `https://fake-s3.test/${datasetKey}`,

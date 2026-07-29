@@ -13,6 +13,10 @@ const ConfirmDatasetUploadPathSchema = z.object({
   id: z.string().min(1),
 });
 
+const ConfirmDatasetUploadBodySchema = z.object({
+  file_type: z.enum(['csv', 'jsonl']).optional(),
+});
+
 export class ConfirmDatasetUploadAdapter {
   private readonly useCase = inject(tokenConfirmDatasetUploadUseCase);
 
@@ -26,10 +30,11 @@ export class ConfirmDatasetUploadAdapter {
   }
 
   private async processRequest(event: APIGatewayProxyEventV2) {
-    const { pathParameters } = parseApiEvent(event, {
+    const { pathParameters, body } = parseApiEvent(event, {
       pathSchema: ConfirmDatasetUploadPathSchema,
+      bodySchema: ConfirmDatasetUploadBodySchema,
     });
 
-    return this.useCase.confirmDatasetUpload(pathParameters.id);
+    return this.useCase.confirmDatasetUpload(pathParameters.id, body.file_type);
   }
 }

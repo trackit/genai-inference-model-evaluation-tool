@@ -187,44 +187,28 @@ export class DatasetServiceImpl implements DatasetService {
     }
   }
 
-  async retrieveDataset(datasetId: string): Promise<{
-    content: string;
-    fileExtension: 'csv' | 'jsonl';
-  }> {
+  async retrieveDataset(
+    datasetId: string,
+    file_type: 'csv' | 'jsonl',
+  ): Promise<string> {
     try {
-      const csvKey = datasetS3Key(datasetId, 'csv');
-      const csvResponse = await this.s3Client.send(
+      const datasetKey = datasetS3Key(datasetId, file_type);
+      const response = await this.s3Client.send(
         new GetObjectCommand({
           Bucket: this.bucketName,
-          Key: csvKey,
+          Key: datasetKey,
         }),
       );
-      const content = await csvResponse.Body!.transformToString();
-      return { content, fileExtension: 'csv' };
+      const content = await response.Body!.transformToString();
+      return content;
     } catch (error: unknown) {
       if (isS3NotFound(error)) {
-        try {
-          const jsonlKey = datasetS3Key(datasetId, 'jsonl');
-          const jsonlResponse = await this.s3Client.send(
-            new GetObjectCommand({
-              Bucket: this.bucketName,
-              Key: jsonlKey,
-            }),
-          );
-
-          const content = await jsonlResponse.Body!.transformToString();
-          return { content, fileExtension: 'jsonl' };
-        } catch (jsonlError: unknown) {
-          if (isS3NotFound(jsonlError)) {
-            throw new BasicError(
-              BasicErrorType.NOT_FOUND,
-              'DATASET_NOT_FOUND',
-              'Dataset not found',
-              `No dataset found with ID: ${datasetId}`,
-            );
-          }
-          throw jsonlError;
-        }
+        throw new BasicError(
+          BasicErrorType.NOT_FOUND,
+          'DATASET_NOT_FOUND',
+          'Dataset not found',
+          `No dataset found with ID: ${datasetId}`,
+        );
       }
       throw error;
     }
