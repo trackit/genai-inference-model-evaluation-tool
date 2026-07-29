@@ -1,7 +1,7 @@
 import { inject, reset } from '@trackit.io/di-container';
 import { describe, expect, it } from 'vitest';
 
-import { BasicError, BasicErrorType } from '../../errors/BasicError';
+import { BasicError } from '../../errors/BasicError';
 import { MAX_DATASET_BYTES } from '../../models/Dataset';
 import { tokenFakeDatasetService } from '../../services/DatasetService/FakeDatasetService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
@@ -15,7 +15,7 @@ describe('ConfirmDatasetUploadUseCase', () => {
       const { useCase, datasetService } = setup();
       await datasetService.upload('dataset-id', defaultCsv, 'csv');
 
-      const result = await useCase.confirmDatasetUpload('dataset-id', 'csv');
+      const result = await useCase.confirmDatasetUpload('dataset-id');
 
       expect(result).toEqual({
         dataset_type: 'structured',
@@ -35,7 +35,7 @@ describe('ConfirmDatasetUploadUseCase', () => {
       const { useCase, datasetService } = setup();
       await datasetService.upload('dataset-id', jsonlContent, 'jsonl');
 
-      const result = await useCase.confirmDatasetUpload('dataset-id', 'jsonl');
+      const result = await useCase.confirmDatasetUpload('dataset-id');
 
       expect(result).toMatchObject({
         dataset_type: 'structured',
@@ -49,28 +49,9 @@ describe('ConfirmDatasetUploadUseCase', () => {
       const { useCase, datasetService } = setup();
       await datasetService.upload('dataset-id', content, 'csv');
 
-      await expect(
-        useCase.confirmDatasetUpload('dataset-id', 'csv'),
-      ).rejects.toThrow(
+      await expect(useCase.confirmDatasetUpload('dataset-id')).rejects.toThrow(
         'Dataset must contain at least 10 samples. Found 2 samples',
       );
-    });
-
-    it('rejects when a dataset exists but file_type is omitted', async () => {
-      const { useCase, datasetService } = setup();
-
-      await datasetService.upload('dataset-id', defaultCsv, 'csv');
-
-      await expect(useCase.confirmDatasetUpload('dataset-id')).rejects.toThrow(
-        BasicError,
-      );
-
-      await expect(
-        useCase.confirmDatasetUpload('dataset-id'),
-      ).rejects.toMatchObject({
-        type: BasicErrorType.BAD_REQUEST,
-        code: 'MISSING_FILE_TYPE',
-      });
     });
   });
 
@@ -173,9 +154,9 @@ describe('ConfirmDatasetUploadUseCase', () => {
   it('propagates dataset not found errors', async () => {
     const { useCase } = setup();
 
-    await expect(
-      useCase.confirmDatasetUpload('missing-id', 'csv'),
-    ).rejects.toThrow('Dataset not found');
+    await expect(useCase.confirmDatasetUpload('missing-id')).rejects.toThrow(
+      'Dataset not found',
+    );
   });
 });
 

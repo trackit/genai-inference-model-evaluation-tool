@@ -24,65 +24,49 @@ const DATASET_ID = randomUUID();
 
 describe('DatasetServiceImpl', () => {
   describe('retrieveDataset', () => {
-    it('returns csv content when the dataset exists', async () => {
+    it('returns csv content when the csv object exists', async () => {
       const { service, s3ClientMock } = setup();
-
       s3ClientMock.on(GetObjectCommand).resolves({
         Body: {
           transformToString: async () => 'document\n"Question 1"',
-        },
-      });
+        } as never,
+      } as never);
 
-      const result = await service.retrieveDataset('dataset-id', 'csv');
+      const result = await service.retrieveDataset('dataset-id');
 
-      expect(result).toContain('Question 1');
+      expect(result.fileExtension).toBe('csv');
+      expect(result.content).toContain('Question 1');
     });
 
-    it('returns jsonl content when the dataset exists', async () => {
+    it('falls back to jsonl when csv is missing', async () => {
       const { service, s3ClientMock } = setup();
-
-      s3ClientMock.on(GetObjectCommand).resolves({
-        Body: {
-          transformToString: async () => '{"document":"Question 1"}',
-        },
-      });
-
-      const result = await service.retrieveDataset('dataset-id', 'jsonl');
-
-      expect(result).toContain('Question 1');
-    });
-
-    it('requests the correct S3 key', async () => {
-      const { service, s3ClientMock } = setup();
-
-      s3ClientMock.on(GetObjectCommand).resolves({
-        Body: {
-          transformToString: async () => 'content',
-        },
-      });
-
-      await service.retrieveDataset('dataset-id', 'csv');
-
-      const calls = s3ClientMock.commandCalls(GetObjectCommand);
-
-      expect(calls).toHaveLength(1);
-      expect(calls[0].args[0].input).toEqual({
-        Bucket: process.env.DATASET_BUCKET,
-        Key: datasetS3Key('dataset-id', 'csv'),
-      });
-    });
-
-    it('throws DATASET_NOT_FOUND when the object does not exist', async () => {
-      const { service, s3ClientMock } = setup();
-
       const notFound = new Error('Not found');
       notFound.name = 'NoSuchKey';
 
+      s3ClientMock
+        .on(GetObjectCommand, { Key: datasetS3Key('dataset-id', 'csv') })
+        .rejects(notFound)
+        .on(GetObjectCommand, { Key: datasetS3Key('dataset-id', 'jsonl') })
+        .resolves({
+          Body: {
+            transformToString: async () => '{"document":"Question 1"}',
+          } as never,
+        } as never);
+
+      const result = await service.retrieveDataset('dataset-id');
+
+      expect(result.fileExtension).toBe('jsonl');
+    });
+
+    it('throws DATASET_NOT_FOUND when neither object exists', async () => {
+      const { service, s3ClientMock } = setup();
+      const notFound = new Error('Not found');
+      notFound.name = 'NoSuchKey';
       s3ClientMock.on(GetObjectCommand).rejects(notFound);
 
-      await expect(
-        service.retrieveDataset('missing-id', 'csv'),
-      ).rejects.toThrow(BasicError);
+      await expect(service.retrieveDataset('missing-id')).rejects.toThrow(
+        BasicError,
+      );
     });
   });
 

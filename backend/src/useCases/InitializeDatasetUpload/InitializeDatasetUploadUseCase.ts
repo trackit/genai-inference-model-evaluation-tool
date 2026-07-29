@@ -31,7 +31,6 @@ export type FileUpload = {
 
 export type InitializeDatasetUploadResult = {
   dataset_id: string;
-  file_type?: 'csv' | 'jsonl';
   uploads: FileUpload[];
 };
 
@@ -81,7 +80,6 @@ export class InitializeDatasetUploadUseCaseImpl implements InitializeDatasetUplo
 
       return {
         dataset_id: datasetId,
-        file_type: file.fileType as 'csv' | 'jsonl',
         uploads: [
           {
             document_id: datasetId,
