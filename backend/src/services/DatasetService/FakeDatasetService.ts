@@ -1,5 +1,6 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
+import { isDatasetFile } from 'backend/src/useCases/datasetValidation';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import {
   DatasetFileType,
@@ -138,7 +139,7 @@ export class FakeDatasetService implements DatasetService {
     );
   }
 
-  async getDatasetFileType(datasetId: string): Promise<DatasetFileType | null> {
+  async getDatasetFileType(datasetId: string): Promise<'csv' | 'jsonl' | null> {
     const manifest = await this.readUploadManifest(datasetId);
 
     if (!manifest) {
@@ -146,9 +147,8 @@ export class FakeDatasetService implements DatasetService {
     }
 
     return (
-      manifest.files.find(
-        (file) => file.file_type === 'csv' || file.file_type === 'jsonl',
-      )?.file_type ?? null
+      (manifest.files.find((file) => isDatasetFile(file.file_type))
+        ?.file_type as 'csv' | 'jsonl') ?? null
     );
   }
 
