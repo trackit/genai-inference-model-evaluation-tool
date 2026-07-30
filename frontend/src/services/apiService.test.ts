@@ -175,6 +175,7 @@ describe('endpoint functions', () => {
             success: true,
             data: {
               dataset_id: 'd1',
+              file_type: 'csv',
               uploads: [
                 {
                   document_id: 'doc-1',
@@ -218,6 +219,7 @@ describe('endpoint functions', () => {
       ];
       expect(confirmUrl).toBe('http://localhost:3000/datasets/d1/confirm');
       expect(confirmInit.method).toBe('POST');
+      expect(confirmInit.body).toBe(JSON.stringify({ file_type: 'csv' }));
     });
 
     it('includes access code headers when credentials are stored', async () => {
@@ -232,6 +234,7 @@ describe('endpoint functions', () => {
             success: true,
             data: {
               dataset_id: 'd1',
+              file_type: 'csv',
               uploads: [
                 {
                   document_id: 'doc-1',
@@ -350,6 +353,13 @@ describe('endpoint functions', () => {
       const [, secondS3Init] = mockFetch.mock.calls[2] as [string, RequestInit];
       expect((secondS3Init.body as FormData).get('key')).toBe('notes');
       expect((secondS3Init.body as FormData).get('file')).toBe(doc2);
+
+      const [confirmUrl, confirmInit] = mockFetch.mock.calls[3] as [
+        string,
+        RequestInit,
+      ];
+      expect(confirmUrl).toBe('http://localhost:3000/datasets/d1/confirm');
+      expect(confirmInit.body).toBe(JSON.stringify({}));
     });
   });
 

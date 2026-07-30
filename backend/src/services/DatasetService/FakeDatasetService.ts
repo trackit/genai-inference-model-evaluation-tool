@@ -1,5 +1,6 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
+import { isDatasetFile } from 'backend/src/useCases/datasetValidation';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import {
   DatasetFileType,
@@ -114,20 +115,41 @@ export class FakeDatasetService implements DatasetService {
 
   async retrieveDataset(
     datasetId: string,
-  ): Promise<{ content: string; fileExtension: 'csv' | 'jsonl' }> {
-    const stored = this.uploads.find((u) => u.datasetId === datasetId);
-    if (!stored) {
-      throw new BasicError(
-        BasicErrorType.NOT_FOUND,
-        'DATASET_NOT_FOUND',
-        'Dataset not found',
-        `No dataset found with ID: ${datasetId}`,
-      );
+    fileType: 'csv' | 'jsonl',
+  ): Promise<string> {
+    const stored = this.uploads.find(
+      (u) => u.datasetId === datasetId && u.fileExtension === fileType,
+    );
+    if (stored) {
+      return stored.content;
     }
-    return {
-      content: stored.content,
-      fileExtension: stored.fileExtension,
-    };
+
+    const artifact = this.artifacts.find(
+      (a) => a.key === datasetS3Key(datasetId, fileType),
+    );
+    if (artifact) {
+      return artifact.body;
+    }
+
+    throw new BasicError(
+      BasicErrorType.NOT_FOUND,
+      'DATASET_NOT_FOUND',
+      'Dataset not found',
+      `No dataset found with ID: ${datasetId}`,
+    );
+  }
+
+  async getDatasetFileType(datasetId: string): Promise<'csv' | 'jsonl' | null> {
+    const manifest = await this.readUploadManifest(datasetId);
+
+    if (!manifest) {
+      return null;
+    }
+
+    return (
+      (manifest.files.find((file) => isDatasetFile(file.file_type))
+        ?.file_type as 'csv' | 'jsonl') ?? null
+    );
   }
 
   async writeUploadManifest(

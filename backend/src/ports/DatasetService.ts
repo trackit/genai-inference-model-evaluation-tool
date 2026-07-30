@@ -27,10 +27,12 @@ export interface DatasetService {
 
   getUploadedObjectSize(location: string): Promise<number>;
 
-  retrieveDataset(datasetId: string): Promise<{
-    content: string;
-    fileExtension: 'csv' | 'jsonl';
-  }>;
+  retrieveDataset(
+    datasetId: string,
+    file_type: 'csv' | 'jsonl',
+  ): Promise<string>;
+
+  getDatasetFileType(datasetId: string): Promise<'csv' | 'jsonl' | null>;
 
   /**
    * Stores the converted dataset in JSONL format and returns the path to the stored file.
