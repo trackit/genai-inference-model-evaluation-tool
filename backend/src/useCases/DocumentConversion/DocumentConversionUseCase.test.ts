@@ -70,7 +70,7 @@ describe('DocumentConversionUseCase execute', () => {
 
     const result = await useCase.execute({
       dataset_id: dataset_id,
-      chunking_strategy: ChunkingStrategy.CHAPTER,
+      chunking_strategy: ChunkingStrategy.SECTION,
     });
 
     expect(parseSpy).toHaveBeenCalledTimes(datasetService.rawContents.length);

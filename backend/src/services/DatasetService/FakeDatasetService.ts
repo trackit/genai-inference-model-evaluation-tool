@@ -1,6 +1,5 @@
 import { createInjectionToken } from '@trackit.io/di-container';
 
-import { isDatasetFile } from 'backend/src/useCases/datasetValidation';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import {
   DatasetFileType,
@@ -12,6 +11,7 @@ import {
   SyntheticOutputRow,
 } from '../../models/SyntheticOutput';
 import { DatasetService } from '../../ports/DatasetService';
+import { isDatasetFile } from '../../useCases/datasetValidation';
 import {
   convertedDatasetS3Key,
   datasetS3Key,

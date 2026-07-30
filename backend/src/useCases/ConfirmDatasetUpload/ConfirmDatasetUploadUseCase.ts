@@ -1,6 +1,6 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
-import { BasicError, BasicErrorType } from 'backend/src/errors';
+import { BasicError, BasicErrorType } from '../../errors';
 import {
   Dataset,
   DatasetConfirmMetadata,

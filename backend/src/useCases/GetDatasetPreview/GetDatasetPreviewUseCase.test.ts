@@ -1,7 +1,7 @@
 import { inject, reset } from '@trackit.io/di-container';
 import { describe, expect, it } from 'vitest';
 
-import { datasetS3Key } from 'backend/src/services/DatasetService/DatasetServiceS3';
+import { datasetS3Key } from '../../services/DatasetService/DatasetServiceS3';
 import { tokenFakeDatasetService } from '../../services/DatasetService/FakeDatasetService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { GetDatasetPreviewUseCaseImpl } from './GetDatasetPreviewUseCase';

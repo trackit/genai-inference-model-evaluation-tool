@@ -6,7 +6,6 @@ import {
 } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
-import { isDatasetFile } from 'backend/src/useCases/datasetValidation';
 import { z } from 'zod';
 import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import {
@@ -20,6 +19,7 @@ import {
   SyntheticOutputRow,
 } from '../../models/SyntheticOutput';
 import { DatasetService } from '../../ports/DatasetService';
+import { isDatasetFile } from '../../useCases/datasetValidation';
 
 const DocumentUploadManifestSchema = z.object({
   max_total_bytes: z.number().int().positive(),
