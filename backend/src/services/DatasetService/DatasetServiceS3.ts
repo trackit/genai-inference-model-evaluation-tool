@@ -392,7 +392,7 @@ export class DatasetServiceImpl implements DatasetService {
     return (
       manifest.files.find(
         (file) => file.file_type === 'csv' || file.file_type === 'jsonl',
-      )?.file_type ?? 'jsonl'
+      )?.file_type ?? null
     );
   }
 }

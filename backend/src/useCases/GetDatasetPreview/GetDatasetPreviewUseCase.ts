@@ -17,7 +17,11 @@ export class GetDatasetPreviewUseCaseImpl implements GetDatasetPreviewUseCase {
   private readonly datasetService = inject(tokenDatasetService);
 
   async getDatasetPreview(datasetId: string): Promise<DatasetPreview> {
-    const fileType = await this.datasetService.getDatasetFileType(datasetId);
+    const fileType =
+      ((await this.datasetService.getDatasetFileType(datasetId)) as
+        | 'csv'
+        | 'jsonl'
+        | null) ?? 'jsonl';
     const content = await this.datasetService.retrieveDataset(
       datasetId,
       fileType as 'csv' | 'jsonl',
