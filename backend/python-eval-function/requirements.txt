@@ -8,3 +8,4 @@ transformers>=4.38,<4.46
 deepeval
 aiobotocore
 scikit-learn
+pytest

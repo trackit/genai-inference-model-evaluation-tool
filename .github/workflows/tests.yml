@@ -34,3 +34,35 @@ jobs:
 
       - name: Run frontend tests
         run: pnpm run test:frontend
+  python-worker-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/python-eval-function/requirements.txt
+
+      - name: Cache Python venv
+        uses: actions/cache@v4
+        id: cache-python-venv
+        with:
+          path: backend/python-eval-function/.venv
+          key: ${{ runner.os }}-python-eval-venv-${{ hashFiles('backend/python-eval-function/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-python-eval-venv-
+
+      - name: Install Python deps
+        if: steps.cache-python-venv.outputs.cache-hit != 'true'
+        run: |
+          cd backend/python-eval-function
+          python3 -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Run Python eval tests
+        run: backend/python-eval-function/.venv/bin/python -m pytest

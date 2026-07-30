@@ -160,34 +160,71 @@ Requests to `http://localhost:3000` are routed to the local Lambda runtime. Note
 
 ## Testing strategy
 
-The project uses **Vitest** for all TypeScript tests. Tests are colocated with their modules (`*.test.ts`).
+The project uses **Vitest** for TypeScript tests and **pytest** for the Python evaluation engine. TypeScript tests are colocated with their modules (`*.test.ts`); Python tests live under `backend/python-eval-function/tests/` (`test_*.py`, one file per source module).
 
-### Running tests
+### Running tests locally
 
 ```bash
-# All tests
+# All TypeScript tests
 pnpm test
 
-# Backend only
+# Backend TypeScript only
 pnpm test:backend
 
-# Scoped suites
+# Scoped TypeScript suites
 pnpm test:handlers    # Lambda HTTP adapters
 pnpm test:usecases    # Business logic
 pnpm test:services    # AWS service integrations
+
+# Python evaluation engine (Fargate worker)
+pnpm test:evaluation-worker
 ```
+
+#### Python evaluation engine setup
+
+The `test:evaluation-worker` script uses a virtual environment at `backend/python-eval-function/.venv`. Create it once before the first run:
+
+```bash
+cd backend/python-eval-function
+python3.12 -m venv .venv   # must be 3.12 — 3.14 breaks tokenizers (PyO3)
+.venv/bin/pip install -r requirements.txt
+cd ../..
+pnpm test:evaluation-worker
+```
+
+To run pytest directly (optional flags such as `-v` or a single file):
+
+```bash
+cd backend/python-eval-function
+.venv/bin/python -m pytest -v
+.venv/bin/python -m pytest tests/test_model_recommender.py -v
+```
+
+AWS SDK calls (S3, DynamoDB, Bedrock) and heavy dependencies (G-Eval, BERTScore) are mocked in Python tests so they run without AWS credentials or model downloads.
+
+### CI triggers
+
+Tests run automatically via GitHub Actions (`.github/workflows/tests.yml`):
+
+| Job                   | Trigger                                  | Command                       |
+| --------------------- | ---------------------------------------- | ----------------------------- |
+| `backend-tests`       | Pull requests; pushes to `main` or `dev` | `pnpm test:backend`           |
+| `python-worker-tests` | Pull requests; pushes to `main` or `dev` | `pnpm test:evaluation-worker` |
+
+Both jobs must pass before merging.
 
 ### Test layers
 
-| Layer     | Location                                   | What is tested                                                          |
-| --------- | ------------------------------------------ | ----------------------------------------------------------------------- |
-| Handlers  | `backend/src/handlers/**/*.test.ts`        | Request parsing, response shaping, error codes                          |
-| Use cases | `backend/src/useCases/**/*.test.ts`        | Business rules, orchestration logic                                     |
-| Services  | `backend/src/services/**/*.test.ts`        | DynamoDB, S3, ECS adapter behaviour                                     |
-| Parsers   | `backend/src/parsers/**/*.test.ts`         | CSV and JSONL parsing, including property-based tests with `fast-check` |
-| Frontend  | `frontend/src/services/apiService.test.ts` | API client contract                                                     |
+| Layer             | Location                                       | What is tested                                                                |
+| ----------------- | ---------------------------------------------- | ----------------------------------------------------------------------------- |
+| Handlers          | `backend/src/handlers/**/*.test.ts`            | Request parsing, response shaping, error codes                                |
+| Use cases         | `backend/src/useCases/**/*.test.ts`            | Business rules, orchestration logic                                           |
+| Services          | `backend/src/services/**/*.test.ts`            | DynamoDB, S3, ECS adapter behaviour                                           |
+| Parsers           | `backend/src/parsers/**/*.test.ts`             | CSV and JSONL parsing, including property-based tests with `fast-check`       |
+| Frontend          | `frontend/src/services/apiService.test.ts`     | API client contract                                                           |
+| Evaluation engine | `backend/python-eval-function/tests/test_*.py` | Metrics, dataset loading, Bedrock client, cost, recommendation, orchestration |
 
-AWS SDK calls are mocked with Vitest's `vi.mock` so tests run without AWS credentials. Property-based tests use `fast-check` to verify parser invariants across randomly generated inputs.
+TypeScript AWS SDK calls are mocked with Vitest's `vi.mock` so tests run without AWS credentials. Property-based tests use `fast-check` to verify parser invariants across randomly generated inputs.
 
 ### Sample datasets
 
@@ -217,7 +254,9 @@ Three sample files are included at the repo root for manual smoke-testing:
 │       │   ├── geval_evaluator.py
 │       │   ├── cost_calculator.py
 │       │   └── model_recommender.py
+│       ├── tests/             # pytest suite (test_*.py)
 │       ├── Dockerfile
+│       ├── pytest.ini
 │       └── requirements.txt
 ├── frontend/                  # React 19 + Vite + Tailwind (see frontend/README.md)
 │   └── src/
