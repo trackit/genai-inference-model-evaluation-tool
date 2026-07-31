@@ -14,7 +14,6 @@ export class DocumentConversionServiceImpl implements DocumentConversionService 
     file_type: DatasetFileType,
   ): Promise<string> {
     const text = await this.extractText(rawContent, file_type);
-
     return text.trim();
   }
 
@@ -25,17 +24,19 @@ export class DocumentConversionServiceImpl implements DocumentConversionService 
     switch (file_type) {
       case 'pdf': {
         const pdf = await getDocumentProxy(new Uint8Array(raw_content));
-        const { text } = await extractText(pdf, { mergePages: true });
-        return text;
+        const { text } = await extractText(pdf);
+        return text.filter(Boolean).join('\n\n');
       }
 
       case 'doc': {
         const document = await this.wordExtractor.extract(raw_content);
-        return document.getBody().replace(/\n/g, '\n\n');
+        return document.getBody();
       }
 
       case 'docx': {
-        const result = await mammoth.extractRawText({ buffer: raw_content });
+        const result = await mammoth.extractRawText({
+          buffer: raw_content,
+        });
         return result.value;
       }
 
