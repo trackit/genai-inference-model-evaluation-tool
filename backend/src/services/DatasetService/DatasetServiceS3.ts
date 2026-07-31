@@ -390,11 +390,8 @@ export class DatasetServiceImpl implements DatasetService {
       const datasetFileEntry = manifest.files.find((file) =>
         isDatasetFile(file.file_type),
       );
-      if (datasetFileEntry) {
-        return datasetFileEntry.file_type as 'csv' | 'jsonl';
-      }
 
-      return 'jsonl';
+      return datasetFileEntry?.file_type as 'csv' | 'jsonl';
     }
 
     return this.detectStructuredFileType(datasetId);
