@@ -23,7 +23,7 @@ describe('usePreprocessing', () => {
     await act(async () => {
       await result.current.start('ds1', {
         taskType: 'summarization',
-        chunkingStrategy: 'CHAPTER',
+        chunkingStrategy: 'SECTION',
       });
     });
 

@@ -376,7 +376,7 @@ describe('endpoint functions', () => {
 
       const result = await startPreprocessing('ds1', {
         taskType: 'summarization',
-        chunkingStrategy: 'CHAPTER',
+        chunkingStrategy: 'SECTION',
       });
 
       expect(result).toEqual({ executionArn: 'arn:1', status: 'RUNNING' });
@@ -385,7 +385,7 @@ describe('endpoint functions', () => {
       expect(init.method).toBe('POST');
       expect(JSON.parse(init.body as string)).toEqual({
         taskType: 'summarization',
-        chunkingStrategy: 'CHAPTER',
+        chunkingStrategy: 'SECTION',
       });
     });
   });
