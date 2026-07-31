@@ -1,5 +1,6 @@
 import {
   DescribeExecutionCommand,
+  GetExecutionHistoryCommand,
   SFNClient,
   StartExecutionCommand,
 } from '@aws-sdk/client-sfn';
@@ -41,6 +42,27 @@ export class StateMachineSfnService implements StateMachineService {
       status: response.status as ExecutionStatus,
       output: response.output,
     };
+  }
+
+  async listEnteredStateNames({
+    executionArn,
+    limit,
+  }: {
+    executionArn: string;
+    limit: number;
+  }): Promise<string[]> {
+    const response = await this.sfnClient.send(
+      new GetExecutionHistoryCommand({
+        executionArn,
+        reverseOrder: true,
+        maxResults: limit,
+        includeExecutionData: false,
+      }),
+    );
+
+    return (response.events ?? [])
+      .map((event) => event.stateEnteredEventDetails?.name)
+      .filter((name): name is string => typeof name === 'string');
   }
 }
 

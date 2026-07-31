@@ -10,6 +10,7 @@ export class FakeStateMachineService implements StateMachineService {
     string,
     { status: ExecutionStatus; output?: string }
   > = {};
+  public enteredStateNamesByArn: Record<string, string[]> = {};
   private counter = 0;
 
   async startExecution({
@@ -29,6 +30,15 @@ export class FakeStateMachineService implements StateMachineService {
     executionArn: string,
   ): Promise<{ status: ExecutionStatus; output?: string }> {
     return this.statusByArn[executionArn] ?? { status: 'RUNNING' };
+  }
+
+  async listEnteredStateNames({
+    executionArn,
+  }: {
+    executionArn: string;
+    limit: number;
+  }): Promise<string[]> {
+    return this.enteredStateNamesByArn[executionArn] ?? [];
   }
 }
 

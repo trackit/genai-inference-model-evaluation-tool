@@ -15,4 +15,9 @@ export interface StateMachineService {
   describeExecution(
     executionArn: string,
   ): Promise<{ status: ExecutionStatus; output?: string }>;
+
+  listEnteredStateNames(input: {
+    executionArn: string;
+    limit: number;
+  }): Promise<string[]>;
 }
