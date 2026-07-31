@@ -61,6 +61,30 @@ describe('GetDatasetPreviewUseCase', () => {
     );
   });
 
+  it('previews a CSV structured dataset uploaded without an upload manifest', async () => {
+    const { useCase, datasetService } = setup();
+    await datasetService.upload('ds-csv-no-manifest', makeCsv(3), 'csv');
+
+    const result = await useCase.getDatasetPreview('ds-csv-no-manifest');
+
+    expect(result.samples).toHaveLength(3);
+    expect(result.samples[0].document).toBe('Doc 1');
+  });
+
+  it('previews a JSONL structured dataset uploaded without an upload manifest', async () => {
+    const { useCase, datasetService } = setup();
+    const jsonl = Array.from(
+      { length: 3 },
+      (_, i) => `{"document":"Doc ${i + 1}"}`,
+    ).join('\n');
+    await datasetService.upload('ds-jsonl-no-manifest', jsonl, 'jsonl');
+
+    const result = await useCase.getDatasetPreview('ds-jsonl-no-manifest');
+
+    expect(result.samples).toHaveLength(3);
+    expect(result.samples[0].document).toBe('Doc 1');
+  });
+
   it('returns samples for a preprocessed document dataset once the structured dataset has been written', async () => {
     const { useCase, datasetService } = setup();
 

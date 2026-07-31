@@ -142,14 +142,33 @@ export class FakeDatasetService implements DatasetService {
   async getDatasetFileType(datasetId: string): Promise<'csv' | 'jsonl' | null> {
     const manifest = await this.readUploadManifest(datasetId);
 
-    if (!manifest) {
-      return null;
+    if (manifest) {
+      const datasetFileEntry = manifest.files.find((file) =>
+        isDatasetFile(file.file_type),
+      );
+      if (datasetFileEntry) {
+        return datasetFileEntry.file_type as 'csv' | 'jsonl';
+      }
+
+      return 'jsonl';
     }
 
-    return (
-      (manifest.files.find((file) => isDatasetFile(file.file_type))
-        ?.file_type as 'csv' | 'jsonl') ?? null
-    );
+    const upload = this.uploads.find((u) => u.datasetId === datasetId);
+    if (upload) {
+      return upload.fileExtension;
+    }
+
+    if (this.artifacts.some((a) => a.key === datasetS3Key(datasetId, 'csv'))) {
+      return 'csv';
+    }
+
+    if (
+      this.artifacts.some((a) => a.key === datasetS3Key(datasetId, 'jsonl'))
+    ) {
+      return 'jsonl';
+    }
+
+    return null;
   }
 
   async writeUploadManifest(

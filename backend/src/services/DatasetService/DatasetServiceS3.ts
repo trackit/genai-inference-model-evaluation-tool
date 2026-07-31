@@ -386,14 +386,43 @@ export class DatasetServiceImpl implements DatasetService {
   async getDatasetFileType(datasetId: string): Promise<'csv' | 'jsonl' | null> {
     const manifest = await this.readUploadManifest(datasetId);
 
-    if (!manifest) {
-      return null;
+    if (manifest) {
+      const datasetFileEntry = manifest.files.find((file) =>
+        isDatasetFile(file.file_type),
+      );
+
+      return datasetFileEntry?.file_type as 'csv' | 'jsonl';
     }
 
-    return (
-      (manifest.files.find((file) => isDatasetFile(file.file_type))
-        ?.file_type as 'csv' | 'jsonl') ?? null
-    );
+    return this.detectStructuredFileType(datasetId);
+  }
+
+  private async detectStructuredFileType(
+    datasetId: string,
+  ): Promise<'csv' | 'jsonl' | null> {
+    if (await this.objectExists(datasetS3Key(datasetId, 'csv'))) {
+      return 'csv';
+    }
+
+    if (await this.objectExists(datasetS3Key(datasetId, 'jsonl'))) {
+      return 'jsonl';
+    }
+
+    return null;
+  }
+
+  private async objectExists(key: string): Promise<boolean> {
+    try {
+      await this.s3Client.send(
+        new HeadObjectCommand({ Bucket: this.bucketName, Key: key }),
+      );
+      return true;
+    } catch (error: unknown) {
+      if (isS3NotFound(error)) {
+        return false;
+      }
+      throw error;
+    }
   }
 }
 

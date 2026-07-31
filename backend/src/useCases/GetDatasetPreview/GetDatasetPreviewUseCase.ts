@@ -19,6 +19,7 @@ export class GetDatasetPreviewUseCaseImpl implements GetDatasetPreviewUseCase {
   async getDatasetPreview(datasetId: string): Promise<DatasetPreview> {
     const fileType =
       (await this.datasetService.getDatasetFileType(datasetId)) ?? 'jsonl';
+
     const content = await this.datasetService.retrieveDataset(
       datasetId,
       fileType,
