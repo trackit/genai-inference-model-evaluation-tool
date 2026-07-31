@@ -1,6 +1,5 @@
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
-import { BasicError, BasicErrorType } from '../../errors/BasicError';
 import { Dataset, DatasetPreview } from '../../models/Dataset';
 import { tokenCsvParser } from '../../parsers/CsvParser/CsvParser';
 import { tokenJsonlParser } from '../../parsers/JsonlParser/JsonlParser';
@@ -18,16 +17,8 @@ export class GetDatasetPreviewUseCaseImpl implements GetDatasetPreviewUseCase {
   private readonly datasetService = inject(tokenDatasetService);
 
   async getDatasetPreview(datasetId: string): Promise<DatasetPreview> {
-    const fileType = await this.datasetService.getDatasetFileType(datasetId);
-
-    if (!fileType) {
-      throw new BasicError(
-        BasicErrorType.NOT_FOUND,
-        'DATASET_NOT_FOUND',
-        'Dataset not found',
-        `No dataset found with ID: ${datasetId}`,
-      );
-    }
+    const fileType =
+      (await this.datasetService.getDatasetFileType(datasetId)) ?? 'jsonl';
 
     const content = await this.datasetService.retrieveDataset(
       datasetId,
