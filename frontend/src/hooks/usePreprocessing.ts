@@ -6,6 +6,7 @@ import {
 } from '@/services/apiService';
 import type {
   PreprocessingChunkingStrategy,
+  PreprocessingStage,
   PreprocessingTaskType,
 } from '@/types/evaluation';
 
@@ -16,6 +17,7 @@ export function usePreprocessing() {
   const [status, setStatus] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
   const [sampleCount, setSampleCount] = useState<number | null>(null);
+  const [stage, setStage] = useState<PreprocessingStage | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clear = useCallback(() => {
@@ -35,12 +37,14 @@ export function usePreprocessing() {
     ): Promise<void> => {
       setError(null);
       setSampleCount(null);
+      setStage(null);
       setStatus('running');
       try {
         const { executionArn } = await startPreprocessing(datasetId, params);
 
         const poll = async (): Promise<void> => {
           const result = await getPreprocessingStatus(datasetId, executionArn);
+          setStage(result.stage ?? null);
           if (result.status === 'SUCCEEDED') {
             setSampleCount(result.sampleCount ?? null);
             setStatus('succeeded');
@@ -63,5 +67,5 @@ export function usePreprocessing() {
     [],
   );
 
-  return { status, error, sampleCount, start };
+  return { status, error, sampleCount, stage, start };
 }
