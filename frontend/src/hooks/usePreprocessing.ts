@@ -19,13 +19,20 @@ export function usePreprocessing() {
   const [sampleCount, setSampleCount] = useState<number | null>(null);
   const [stage, setStage] = useState<PreprocessingStage | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runId = useRef(0);
 
   const clear = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
   }, []);
 
-  useEffect(() => clear, [clear]);
+  useEffect(
+    () => () => {
+      runId.current += 1;
+      clear();
+    },
+    [clear],
+  );
 
   const start = useCallback(
     async (
@@ -35,15 +42,22 @@ export function usePreprocessing() {
         chunkingStrategy: PreprocessingChunkingStrategy;
       },
     ): Promise<void> => {
+      clear();
+      const thisRun = ++runId.current;
+      const isStale = (): boolean => thisRun !== runId.current;
+
       setError(null);
       setSampleCount(null);
       setStage(null);
       setStatus('running');
       try {
         const { executionArn } = await startPreprocessing(datasetId, params);
+        if (isStale()) return;
 
         const poll = async (): Promise<void> => {
           const result = await getPreprocessingStatus(datasetId, executionArn);
+          if (isStale()) return;
+
           setStage(result.stage ?? null);
           if (result.status === 'SUCCEEDED') {
             setSampleCount(result.sampleCount ?? null);
@@ -60,11 +74,12 @@ export function usePreprocessing() {
 
         await poll();
       } catch (e: unknown) {
+        if (isStale()) return;
         setStatus('failed');
         setError(e instanceof Error ? e.message : 'Preprocessing failed');
       }
     },
-    [],
+    [clear],
   );
 
   return { status, error, sampleCount, stage, start };
