@@ -15,12 +15,14 @@ describe('isChapterOrSectionHeading', () => {
     '1. Introduction',
     '1.2 Methods',
     'I. Overview',
+    'ii. Implementation Details',
     'Chapter One',
     'Chapter Twenty: Conclusion',
     'Appendix A',
     'Appendix A: Glossary',
+    'INTRODUCTION',
   ])('detects "%s" as a heading', (line) => {
-    expect(isChapterOrSectionHeading(line)).toBe(true);
+    expect(isChapterOrSectionHeading(line, null)).toBe(true);
   });
 
   it.each([
@@ -31,9 +33,29 @@ describe('isChapterOrSectionHeading', () => {
     '12 Monkeys Escaped From The Zoo.',
     'Chapter 1 .......... 5',
     'Section 3    12',
+    'FIGURE 1',
   ])('does not treat "%s" as a heading', (line) => {
-    expect(isChapterOrSectionHeading(line)).toBe(false);
+    expect(isChapterOrSectionHeading(line, null)).toBe(false);
   });
+
+  it.each<[string, string, boolean]>([
+    [
+      'Testing Strategy',
+      'Testing is an essential part of reliable software development.',
+      true,
+    ],
+    ['Testing Strategy', 'Short.', false],
+    [
+      'As discussed in Chapter 3',
+      'The system uses interfaces to define contracts between parts.',
+      false,
+    ],
+  ])(
+    'treats "%s" followed by "%s" as a heading: %s',
+    (line, nextNonEmptyLine, expected) => {
+      expect(isChapterOrSectionHeading(line, nextNonEmptyLine)).toBe(expected);
+    },
+  );
 });
 
 describe('chunkDocumentByChapter', () => {
