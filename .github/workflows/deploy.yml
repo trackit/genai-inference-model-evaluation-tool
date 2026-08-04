@@ -19,6 +19,7 @@ jobs:
       LOG_RETENTION_IN_DAYS: 14
       AWS_REGION: ${{ secrets.AWS_REGION }}
       ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
+      CODE_SEND_SES_SOURCE_EMAIL_ADDRESS: ${{ secrets.CODE_SEND_SES_SOURCE_EMAIL_ADDRESS }}
     steps:
       - uses: actions/checkout@v4
 
