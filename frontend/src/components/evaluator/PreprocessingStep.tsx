@@ -6,16 +6,24 @@ import {
   type PreprocessingStage,
   type PreprocessingTaskType,
 } from '@/types/evaluation';
-import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { PreprocessingStages } from './PreprocessingStages';
+import {
+  AlertCircle,
+  ArrowLeft,
+} from 'lucide-react';
+
+interface PreprocessingDoneResult {
+  sampleCount: number | null;
+  failedCount: number | null;
+}
 
 interface PreprocessingStepProps {
   datasetId: string;
   taskType: PreprocessingTaskType;
   chunkingStrategy: PreprocessingChunkingStrategy;
-  onDone: (sampleCount: number | null) => void;
+  onDone: (result: PreprocessingDoneResult) => void;
   onBack: () => void;
 }
 
@@ -34,15 +42,18 @@ export function PreprocessingStep({
   onDone,
   onBack,
 }: PreprocessingStepProps) {
-  const { status, sampleCount, stage, start } = usePreprocessing();
+  const { status, stage, sampleCount, failedCount, start } =
+    usePreprocessing();
 
   useEffect(() => {
     void start(datasetId, { taskType, chunkingStrategy });
   }, [datasetId, taskType, chunkingStrategy, start]);
 
   useEffect(() => {
-    if (status === 'succeeded') onDone(sampleCount);
-  }, [status, sampleCount, onDone]);
+    if (status === 'succeeded' && !failedCount) {
+      onDone({ sampleCount, failedCount });
+    }
+  }, [status, sampleCount, failedCount, onDone]);
 
   if (status === 'failed') {
     return (

@@ -576,6 +576,9 @@ Resources:
       Handler: GetPreprocessingStatus.handler
       Tags:
         Name: !Sub '${AWS::StackName}-get-preprocessing-status-function'
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucketName
       Policies:
         - Statement:
             - Effect: Allow
@@ -583,6 +586,24 @@ Resources:
                 - states:DescribeExecution
                 - states:GetExecutionHistory
               Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${PreprocessingStateMachineName}:*'
+            - Effect: Allow
+              Action:
+                - states:ListMapRuns
+              Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${PreprocessingStateMachineName}:*'
+            - Effect: Allow
+              Action:
+                - states:DescribeMapRun
+              Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:mapRun:${PreprocessingStateMachineName}/*'
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:HeadObject
+                - s3:ListBucket
+              Resource:
+                [
+                  !Sub 'arn:aws:s3:::${DatasetBucketName}/*',
+                  !Sub 'arn:aws:s3:::${DatasetBucketName}',
+                ]
       Events:
         GetPreprocessingStatusApi:
           Type: HttpApi

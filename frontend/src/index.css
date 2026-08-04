@@ -100,6 +100,8 @@
   --color-input: hsl(var(--input));
   --color-border: hsl(var(--border));
   --color-destructive: hsl(var(--destructive));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
   --color-accent-foreground: hsl(var(--accent-foreground));
   --color-accent: hsl(var(--accent));
   --color-muted-foreground: hsl(var(--muted-foreground));

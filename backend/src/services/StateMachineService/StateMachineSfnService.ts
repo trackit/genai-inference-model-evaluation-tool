@@ -2,6 +2,8 @@ import {
   DescribeExecutionCommand,
   ExecutionStatus,
   GetExecutionHistoryCommand,
+  DescribeMapRunCommand,
+  ListMapRunsCommand,
   SFNClient,
   StartExecutionCommand,
 } from '@aws-sdk/client-sfn';
@@ -11,7 +13,10 @@ import {
   PreprocessingState,
   PreprocessingStatusReport,
 } from '../../models/PreprocessingLifecycle';
-import { StateMachineService } from '../../ports/StateMachineService';
+import { 
+  StateMachineService,
+  MapRunItemCounts,
+} from '../../ports/StateMachineService';
 
 export const STATE_BY_STATE_NAME: Record<string, PreprocessingState> = {
   DocumentConversion: PreprocessingState.DOCUMENT_PARSING,
@@ -76,6 +81,38 @@ export class StateMachineSfnService implements StateMachineService {
           : undefined,
       sampleCount:
         typeof parsed.sampleCount === 'number' ? parsed.sampleCount : undefined,
+    };
+  }
+
+  async getMapRunItemCounts(
+    executionArn: string,
+  ): Promise<MapRunItemCounts | undefined> {
+    const listResponse = await this.sfnClient.send(
+      new ListMapRunsCommand({ executionArn }),
+    );
+
+    const mapRun = listResponse.mapRuns?.[0];
+    if (!mapRun?.mapRunArn) {
+      return undefined;
+    }
+
+    const describeResponse = await this.sfnClient.send(
+      new DescribeMapRunCommand({ mapRunArn: mapRun.mapRunArn }),
+    );
+
+    const counts = describeResponse.itemCounts;
+    if (!counts) {
+      return undefined;
+    }
+
+    return {
+      pending: Number(counts.pending ?? 0),
+      running: Number(counts.running ?? 0),
+      succeeded: Number(counts.succeeded ?? 0),
+      failed: Number(counts.failed ?? 0),
+      aborted: Number(counts.aborted ?? 0),
+      timedOut: Number(counts.timedOut ?? 0),
+      total: Number(counts.total ?? 0),
     };
   }
 

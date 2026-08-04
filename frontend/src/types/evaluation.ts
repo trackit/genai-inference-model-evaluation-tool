@@ -324,6 +324,8 @@ export interface PreprocessingStatusData {
   state: PreprocessingState;
   structuredDatasetArtifactKey?: string;
   sampleCount?: number;
+  generatedCount?: number;
+  failedCount?: number;
 }
 
 export interface DocumentDatasetUploadData {

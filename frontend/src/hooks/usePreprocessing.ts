@@ -11,6 +11,7 @@ import type {
 } from '@/types/evaluation';
 
 type Phase = 'idle' | 'running' | 'succeeded' | 'failed';
+
 const POLL_INTERVAL_MS = 3000;
 
 export function usePreprocessing() {
@@ -18,6 +19,8 @@ export function usePreprocessing() {
   const [error, setError] = useState<string | null>(null);
   const [sampleCount, setSampleCount] = useState<number | null>(null);
   const [stage, setStage] = useState<PreprocessingStage | null>(null);
+  const [generatedCount, setGeneratedCount] = useState<number | null>(null);
+  const [failedCount, setFailedCount] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runId = useRef(0);
 
@@ -49,7 +52,10 @@ export function usePreprocessing() {
       setError(null);
       setSampleCount(null);
       setStage(null);
+      setGeneratedCount(null);
+      setFailedCount(null);
       setStatus('running');
+
       try {
         const { executionArn } = await startPreprocessing(datasetId, params);
         if (isStale()) return;
@@ -88,5 +94,5 @@ export function usePreprocessing() {
     [clear],
   );
 
-  return { status, error, sampleCount, stage, start };
+  return { status, stage, error, sampleCount, generatedCount, failedCount, start };
 }

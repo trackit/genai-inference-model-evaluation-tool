@@ -1,6 +1,7 @@
 import {
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -383,6 +384,35 @@ export class DatasetServiceImpl implements DatasetService {
 
       throw error;
     }
+  }
+
+  async findRawObjectKey(
+    prefix: string,
+    objectName: string,
+  ): Promise<string | undefined> {
+    const normalizedPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
+    const directKey = `${normalizedPrefix}${objectName}`;
+
+    if (await this.objectExists(directKey)) {
+      return directKey;
+    }
+
+    const response = await this.s3Client.send(
+      new ListObjectsV2Command({
+        Bucket: this.bucketName,
+        Prefix: normalizedPrefix,
+      }),
+    );
+
+    const matches = (response.Contents ?? [])
+      .filter((object) => object.Key?.endsWith(`/${objectName}`))
+      .sort(
+        (left, right) =>
+          (right.LastModified?.getTime() ?? 0) -
+          (left.LastModified?.getTime() ?? 0),
+      );
+
+    return matches[0]?.Key;
   }
 
   private async retrieveArtifact(key: string): Promise<string> {

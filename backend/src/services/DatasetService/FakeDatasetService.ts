@@ -85,6 +85,24 @@ export class FakeDatasetService implements DatasetService {
     return this.readArtifactContent(key);
   }
 
+  async findRawObjectKey(
+    prefix: string,
+    objectName: string,
+  ): Promise<string | undefined> {
+    const normalizedPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
+    const directKey = `${normalizedPrefix}${objectName}`;
+
+    const matches = this.artifacts
+      .map((artifact) => artifact.key)
+      .filter(
+        (key) =>
+          key === directKey ||
+          (key.startsWith(normalizedPrefix) && key.endsWith(`/${objectName}`)),
+      );
+
+    return matches.sort().at(-1);
+  }
+
   async upload(
     datasetId: string,
     content: string,

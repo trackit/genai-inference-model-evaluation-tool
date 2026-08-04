@@ -7,7 +7,7 @@ import { PreprocessingStep } from './PreprocessingStep';
 describe('PreprocessingStep', () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it('auto-starts preprocessing on mount and calls onDone on success', async () => {
+  it('auto-starts preprocessing on mount and calls onDone on a clean success', async () => {
     vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
       executionArn: 'arn:1',
       status: 'RUNNING',
@@ -116,7 +116,7 @@ describe('PreprocessingStep', () => {
       <PreprocessingStep
         datasetId="ds1"
         taskType="summarization"
-        chunkingStrategy="DOCUMENT"
+        chunkingStrategy="SECTION"
         onDone={() => {}}
         onBack={() => {}}
       />,

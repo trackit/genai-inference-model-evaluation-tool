@@ -19,6 +19,9 @@ Parameters:
       Name of the root stack. Used for naming resources with length limits,
       since AWS::StackName inside a nested stack resolves to the long
       CloudFormation-generated name.
+  PreprocessingStateMachineName:
+    Type: String
+    Default: preprocessing-sfn
 
 Globals:
   Function:
@@ -38,7 +41,7 @@ Resources:
       Timeout: 300
       MemorySize: 1024
       Tags:
-        Name: !Sub '${AWS::StackName}-document-conversion-function'
+        Name: !Sub '${RootStackName}-document-conversion-function'
       Environment:
         Variables:
           DATASET_BUCKET: !Ref DatasetBucketName
@@ -70,7 +73,7 @@ Resources:
       Timeout: 30
       MemorySize: 512
       Tags:
-        Name: !Sub '${AWS::StackName}-generate-synthetic-output-row-function'
+        Name: !Sub '${RootStackName}-generate-synthetic-output-row-function'
       Environment:
         Variables:
           DATASET_BUCKET: !Ref DatasetBucketName
@@ -102,7 +105,7 @@ Resources:
       Timeout: 60
       MemorySize: 1024
       Tags:
-        Name: !Sub '${AWS::StackName}-finalize-synthetic-dataset-function'
+        Name: !Sub '${RootStackName}-finalize-synthetic-dataset-function'
       Environment:
         Variables:
           DATASET_BUCKET: !Ref DatasetBucketName
@@ -148,7 +151,7 @@ Resources:
   PreprocessingStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      Name: !Sub '${RootStackName}-preprocessing-sfn'
+      Name: !Sub '${RootStackName}-${PreprocessingStateMachineName}'
       Type: STANDARD
       Tags:
         Owner: !Ref Owner
@@ -173,12 +176,12 @@ Resources:
             - Effect: Allow
               Action:
                 - states:StartExecution
-              Resource: !Sub 'arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${AWS::StackName}-preprocessing'
+              Resource: !Sub 'arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${RootStackName}-${PreprocessingStateMachineName}'
             - Effect: Allow
               Action:
                 - states:DescribeExecution
                 - states:StopExecution
-              Resource: !Sub 'arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:${AWS::StackName}-preprocessing:*'
+              Resource: !Sub 'arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:${RootStackName}-${PreprocessingStateMachineName}:*'
             - Effect: Allow
               Action:
                 - events:PutTargets

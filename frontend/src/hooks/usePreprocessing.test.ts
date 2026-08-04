@@ -1,11 +1,17 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as api from '@/services/apiService';
 import { usePreprocessing } from './usePreprocessing';
 
 describe('usePreprocessing', () => {
-  beforeEach(() => vi.restoreAllMocks());
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('reaches succeeded when the execution completes', async () => {
     vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
