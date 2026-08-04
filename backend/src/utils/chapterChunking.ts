@@ -17,7 +17,7 @@ const CHAPTER_HEADING_PATTERNS = [
   // "1. Introduction", "1.2 Methods"
   /^\d{1,2}(\.\d{1,2}){0,3}[.:]?\s+[A-Z]/,
   // "I. Overview"
-  /^[IVXLC]+\.\s+[A-Z]/,
+  /^[IVXLCivxlc]+\.\s+[A-Z]/,
 ];
 
 /**
@@ -40,7 +40,10 @@ function looksLikeSentence(line: string): boolean {
   );
 }
 
-export function isChapterOrSectionHeading(line: string): boolean {
+export function isChapterOrSectionHeading(
+  line: string,
+  nextNonEmptyLine: string | null,
+): boolean {
   const trimmed = line.trim();
   if (!trimmed || trimmed.length > MAX_HEADING_LENGTH) {
     return false;
@@ -50,22 +53,69 @@ export function isChapterOrSectionHeading(line: string): boolean {
     return false;
   }
 
-  return CHAPTER_HEADING_PATTERNS.some((pattern) => pattern.test(trimmed));
+  if (CHAPTER_HEADING_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+    return true;
+  }
+
+  if (isAllCapsHeading(trimmed)) {
+    return true;
+  }
+
+  if (isStructuralHeading(trimmed, nextNonEmptyLine)) {
+    return true;
+  }
+
+  return false;
 }
 
 function splitByChapterHeadings(text: string): string[] | null {
   const lines = text.split('\n');
   const headingIndices: number[] = [];
+  const nextNonEmptyLines: (string | null)[] = new Array(lines.length).fill(
+    null,
+  );
+  let lookahead = null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    nextNonEmptyLines[i] = lookahead;
+    if (lines[i].trim()) {
+      lookahead = lines[i].trim();
+    }
+  }
 
   for (let index = 0; index < lines.length; index++) {
-    if (isChapterOrSectionHeading(lines[index])) {
+    const currentLine = lines[index];
+    const nextLine = nextNonEmptyLines[index];
+
+    if (isChapterOrSectionHeading(currentLine, nextLine)) {
+      headingIndices.push(index);
+    } else if (
+      isSimpleTitle(currentLine) &&
+      nextLine !== null &&
+      isChapterOrSectionHeading(nextLine, nextNonEmptyLines[index + 1] ?? null)
+    ) {
       headingIndices.push(index);
     }
   }
 
+  const filteredHeadingIndices: number[] = [];
+  for (let i = 0; i < headingIndices.length; i++) {
+    const currentIdx = headingIndices[i];
+    const nextIdx = headingIndices[i + 1];
+
+    filteredHeadingIndices.push(currentIdx);
+
+    if (nextIdx !== undefined && nextIdx - currentIdx <= 4) {
+      const linesBetween = lines.slice(currentIdx + 1, nextIdx);
+
+      if (linesBetween.every((l) => !l.trim())) {
+        i++;
+      }
+    }
+  }
+
   const hasMultipleSections =
-    headingIndices.length >= 2 ||
-    (headingIndices.length === 1 && headingIndices[0] > 0);
+    filteredHeadingIndices.length >= 2 ||
+    (filteredHeadingIndices.length === 1 && filteredHeadingIndices[0] > 0);
 
   if (!hasMultipleSections) {
     return null;
@@ -74,7 +124,7 @@ function splitByChapterHeadings(text: string): string[] | null {
   const chunks: string[] = [];
   let chunkStart = 0;
 
-  for (const headingIndex of headingIndices) {
+  for (const headingIndex of filteredHeadingIndices) {
     if (headingIndex > chunkStart) {
       const preceding = lines.slice(chunkStart, headingIndex).join('\n').trim();
       if (preceding) {
@@ -84,7 +134,12 @@ function splitByChapterHeadings(text: string): string[] | null {
     chunkStart = headingIndex;
   }
 
-  const finalChunk = lines.slice(chunkStart).join('\n').trim();
+  const finalChunkLines = lines
+    .slice(chunkStart)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const finalChunk = finalChunkLines.join('\n').trim();
   if (finalChunk) {
     chunks.push(finalChunk);
   }
@@ -111,13 +166,77 @@ function isTableOfContentsBlock(chunkText: string): boolean {
   );
 }
 
-function splitByParagraphs(text: string): string[] {
-  const paragraphs = text
-    .split(/\n{2,}/)
-    .map((chunk) => chunk.trim())
-    .filter(Boolean);
+function isAllCapsHeading(line: string): boolean {
+  const trimmed = line.trim();
+  if (trimmed.length < 4 || trimmed.length > MAX_HEADING_LENGTH) return false;
 
-  return paragraphs.length > 0 ? paragraphs : [text];
+  const letters = trimmed.replace(/[^a-zA-Z]/g, '');
+  if (letters.length === 0) return false;
+
+  const upperCaseLetters = (trimmed.match(/[A-Z]/g) || []).length;
+  const isAllUppercase = upperCaseLetters === letters.length;
+  const isLabel = /^(note|figure|table|page|isbn)\b/i.test(trimmed);
+
+  return isAllUppercase && !isLabel;
+}
+
+function isSimpleTitle(line: string): boolean {
+  if (!line || line.length > 80 || /[.!?]$/.test(line)) return false;
+  const words = line.match(/[a-zA-Z]+/g) || [];
+  return (
+    words.length >= 2 &&
+    words.filter((w) => /^[A-Z]/.test(w)).length / words.length > 0.5
+  );
+}
+
+function isStructuralHeading(
+  line: string,
+  nextNonEmptyLine: string | null,
+): boolean {
+  const trimmed = line.trim();
+  if (trimmed.length < 3 || trimmed.length > 80) return false;
+  if (/[.!?;:]$/.test(trimmed)) return false;
+  if (!nextNonEmptyLine) return false;
+  if (/^[a-z]/.test(nextNonEmptyLine)) return false;
+  if (/^\(.*\)$/.test(trimmed)) return false;
+  if (/^[a-z]/.test(trimmed)) return false;
+  if (/\.\(/.test(trimmed)) return false;
+  if (
+    /\b(discussed\s+in|mentioned\s+in|see\s+(chapter|section|page|fig)|refer\s+to|cf\.)/i.test(
+      trimmed,
+    )
+  )
+    return false;
+  return nextNonEmptyLine.trim().length > trimmed.length * 2;
+}
+
+function splitByParagraphs(text: string): string[] {
+  const lines = text.split('\n');
+  const paragraphs: string[] = [];
+  let currentParagraphLines: string[] = [];
+  for (const line of lines) {
+    if (line.trim() === '') {
+      if (currentParagraphLines.length > 0) {
+        const joined = currentParagraphLines
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .join('\n');
+        if (joined) paragraphs.push(joined);
+        currentParagraphLines = [];
+      }
+    } else {
+      currentParagraphLines.push(line);
+    }
+  }
+  if (currentParagraphLines.length > 0) {
+    const joined = currentParagraphLines
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .join('\n');
+    if (joined) paragraphs.push(joined);
+  }
+
+  return paragraphs.length > 0 ? paragraphs : [text.trim()];
 }
 
 export function chunkDocumentBySection(
