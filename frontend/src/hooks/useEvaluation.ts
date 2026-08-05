@@ -11,7 +11,6 @@ import type {
   CreateEvaluationRequest,
   DatasetPreviewData,
   DatasetUploadData,
-  EditGroundTruthData,
   EditGroundTruthRequest,
   EvaluationLaunchData,
   EvaluationResultsData,
@@ -37,7 +36,7 @@ export function useDatasetPreview(datasetId: string | null) {
 export function useEditGroundTruth(datasetId: string | null) {
   const queryClient = useQueryClient();
 
-  return useMutation<EditGroundTruthData, ApiError, EditGroundTruthRequest>({
+  return useMutation<void, ApiError, EditGroundTruthRequest>({
     mutationFn: (request) => editGroundTruth(datasetId!, request),
     onSuccess: () => {
       void queryClient.invalidateQueries({

@@ -27,7 +27,11 @@ export class EditGroundTruthAdapter {
   public async handle(
     event: APIGatewayProxyEventV2,
   ): Promise<APIGatewayProxyResultV2> {
-    return handleHttpRequest({ event, func: this.processRequest.bind(this) });
+    return handleHttpRequest({
+      event,
+      func: this.processRequest.bind(this),
+      statusCode: 204,
+    });
   }
 
   private async processRequest(event: APIGatewayProxyEventV2) {

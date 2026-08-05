@@ -2,7 +2,6 @@ import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import { BasicError, BasicErrorType } from '../../errors';
 import { Dataset, DatasetSample } from '../../models/Dataset';
-import { tokenCsvParser } from '../../parsers/CsvParser/CsvParser';
 import { tokenJsonlParser } from '../../parsers/JsonlParser/JsonlParser';
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 
@@ -11,17 +10,11 @@ export type EditGroundTruthInput = {
   edits: Record<string, string>;
 };
 
-export type EditGroundTruthOutput = {
-  datasetId: string;
-  edits: Record<string, string>;
-};
-
 export type EditGroundTruthUseCase = {
-  editGroundTruth(input: EditGroundTruthInput): Promise<EditGroundTruthOutput>;
+  editGroundTruth(input: EditGroundTruthInput): Promise<void>;
 };
 
 export class EditGroundTruthUseCaseImpl implements EditGroundTruthUseCase {
-  private readonly csvParser = inject(tokenCsvParser);
   private readonly jsonlParser = inject(tokenJsonlParser);
   private readonly datasetService = inject(tokenDatasetService);
 
@@ -74,7 +67,7 @@ export class EditGroundTruthUseCaseImpl implements EditGroundTruthUseCase {
   async editGroundTruth({
     datasetId,
     edits,
-  }: EditGroundTruthInput): Promise<EditGroundTruthOutput> {
+  }: EditGroundTruthInput): Promise<void> {
     const trimmedEdits = this.trimEdits(edits);
 
     let content: string;
@@ -121,8 +114,6 @@ export class EditGroundTruthUseCaseImpl implements EditGroundTruthUseCase {
     });
 
     await this.datasetService.writeStructuredDataset(datasetId, updatedSamples);
-
-    return { datasetId, edits: trimmedEdits };
   }
 }
 

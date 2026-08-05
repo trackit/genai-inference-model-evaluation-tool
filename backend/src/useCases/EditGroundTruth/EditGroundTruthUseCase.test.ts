@@ -47,7 +47,7 @@ describe('EditGroundTruthUseCase', () => {
       },
     ]);
 
-    const result = await useCase.editGroundTruth({
+    await useCase.editGroundTruth({
       datasetId: 'ds-1',
       edits: {
         [SAMPLE_ID]: 'Updated summary',
@@ -55,13 +55,6 @@ describe('EditGroundTruthUseCase', () => {
       },
     });
 
-    expect(result).toEqual({
-      datasetId: 'ds-1',
-      edits: {
-        [SAMPLE_ID]: 'Updated summary',
-        [OTHER_SAMPLE_ID]: 'Updated other',
-      },
-    });
     expect(readStoredSamples(datasetService)).toEqual([
       {
         sample_id: SAMPLE_ID,

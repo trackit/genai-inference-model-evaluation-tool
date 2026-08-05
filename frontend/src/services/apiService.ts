@@ -3,7 +3,6 @@ import type {
   CreateEvaluationRequest,
   DatasetPreviewData,
   DatasetUploadData,
-  EditGroundTruthData,
   EditGroundTruthRequest,
   EvaluationLaunchData,
   EvaluationResultsData,
@@ -48,6 +47,10 @@ export class ApiError extends Error {
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   if (response.ok || response.status === 202) {
     const json = (await response.json()) as { data: T };
     return json.data;
@@ -245,7 +248,7 @@ export async function getPreprocessingStatus(
 export async function editGroundTruth(
   datasetId: string,
   request: EditGroundTruthRequest,
-): Promise<EditGroundTruthData> {
+): Promise<void> {
   const response = await fetchWithTimeout(
     `${getBaseUrl()}/datasets/${datasetId}/edit`,
     {
@@ -257,7 +260,7 @@ export async function editGroundTruth(
       body: JSON.stringify(request),
     },
   );
-  return handleResponse<EditGroundTruthData>(response);
+  return handleResponse<void>(response);
 }
 
 export async function createEvaluation(

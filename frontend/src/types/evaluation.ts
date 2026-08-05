@@ -310,7 +310,6 @@ export interface EditGroundTruthRequest {
 
 export interface EditGroundTruthData {
   datasetId: string;
-  edits: Record<string, string>;
 }
 
 export interface DocumentDatasetUploadData {
