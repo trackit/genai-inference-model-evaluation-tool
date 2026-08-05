@@ -1,10 +1,8 @@
-export type ExecutionStatus =
-  | 'RUNNING'
-  | 'SUCCEEDED'
-  | 'FAILED'
-  | 'TIMED_OUT'
-  | 'ABORTED'
-  | 'PENDING_REDRIVE';
+import { ExecutionStatus } from '@aws-sdk/client-sfn';
+
+import { PreprocessingStage } from '../models/Preprocessing';
+
+export type { ExecutionStatus };
 
 export interface StateMachineService {
   startExecution(input: {
@@ -16,8 +14,7 @@ export interface StateMachineService {
     executionArn: string,
   ): Promise<{ status: ExecutionStatus; output?: string }>;
 
-  listEnteredStateNames(input: {
-    executionArn: string;
-    limit: number;
-  }): Promise<string[]>;
+  getCurrentPreprocessingStage(
+    executionArn: string,
+  ): Promise<PreprocessingStage | undefined>;
 }

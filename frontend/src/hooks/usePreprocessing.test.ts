@@ -7,13 +7,13 @@ import { usePreprocessing } from './usePreprocessing';
 describe('usePreprocessing', () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it('reaches succeeded when the execution succeeds', async () => {
+  it('reaches succeeded when the execution completes', async () => {
     vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
       executionArn: 'arn:1',
       status: 'RUNNING',
     });
     vi.spyOn(api, 'getPreprocessingStatus').mockResolvedValue({
-      status: 'SUCCEEDED',
+      state: 'COMPLETED',
       structuredDatasetArtifactKey: 'datasets/ds1/ds1.jsonl',
       sampleCount: 2,
     });
@@ -28,15 +28,16 @@ describe('usePreprocessing', () => {
     });
 
     await waitFor(() => expect(result.current.status).toBe('succeeded'));
+    expect(result.current.sampleCount).toBe(2);
   });
 
-  it('clears the stage when the execution reports none', async () => {
+  it('leaves the stage null when the run completes without one', async () => {
     vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
       executionArn: 'arn:1',
       status: 'RUNNING',
     });
     vi.spyOn(api, 'getPreprocessingStatus').mockResolvedValue({
-      status: 'SUCCEEDED',
+      state: 'COMPLETED',
       sampleCount: 1,
     });
 
@@ -59,8 +60,7 @@ describe('usePreprocessing', () => {
       status: 'RUNNING',
     });
     vi.spyOn(api, 'getPreprocessingStatus').mockResolvedValue({
-      status: 'RUNNING',
-      stage: 'DOCUMENT_PARSING',
+      state: 'DOCUMENT_PARSING',
     });
 
     const { result, unmount } = renderHook(() => usePreprocessing());
@@ -78,36 +78,70 @@ describe('usePreprocessing', () => {
     unmount();
   });
 
-  it('retains the failing stage when the execution fails', async () => {
+  it('has no stage while the run is only STARTING', async () => {
     vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
       executionArn: 'arn:1',
       status: 'RUNNING',
     });
     vi.spyOn(api, 'getPreprocessingStatus').mockResolvedValue({
-      status: 'FAILED',
-      stage: 'DOCUMENT_PARSING',
+      state: 'STARTING',
     });
 
-    const { result } = renderHook(() => usePreprocessing());
+    const { result, unmount } = renderHook(() => usePreprocessing());
 
     await act(async () => {
       await result.current.start('ds1', {
-        taskType: 'classification',
-        chunkingStrategy: 'DOCUMENT',
+        taskType: 'summarization',
+        chunkingStrategy: 'SECTION',
       });
     });
 
-    await waitFor(() => expect(result.current.status).toBe('failed'));
-    expect(result.current.stage).toBe('DOCUMENT_PARSING');
+    expect(result.current.status).toBe('running');
+    expect(result.current.stage).toBeNull();
+
+    unmount();
   });
 
-  it('reaches failed when the execution fails', async () => {
+  it('retains the last in-progress stage when the execution fails', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
+        executionArn: 'arn:1',
+        status: 'RUNNING',
+      });
+      vi.spyOn(api, 'getPreprocessingStatus')
+        .mockResolvedValueOnce({ state: 'DOCUMENT_PARSING' })
+        .mockResolvedValue({ state: 'ERRORED' });
+
+      const { result } = renderHook(() => usePreprocessing());
+
+      await act(async () => {
+        await result.current.start('ds1', {
+          taskType: 'classification',
+          chunkingStrategy: 'DOCUMENT',
+        });
+      });
+
+      expect(result.current.stage).toBe('DOCUMENT_PARSING');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+
+      expect(result.current.status).toBe('failed');
+      expect(result.current.stage).toBe('DOCUMENT_PARSING');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reaches failed when the execution errors', async () => {
     vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
       executionArn: 'arn:1',
       status: 'RUNNING',
     });
     vi.spyOn(api, 'getPreprocessingStatus').mockResolvedValue({
-      status: 'FAILED',
+      state: 'ERRORED',
     });
 
     const { result } = renderHook(() => usePreprocessing());
@@ -130,7 +164,7 @@ describe('usePreprocessing', () => {
         .mockResolvedValueOnce({ executionArn: 'arn:2', status: 'RUNNING' });
       const getStatus = vi
         .spyOn(api, 'getPreprocessingStatus')
-        .mockResolvedValue({ status: 'RUNNING', stage: 'DOCUMENT_PARSING' });
+        .mockResolvedValue({ state: 'DOCUMENT_PARSING' });
 
       const { result } = renderHook(() => usePreprocessing());
       const params = {
@@ -173,12 +207,9 @@ describe('usePreprocessing', () => {
         async (_datasetId: string, executionArn: string) => {
           if (executionArn === 'arn:1') {
             await firstPollBlocked;
-            return { status: 'FAILED' as const };
+            return { state: 'ERRORED' as const };
           }
-          return {
-            status: 'RUNNING' as const,
-            stage: 'GENERATING_SYNTHETIC_OUTPUTS' as const,
-          };
+          return { state: 'GENERATING_SYNTHETIC_OUTPUTS' as const };
         },
       );
 

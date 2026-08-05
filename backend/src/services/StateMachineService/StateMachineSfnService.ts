@@ -5,10 +5,21 @@ import {
   StartExecutionCommand,
 } from '@aws-sdk/client-sfn';
 import { createInjectionToken, inject } from '@trackit.io/di-container';
+
+import { PreprocessingStage } from '../../models/Preprocessing';
 import {
   ExecutionStatus,
   StateMachineService,
 } from '../../ports/StateMachineService';
+
+export const STAGE_BY_STATE_NAME: Record<string, PreprocessingStage> = {
+  DocumentConversion: PreprocessingStage.DOCUMENT_PARSING,
+  RunSyntheticPreprocessing: PreprocessingStage.GENERATING_SYNTHETIC_OUTPUTS,
+};
+
+const HISTORY_PAGE_SIZE = 100;
+
+const MAX_HISTORY_PAGES = 20;
 
 export class StateMachineSfnService implements StateMachineService {
   private readonly stateMachineArn =
@@ -44,25 +55,34 @@ export class StateMachineSfnService implements StateMachineService {
     };
   }
 
-  async listEnteredStateNames({
-    executionArn,
-    limit,
-  }: {
-    executionArn: string;
-    limit: number;
-  }): Promise<string[]> {
-    const response = await this.sfnClient.send(
-      new GetExecutionHistoryCommand({
-        executionArn,
-        reverseOrder: true,
-        maxResults: limit,
-        includeExecutionData: false,
-      }),
-    );
+  async getCurrentPreprocessingStage(
+    executionArn: string,
+  ): Promise<PreprocessingStage | undefined> {
+    let nextToken: string | undefined;
 
-    return (response.events ?? [])
-      .map((event) => event.stateEnteredEventDetails?.name)
-      .filter((name): name is string => typeof name === 'string');
+    for (let page = 0; page < MAX_HISTORY_PAGES; page += 1) {
+      const response = await this.sfnClient.send(
+        new GetExecutionHistoryCommand({
+          executionArn,
+          reverseOrder: true,
+          maxResults: HISTORY_PAGE_SIZE,
+          includeExecutionData: false,
+          nextToken,
+        }),
+      );
+
+      for (const event of response.events ?? []) {
+        const name = event.stateEnteredEventDetails?.name;
+        if (name && name in STAGE_BY_STATE_NAME) {
+          return STAGE_BY_STATE_NAME[name];
+        }
+      }
+
+      nextToken = response.nextToken;
+      if (!nextToken) break;
+    }
+
+    return undefined;
   }
 }
 

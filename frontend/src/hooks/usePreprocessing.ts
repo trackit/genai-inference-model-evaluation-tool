@@ -58,17 +58,23 @@ export function usePreprocessing() {
           const result = await getPreprocessingStatus(datasetId, executionArn);
           if (isStale()) return;
 
-          setStage(result.stage ?? null);
-          if (result.status === 'SUCCEEDED') {
+          if (result.state === 'COMPLETED') {
             setSampleCount(result.sampleCount ?? null);
             setStatus('succeeded');
             return;
           }
-          if (result.status === 'FAILED') {
+          if (result.state === 'ERRORED') {
             setStatus('failed');
             setError('Preprocessing failed');
             return;
           }
+
+          setStage(
+            result.state === 'DOCUMENT_PARSING' ||
+              result.state === 'GENERATING_SYNTHETIC_OUTPUTS'
+              ? result.state
+              : null,
+          );
           timer.current = setTimeout(() => void poll(), POLL_INTERVAL_MS);
         };
 

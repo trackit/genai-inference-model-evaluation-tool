@@ -1,6 +1,7 @@
 import { inject, reset } from '@trackit.io/di-container';
 import { describe, expect, it, vi } from 'vitest';
 
+import { PreprocessingStage } from '../../models/Preprocessing';
 import {
   FakeStateMachineService,
   tokenFakeStateMachineService,
@@ -9,85 +10,68 @@ import { registerTestInfrastructure } from '../../test/registerTestInfrastructur
 import { GetPreprocessingStatusUseCaseImpl } from './GetPreprocessingStatusUseCase';
 
 describe('GetPreprocessingStatusUseCase', () => {
-  it('reports DOCUMENT_PARSING while the conversion state is running', async () => {
+  it('reports DOCUMENT_PARSING while the conversion stage is running', async () => {
     const { useCase, fakeStateMachine } = setup();
     fakeStateMachine.statusByArn['arn:exec:1'] = { status: 'RUNNING' };
-    fakeStateMachine.enteredStateNamesByArn['arn:exec:1'] = [
-      'DocumentConversion',
-    ];
+    fakeStateMachine.stageByArn['arn:exec:1'] =
+      PreprocessingStage.DOCUMENT_PARSING;
 
     const result = await useCase.execute({ executionArn: 'arn:exec:1' });
 
-    expect(result).toEqual({ status: 'RUNNING', stage: 'DOCUMENT_PARSING' });
+    expect(result).toEqual({ state: 'DOCUMENT_PARSING' });
   });
 
-  it('reports GENERATING_SYNTHETIC_OUTPUTS while the synthetic state is running', async () => {
+  it('reports GENERATING_SYNTHETIC_OUTPUTS while the synthetic stage is running', async () => {
     const { useCase, fakeStateMachine } = setup();
     fakeStateMachine.statusByArn['arn:exec:1'] = { status: 'RUNNING' };
-    fakeStateMachine.enteredStateNamesByArn['arn:exec:1'] = [
-      'RunSyntheticPreprocessing',
-      'DocumentConversion',
-    ];
+    fakeStateMachine.stageByArn['arn:exec:1'] =
+      PreprocessingStage.GENERATING_SYNTHETIC_OUTPUTS;
 
     const result = await useCase.execute({ executionArn: 'arn:exec:1' });
 
-    expect(result).toEqual({
-      status: 'RUNNING',
-      stage: 'GENERATING_SYNTHETIC_OUTPUTS',
-    });
+    expect(result).toEqual({ state: 'GENERATING_SYNTHETIC_OUTPUTS' });
   });
 
-  it('omits the stage before any state has been entered', async () => {
+  it('reports STARTING before any known stage has been entered', async () => {
     const { useCase, fakeStateMachine } = setup();
     fakeStateMachine.statusByArn['arn:exec:1'] = { status: 'RUNNING' };
-    fakeStateMachine.enteredStateNamesByArn['arn:exec:1'] = [];
+    fakeStateMachine.stageByArn['arn:exec:1'] = undefined;
 
     const result = await useCase.execute({ executionArn: 'arn:exec:1' });
 
-    expect(result).toEqual({ status: 'RUNNING' });
+    expect(result).toEqual({ state: 'STARTING' });
   });
 
-  it('omits the stage when no entered state maps to a known stage', async () => {
-    const { useCase, fakeStateMachine } = setup();
-    fakeStateMachine.statusByArn['arn:exec:1'] = { status: 'RUNNING' };
-    fakeStateMachine.enteredStateNamesByArn['arn:exec:1'] = [
-      'SomeRenamedState',
-    ];
-
-    const result = await useCase.execute({ executionArn: 'arn:exec:1' });
-
-    expect(result).toEqual({ status: 'RUNNING' });
-  });
-
-  it('reports the in-flight stage on failure, skipping the Fail state', async () => {
+  it('reports ERRORED on failure without reading history', async () => {
     const { useCase, fakeStateMachine } = setup();
     fakeStateMachine.statusByArn['arn:exec:1'] = { status: 'FAILED' };
-    fakeStateMachine.enteredStateNamesByArn['arn:exec:1'] = [
-      'PreprocessingFailed',
-      'DocumentConversion',
-    ];
+    const stageSpy = vi.spyOn(fakeStateMachine, 'getCurrentPreprocessingStage');
 
     const result = await useCase.execute({ executionArn: 'arn:exec:1' });
 
-    expect(result).toEqual({ status: 'FAILED', stage: 'DOCUMENT_PARSING' });
+    expect(result).toEqual({ state: 'ERRORED' });
+    expect(stageSpy).not.toHaveBeenCalled();
   });
 
-  it('maps a timed out execution to FAILED with its stage', async () => {
+  it('maps a timed out execution to ERRORED', async () => {
     const { useCase, fakeStateMachine } = setup();
     fakeStateMachine.statusByArn['arn:exec:1'] = { status: 'TIMED_OUT' };
-    fakeStateMachine.enteredStateNamesByArn['arn:exec:1'] = [
-      'RunSyntheticPreprocessing',
-    ];
 
     const result = await useCase.execute({ executionArn: 'arn:exec:1' });
 
-    expect(result).toEqual({
-      status: 'FAILED',
-      stage: 'GENERATING_SYNTHETIC_OUTPUTS',
-    });
+    expect(result).toEqual({ state: 'ERRORED' });
   });
 
-  it('returns the artifact details and no stage on success, without reading history', async () => {
+  it('maps an aborted execution to ERRORED', async () => {
+    const { useCase, fakeStateMachine } = setup();
+    fakeStateMachine.statusByArn['arn:exec:1'] = { status: 'ABORTED' };
+
+    const result = await useCase.execute({ executionArn: 'arn:exec:1' });
+
+    expect(result).toEqual({ state: 'ERRORED' });
+  });
+
+  it('returns COMPLETED with the artifact details on success, without reading history', async () => {
     const { useCase, fakeStateMachine } = setup();
     fakeStateMachine.statusByArn['arn:exec:1'] = {
       status: 'SUCCEEDED',
@@ -96,29 +80,30 @@ describe('GetPreprocessingStatusUseCase', () => {
         sampleCount: 3,
       }),
     };
-    const historySpy = vi.spyOn(fakeStateMachine, 'listEnteredStateNames');
+    const stageSpy = vi.spyOn(fakeStateMachine, 'getCurrentPreprocessingStage');
 
     const result = await useCase.execute({ executionArn: 'arn:exec:1' });
 
     expect(result).toEqual({
-      status: 'SUCCEEDED',
+      state: 'COMPLETED',
       structuredDatasetArtifactKey: 'datasets/ds1/ds1.jsonl',
       sampleCount: 3,
     });
-    expect(historySpy).not.toHaveBeenCalled();
+    expect(stageSpy).not.toHaveBeenCalled();
   });
 
-  it('still reports RUNNING when the history lookup fails', async () => {
+  it('degrades to STARTING when the stage lookup fails', async () => {
     const { useCase, fakeStateMachine } = setup();
     fakeStateMachine.statusByArn['arn:exec:1'] = { status: 'RUNNING' };
-    vi.spyOn(fakeStateMachine, 'listEnteredStateNames').mockRejectedValue(
-      new Error('Throttled'),
-    );
+    vi.spyOn(
+      fakeStateMachine,
+      'getCurrentPreprocessingStage',
+    ).mockRejectedValue(new Error('Throttled'));
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const result = await useCase.execute({ executionArn: 'arn:exec:1' });
 
-    expect(result).toEqual({ status: 'RUNNING' });
+    expect(result).toEqual({ state: 'STARTING' });
     expect(consoleSpy).toHaveBeenCalled();
   });
 });

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
-import { STAGE_BY_STATE_NAME } from './GetPreprocessingStatusUseCase';
+import { STAGE_BY_STATE_NAME } from '../../services/StateMachineService/StateMachineSfnService';
 
 const templatePath = resolve(
   dirname(fileURLToPath(import.meta.url)),

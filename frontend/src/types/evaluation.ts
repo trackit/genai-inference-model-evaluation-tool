@@ -302,6 +302,13 @@ export type PreprocessingStage =
   | 'DOCUMENT_PARSING'
   | 'GENERATING_SYNTHETIC_OUTPUTS';
 
+export type PreprocessingState =
+  | 'STARTING'
+  | 'DOCUMENT_PARSING'
+  | 'GENERATING_SYNTHETIC_OUTPUTS'
+  | 'COMPLETED'
+  | 'ERRORED';
+
 export const PREPROCESSING_STAGES: ReadonlyArray<{
   stage: PreprocessingStage;
   label: string;
@@ -314,8 +321,7 @@ export const PREPROCESSING_STAGES: ReadonlyArray<{
 ];
 
 export interface PreprocessingStatusData {
-  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED';
-  stage?: PreprocessingStage;
+  state: PreprocessingState;
   structuredDatasetArtifactKey?: string;
   sampleCount?: number;
 }

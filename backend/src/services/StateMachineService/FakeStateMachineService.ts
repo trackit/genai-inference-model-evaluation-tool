@@ -1,4 +1,6 @@
 import { createInjectionToken } from '@trackit.io/di-container';
+
+import { PreprocessingStage } from '../../models/Preprocessing';
 import {
   ExecutionStatus,
   StateMachineService,
@@ -10,7 +12,7 @@ export class FakeStateMachineService implements StateMachineService {
     string,
     { status: ExecutionStatus; output?: string }
   > = {};
-  public enteredStateNamesByArn: Record<string, string[]> = {};
+  public stageByArn: Record<string, PreprocessingStage | undefined> = {};
   private counter = 0;
 
   async startExecution({
@@ -32,13 +34,10 @@ export class FakeStateMachineService implements StateMachineService {
     return this.statusByArn[executionArn] ?? { status: 'RUNNING' };
   }
 
-  async listEnteredStateNames({
-    executionArn,
-  }: {
-    executionArn: string;
-    limit: number;
-  }): Promise<string[]> {
-    return this.enteredStateNamesByArn[executionArn] ?? [];
+  async getCurrentPreprocessingStage(
+    executionArn: string,
+  ): Promise<PreprocessingStage | undefined> {
+    return this.stageByArn[executionArn];
   }
 }
 
