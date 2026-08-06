@@ -1,10 +1,4 @@
-export type ExecutionStatus =
-  | 'RUNNING'
-  | 'SUCCEEDED'
-  | 'FAILED'
-  | 'TIMED_OUT'
-  | 'ABORTED'
-  | 'PENDING_REDRIVE';
+import { PreprocessingStatusReport } from '../models/PreprocessingLifecycle';
 
 export interface StateMachineService {
   startExecution(input: {
@@ -12,7 +6,7 @@ export interface StateMachineService {
     input: string;
   }): Promise<{ executionArn: string }>;
 
-  describeExecution(
+  getPreprocessingStatus(
     executionArn: string,
-  ): Promise<{ status: ExecutionStatus; output?: string }>;
+  ): Promise<PreprocessingStatusReport>;
 }

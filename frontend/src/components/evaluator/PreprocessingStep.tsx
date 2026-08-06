@@ -1,11 +1,15 @@
 import { Button } from '@/components/ui/button';
 import { usePreprocessing } from '@/hooks/usePreprocessing';
-import type {
-  PreprocessingChunkingStrategy,
-  PreprocessingTaskType,
+import {
+  PREPROCESSING_STAGES,
+  type PreprocessingChunkingStrategy,
+  type PreprocessingStage,
+  type PreprocessingTaskType,
 } from '@/types/evaluation';
-import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { useEffect } from 'react';
+
+import { PreprocessingStages } from './PreprocessingStages';
 
 interface PreprocessingStepProps {
   datasetId: string;
@@ -15,6 +19,14 @@ interface PreprocessingStepProps {
   onBack: () => void;
 }
 
+function failureMessage(stage: PreprocessingStage | null): string {
+  const label = PREPROCESSING_STAGES.find(
+    (entry) => entry.stage === stage,
+  )?.label;
+
+  return label ? `${label} failed.` : 'Preprocessing failed.';
+}
+
 export function PreprocessingStep({
   datasetId,
   taskType,
@@ -22,7 +34,7 @@ export function PreprocessingStep({
   onDone,
   onBack,
 }: PreprocessingStepProps) {
-  const { status, error, sampleCount, start } = usePreprocessing();
+  const { status, sampleCount, stage, start } = usePreprocessing();
 
   useEffect(() => {
     void start(datasetId, { taskType, chunkingStrategy });
@@ -43,7 +55,7 @@ export function PreprocessingStep({
           role="alert"
         >
           <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{error ?? 'Preprocessing failed.'}</span>
+          <span>{failureMessage(stage)}</span>
         </div>
         <div className="flex justify-between mt-8">
           <Button variant="outline" onClick={onBack} className="gap-2">
@@ -61,12 +73,5 @@ export function PreprocessingStep({
     );
   }
 
-  return (
-    <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
-      <Loader2 className="h-6 w-6 animate-spin" />
-      <p className="text-sm" role="status">
-        Preprocessing the dataset…
-      </p>
-    </div>
-  );
+  return <PreprocessingStages stage={stage} />;
 }

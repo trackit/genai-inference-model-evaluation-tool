@@ -13,10 +13,10 @@ describe('GetPreprocessingStatus Handler', () => {
     register(tokenGetPreprocessingStatusUseCase, { useValue: { execute } });
   });
 
-  it('returns 200 with the mapped status', async () => {
+  it('returns 200 with the mapped state', async () => {
     const { handler } = await import('./GetPreprocessingStatus');
     execute.mockResolvedValue({
-      status: 'SUCCEEDED',
+      state: 'COMPLETED',
       structuredDatasetArtifactKey: 'datasets/ds1/ds1.jsonl',
       sampleCount: 3,
     });
@@ -30,7 +30,7 @@ describe('GetPreprocessingStatus Handler', () => {
     expect(JSON.parse(response.body)).toEqual({
       success: true,
       data: {
-        status: 'SUCCEEDED',
+        state: 'COMPLETED',
         structuredDatasetArtifactKey: 'datasets/ds1/ds1.jsonl',
         sampleCount: 3,
       },

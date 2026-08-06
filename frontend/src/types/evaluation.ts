@@ -298,8 +298,30 @@ export interface PreprocessingStartData {
   status: 'RUNNING';
 }
 
+export type PreprocessingStage =
+  | 'DOCUMENT_PARSING'
+  | 'GENERATING_SYNTHETIC_OUTPUTS';
+
+export type PreprocessingState =
+  | 'STARTING'
+  | 'DOCUMENT_PARSING'
+  | 'GENERATING_SYNTHETIC_OUTPUTS'
+  | 'COMPLETED'
+  | 'ERRORED';
+
+export const PREPROCESSING_STAGES: ReadonlyArray<{
+  stage: PreprocessingStage;
+  label: string;
+}> = [
+  { stage: 'DOCUMENT_PARSING', label: 'Parsing documents' },
+  {
+    stage: 'GENERATING_SYNTHETIC_OUTPUTS',
+    label: 'Generating synthetic outputs',
+  },
+];
+
 export interface PreprocessingStatusData {
-  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED';
+  state: PreprocessingState;
   structuredDatasetArtifactKey?: string;
   sampleCount?: number;
 }
