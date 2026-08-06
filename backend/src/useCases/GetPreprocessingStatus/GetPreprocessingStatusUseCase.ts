@@ -8,9 +8,12 @@ export type PreprocessingStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED';
 export interface GetPreprocessingStatusResult {
   status: PreprocessingStatus;
   structuredDatasetArtifactKey?: string;
+  // When status === 'SUCCEEDED'
   sampleCount?: number;
-  generatedCount?: number;
   failedCount?: number;
+  // When status === 'RUNNING'
+  processedCount?: number;
+  totalCount?: number;
 }
 
 export type GetPreprocessingStatusUseCase = {

@@ -7,6 +7,7 @@ import {
 } from '../../services/DatasetService/FakeDatasetService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { FinalizeSyntheticDatasetUseCaseImpl } from './FinalizeSyntheticDatasetUseCase';
+import { structuredDatasetS3Key, syntheticDatasetS3Key } from 'backend/src/services/DatasetService/DatasetServiceS3';
 
 describe('FinalizeSyntheticDatasetUseCase', () => {
   it('reconstructs the synthetic dataset from the manifest and generates the structured dataset', async () => {
@@ -43,10 +44,8 @@ describe('FinalizeSyntheticDatasetUseCase', () => {
 
     expect(result).toMatchObject({
       datasetId: 'demo-dataset',
-      syntheticDatasetArtifactKey:
-        'datasets/demo-dataset/demo-dataset-synthetic.jsonl',
-      structuredDatasetArtifactKey: 'datasets/demo-dataset/demo-dataset.jsonl',
-      generatedCount: 2,
+      syntheticDatasetArtifactKey: syntheticDatasetS3Key('demo-dataset'),
+      structuredDatasetArtifactKey: structuredDatasetS3Key('demo-dataset'),
       failedCount: 0,
       sampleCount: 2,
     });
@@ -54,44 +53,6 @@ describe('FinalizeSyntheticDatasetUseCase', () => {
       completedRow('demo-dataset-0', 'Summary one'),
       completedRow('demo-dataset-1', 'Summary two'),
     ]);
-  });
-
-  it('reads rows across multiple SUCCEEDED result files', async () => {
-    const { fakeDatasetService, useCase } = setup();
-    fakeDatasetService.seedRawObject(
-      'preprocessing-results/demo-dataset/manifest.json',
-      JSON.stringify({
-        ResultFiles: {
-          SUCCEEDED: [
-            {
-              Key: 'preprocessing-results/demo-dataset/SUCCEEDED_0.json',
-              Size: 50,
-            },
-            {
-              Key: 'preprocessing-results/demo-dataset/SUCCEEDED_1.json',
-              Size: 50,
-            },
-          ],
-          FAILED: [],
-          PENDING: [],
-        },
-      }),
-    );
-    fakeDatasetService.seedRawObject(
-      'preprocessing-results/demo-dataset/SUCCEEDED_0.json',
-      JSON.stringify(completedRow('demo-dataset-0', 'Summary one')),
-    );
-    fakeDatasetService.seedRawObject(
-      'preprocessing-results/demo-dataset/SUCCEEDED_1.json',
-      JSON.stringify(completedRow('demo-dataset-1', 'Summary two')),
-    );
-
-    const result = await useCase.execute({
-      datasetId: 'demo-dataset',
-      manifestKey: 'preprocessing-results/demo-dataset/manifest.json',
-    });
-
-    expect(result.generatedCount).toBe(2);
   });
 
   it('includes business-failed rows (status: failed) alongside completed ones, and counts them', async () => {
@@ -131,7 +92,6 @@ describe('FinalizeSyntheticDatasetUseCase', () => {
     // recorded in the row data itself. This is what makes partial success
     // possible: one bad row doesn't block the rest.
     expect(result).toMatchObject({
-      generatedCount: 1,
       failedCount: 1,
       sampleCount: 1,
     });

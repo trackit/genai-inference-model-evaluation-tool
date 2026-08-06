@@ -19,8 +19,9 @@ export function usePreprocessing() {
   const [error, setError] = useState<string | null>(null);
   const [sampleCount, setSampleCount] = useState<number | null>(null);
   const [stage, setStage] = useState<PreprocessingStage | null>(null);
-  const [generatedCount, setGeneratedCount] = useState<number | null>(null);
   const [failedCount, setFailedCount] = useState<number | null>(null);
+  const [processedCount, setProcessedCount] = useState<number | null>(null);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runId = useRef(0);
 
@@ -52,8 +53,9 @@ export function usePreprocessing() {
       setError(null);
       setSampleCount(null);
       setStage(null);
-      setGeneratedCount(null);
       setFailedCount(null);
+      setProcessedCount(null);
+      setTotalCount(null);
       setStatus('running');
 
       try {
@@ -94,5 +96,5 @@ export function usePreprocessing() {
     [clear],
   );
 
-  return { status, stage, error, sampleCount, generatedCount, failedCount, start };
+  return { status, stage, error, sampleCount, processedCount, totalCount, failedCount, start };
 }

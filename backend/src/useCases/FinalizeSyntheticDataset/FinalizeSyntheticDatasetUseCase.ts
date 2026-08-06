@@ -25,7 +25,6 @@ export interface FinalizeSyntheticDatasetResult {
   datasetId: string;
   syntheticDatasetArtifactKey: string;
   structuredDatasetArtifactKey: string;
-  generatedCount: number;
   failedCount: number;
   sampleCount: number;
 }
@@ -66,7 +65,6 @@ export class FinalizeSyntheticDatasetUseCaseImpl implements FinalizeSyntheticDat
       datasetId,
       syntheticDatasetArtifactKey,
       structuredDatasetArtifactKey,
-      generatedCount: sampleCount,
       failedCount: failedCount + infraFailedCount,
       sampleCount,
     };
