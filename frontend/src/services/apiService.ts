@@ -214,6 +214,7 @@ export async function startPreprocessing(
   params: {
     taskType: PreprocessingTaskType;
     chunkingStrategy: PreprocessingChunkingStrategy;
+    customDelimiter?: string;
   },
 ): Promise<PreprocessingStartData> {
   const response = await fetchWithTimeout(

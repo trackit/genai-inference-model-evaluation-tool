@@ -7,7 +7,7 @@ export function chunkDocumentByCustomDelimiter(
 ): DocumentChunk[] {
   let splitter: string | RegExp;
   try {
-    splitter = new RegExp(delimiter);
+    splitter = new RegExp(delimiter, 'm');
   } catch {
     splitter = delimiter;
   }
