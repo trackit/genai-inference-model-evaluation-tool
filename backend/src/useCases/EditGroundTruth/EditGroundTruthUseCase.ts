@@ -70,20 +70,10 @@ export class EditGroundTruthUseCaseImpl implements EditGroundTruthUseCase {
   }: EditGroundTruthInput): Promise<void> {
     const trimmedEdits = this.trimEdits(edits);
 
-    let content: string;
-    try {
-      content = await this.datasetService.retrieveDataset(datasetId, 'jsonl');
-    } catch (error) {
-      if (error instanceof BasicError && error.code === 'DATASET_NOT_FOUND') {
-        throw new BasicError(
-          BasicErrorType.UNPROCESSABLE_ENTITY,
-          'DATASET_NOT_FOUND',
-          'Dataset not found',
-        );
-      }
-
-      throw error;
-    }
+    const content = await this.datasetService.retrieveDataset(
+      datasetId,
+      'jsonl',
+    );
 
     const dataset: Dataset = this.jsonlParser.parse(content);
 

@@ -104,6 +104,29 @@ describe('EditGroundTruthUseCase', () => {
     });
   });
 
+  it('throws when sample has no summary or class label field', async () => {
+    const { useCase, datasetService } = setup();
+
+    await seedDataset(datasetService, [
+      {
+        sample_id: SAMPLE_ID,
+        document: 'Doc without ground truth',
+      },
+    ]);
+
+    await expect(
+      useCase.editGroundTruth({
+        datasetId: 'ds-1',
+        edits: {
+          [SAMPLE_ID]: 'New correction',
+        },
+      }),
+    ).rejects.toMatchObject({
+      type: BasicErrorType.UNPROCESSABLE_ENTITY,
+      code: 'GROUND_TRUTH_FIELD_MISSING',
+    });
+  });
+
   it('throws when sample id is not found', async () => {
     const { useCase, datasetService } = setup();
     await seedDataset(datasetService, [

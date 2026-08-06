@@ -278,7 +278,7 @@ export function DatasetConfirm({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  downloadSampleJsonl(sample, drafts)
+                                  downloadSampleJsonl(sample, drafts, i)
                                 }
                                 aria-label={`Download sample ${i + 1} as JSONL`}
                                 className="rounded p-1 text-muted-foreground hover:text-foreground"
@@ -391,13 +391,14 @@ export function DatasetConfirm({
 function downloadSampleJsonl(
   sample: DatasetSample,
   drafts: Record<string, string>,
+  index: number,
 ): void {
   const line = `${JSON.stringify(sampleToJsonlObject(sample, drafts))}\n`;
   const blob = new Blob([line], { type: 'application/jsonl' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `sample.jsonl`;
+  anchor.download = `sample-${index + 1}.jsonl`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
