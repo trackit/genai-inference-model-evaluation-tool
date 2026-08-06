@@ -10,3 +10,9 @@ export enum PreprocessingState {
   COMPLETED = 'COMPLETED',
   ERRORED = 'ERRORED',
 }
+
+export interface PreprocessingStatusReport {
+  state: PreprocessingState;
+  structuredDatasetArtifactKey?: string;
+  sampleCount?: number;
+}

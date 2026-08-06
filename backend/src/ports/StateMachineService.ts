@@ -1,8 +1,4 @@
-import { ExecutionStatus } from '@aws-sdk/client-sfn';
-
-import { PreprocessingStage } from '../models/Preprocessing';
-
-export type { ExecutionStatus };
+import { PreprocessingStatusReport } from '../models/PreprocessingLifecycle';
 
 export interface StateMachineService {
   startExecution(input: {
@@ -10,11 +6,7 @@ export interface StateMachineService {
     input: string;
   }): Promise<{ executionArn: string }>;
 
-  describeExecution(
+  getPreprocessingStatus(
     executionArn: string,
-  ): Promise<{ status: ExecutionStatus; output?: string }>;
-
-  getCurrentPreprocessingStage(
-    executionArn: string,
-  ): Promise<PreprocessingStage | undefined>;
+  ): Promise<PreprocessingStatusReport>;
 }
