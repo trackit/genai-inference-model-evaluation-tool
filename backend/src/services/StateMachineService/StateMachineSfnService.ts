@@ -8,21 +8,14 @@ import {
 import { createInjectionToken, inject } from '@trackit.io/di-container';
 
 import {
-  PreprocessingStage,
   PreprocessingState,
   PreprocessingStatusReport,
 } from '../../models/PreprocessingLifecycle';
 import { StateMachineService } from '../../ports/StateMachineService';
 
-export const STAGE_BY_STATE_NAME: Record<string, PreprocessingStage> = {
-  DocumentConversion: PreprocessingStage.DOCUMENT_PARSING,
-  RunSyntheticPreprocessing: PreprocessingStage.GENERATING_SYNTHETIC_OUTPUTS,
-};
-
-const STATE_BY_STAGE: Record<PreprocessingStage, PreprocessingState> = {
-  [PreprocessingStage.DOCUMENT_PARSING]: PreprocessingState.DOCUMENT_PARSING,
-  [PreprocessingStage.GENERATING_SYNTHETIC_OUTPUTS]:
-    PreprocessingState.GENERATING_SYNTHETIC_OUTPUTS,
+export const STATE_BY_STATE_NAME: Record<string, PreprocessingState> = {
+  DocumentConversion: PreprocessingState.DOCUMENT_PARSING,
+  RunSyntheticPreprocessing: PreprocessingState.GENERATING_SYNTHETIC_OUTPUTS,
 };
 
 const HISTORY_PAGE_SIZE = 100;
@@ -64,10 +57,8 @@ export class StateMachineSfnService implements StateMachineService {
     }
 
     if (status === 'RUNNING' || status === 'PENDING_REDRIVE') {
-      const stage = await this.resolveStage(executionArn);
-      return {
-        state: stage ? STATE_BY_STAGE[stage] : PreprocessingState.STARTING,
-      };
+      const state = await this.resolveRunningState(executionArn);
+      return { state: state ?? PreprocessingState.STARTING };
     }
 
     return { state: PreprocessingState.ERRORED };
@@ -88,9 +79,9 @@ export class StateMachineSfnService implements StateMachineService {
     };
   }
 
-  private async resolveStage(
+  private async resolveRunningState(
     executionArn: string,
-  ): Promise<PreprocessingStage | undefined> {
+  ): Promise<PreprocessingState | undefined> {
     try {
       let nextToken: string | undefined;
 
@@ -107,8 +98,8 @@ export class StateMachineSfnService implements StateMachineService {
 
         for (const event of response.events ?? []) {
           const name = event.stateEnteredEventDetails?.name;
-          if (name && name in STAGE_BY_STATE_NAME) {
-            return STAGE_BY_STATE_NAME[name];
+          if (name && name in STATE_BY_STATE_NAME) {
+            return STATE_BY_STATE_NAME[name];
           }
         }
 
@@ -119,7 +110,7 @@ export class StateMachineSfnService implements StateMachineService {
       return undefined;
     } catch (error) {
       console.error(
-        `Failed to resolve preprocessing stage for ${executionArn}:`,
+        `Failed to resolve preprocessing state for ${executionArn}:`,
         error,
       );
       return undefined;
