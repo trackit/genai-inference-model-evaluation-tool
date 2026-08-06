@@ -267,4 +267,146 @@ describe('DocumentConversionUseCase execute', () => {
       }),
     ).rejects.toThrow('Raw content not found');
   });
+
+  it('fetches, chunks, and generates JSONL with CUSTOM strategy using plain string delimiter', async () => {
+    const { useCase, datasetService } = setup();
+    const dataset_id = randomUUID();
+    const document_id = randomUUID();
+
+    datasetService.seedRawContent(
+      dataset_id,
+      document_id,
+      'pdf',
+      Buffer.from('Part A##Part B##Part C'),
+    );
+    await seedManifest(datasetService, dataset_id, [
+      { document_id, file_type: 'pdf' },
+    ]);
+
+    await useCase.execute({
+      dataset_id,
+      chunking_strategy: ChunkingStrategy.CUSTOM,
+      custom_delimiter: '##',
+    });
+
+    expect(parseJsonlLines(getStoredJsonl(datasetService))).toEqual([
+      {
+        document_id: document_id,
+        chunk_id: `${document_id}-0`,
+        document: 'Part A',
+      },
+      {
+        document_id: document_id,
+        chunk_id: `${document_id}-1`,
+        document: 'Part B',
+      },
+      {
+        document_id: document_id,
+        chunk_id: `${document_id}-2`,
+        document: 'Part C',
+      },
+    ]);
+  });
+
+  it('chunks with CUSTOM strategy using regex delimiter', async () => {
+    const { useCase, datasetService } = setup();
+    const dataset_id = randomUUID();
+    const document_id = randomUUID();
+
+    datasetService.seedRawContent(
+      dataset_id,
+      document_id,
+      'pdf',
+      Buffer.from('Chapter 1\nContent\nChapter 2\nMore content'),
+    );
+    await seedManifest(datasetService, dataset_id, [
+      { document_id, file_type: 'pdf' },
+    ]);
+
+    await useCase.execute({
+      dataset_id,
+      chunking_strategy: ChunkingStrategy.CUSTOM,
+      custom_delimiter: 'Chapter \\d+',
+    });
+
+    const lines = parseJsonlLines(getStoredJsonl(datasetService));
+    expect(lines.length).toBe(2);
+  });
+
+  it('returns single chunk when CUSTOM delimiter not found', async () => {
+    const { useCase, datasetService } = setup();
+    const dataset_id = randomUUID();
+    const document_id = randomUUID();
+
+    datasetService.seedRawContent(
+      dataset_id,
+      document_id,
+      'pdf',
+      Buffer.from('A document without the delimiter'),
+    );
+    await seedManifest(datasetService, dataset_id, [
+      { document_id, file_type: 'pdf' },
+    ]);
+
+    await useCase.execute({
+      dataset_id,
+      chunking_strategy: ChunkingStrategy.CUSTOM,
+      custom_delimiter: '##',
+    });
+
+    expect(parseJsonlLines(getStoredJsonl(datasetService))).toEqual([
+      {
+        document_id: document_id,
+        chunk_id: `${document_id}-0`,
+        document: 'A document without the delimiter',
+      },
+    ]);
+  });
+
+  it('throws when CUSTOM strategy selected without delimiter', async () => {
+    const { useCase, datasetService } = setup();
+    const dataset_id = randomUUID();
+    const document_id = randomUUID();
+
+    datasetService.seedRawContent(
+      dataset_id,
+      document_id,
+      'pdf',
+      Buffer.from('Some content'),
+    );
+    await seedManifest(datasetService, dataset_id, [
+      { document_id, file_type: 'pdf' },
+    ]);
+
+    await expect(
+      useCase.execute({
+        dataset_id,
+        chunking_strategy: ChunkingStrategy.CUSTOM,
+      }),
+    ).rejects.toThrow('Custom delimiter is required');
+  });
+
+  it('throws when CUSTOM delimiter exceeds max length', async () => {
+    const { useCase, datasetService } = setup();
+    const dataset_id = randomUUID();
+    const document_id = randomUUID();
+
+    datasetService.seedRawContent(
+      dataset_id,
+      document_id,
+      'pdf',
+      Buffer.from('Some content'),
+    );
+    await seedManifest(datasetService, dataset_id, [
+      { document_id, file_type: 'pdf' },
+    ]);
+
+    await expect(
+      useCase.execute({
+        dataset_id,
+        chunking_strategy: ChunkingStrategy.CUSTOM,
+        custom_delimiter: 'a'.repeat(51),
+      }),
+    ).rejects.toThrow('Custom delimiter must be between 1 and 50 characters');
+  });
 });
