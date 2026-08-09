@@ -20,7 +20,7 @@ import {
 
 export const STATE_BY_STATE_NAME: Record<string, PreprocessingState> = {
   DocumentConversion: PreprocessingState.DOCUMENT_PARSING,
-  RunSyntheticPreprocessing: PreprocessingState.GENERATING_SYNTHETIC_OUTPUTS,
+  SyntheticOutputsGeneration: PreprocessingState.GENERATING_SYNTHETIC_OUTPUTS,
 };
 
 const HISTORY_PAGE_SIZE = 100;
@@ -63,7 +63,24 @@ export class StateMachineSfnService implements StateMachineService {
 
     if (status === 'RUNNING' || status === 'PENDING_REDRIVE') {
       const state = await this.resolveRunningState(executionArn);
-      return { state: state ?? PreprocessingState.STARTING };
+      const resolvedState = state ?? PreprocessingState.STARTING;
+
+      if (resolvedState === PreprocessingState.GENERATING_SYNTHETIC_OUTPUTS) {
+        const itemCounts = await this.getMapRunItemCounts(executionArn);
+        if (itemCounts) {
+          return {
+            state: resolvedState,
+            processedCount:
+              itemCounts.succeeded +
+              itemCounts.failed +
+              itemCounts.aborted +
+              itemCounts.timedOut,
+            totalCount: itemCounts.total,
+          };
+        }
+      }
+
+      return { state: resolvedState };
     }
 
     return { state: PreprocessingState.ERRORED };
@@ -81,6 +98,8 @@ export class StateMachineSfnService implements StateMachineService {
           : undefined,
       sampleCount:
         typeof parsed.sampleCount === 'number' ? parsed.sampleCount : undefined,
+      failedCount:
+        typeof parsed.failedCount === 'number' ? parsed.failedCount : undefined,
     };
   }
 

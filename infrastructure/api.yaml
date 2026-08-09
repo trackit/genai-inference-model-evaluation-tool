@@ -594,16 +594,6 @@ Resources:
               Action:
                 - states:DescribeMapRun
               Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:mapRun:${PreprocessingStateMachineName}/*'
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-                - s3:HeadObject
-                - s3:ListBucket
-              Resource:
-                [
-                  !Sub 'arn:aws:s3:::${DatasetBucketName}/*',
-                  !Sub 'arn:aws:s3:::${DatasetBucketName}',
-                ]
       Events:
         GetPreprocessingStatusApi:
           Type: HttpApi
