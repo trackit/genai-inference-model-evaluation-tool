@@ -247,4 +247,123 @@ describe('usePreprocessing', () => {
       vi.useRealTimers();
     }
   });
+
+  it('does not fail the job on a single transient poll failure - it keeps polling and can still succeed', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
+        executionArn: 'arn:1',
+        status: 'RUNNING',
+      });
+      vi.spyOn(api, 'getPreprocessingStatus')
+        .mockResolvedValueOnce({ state: 'DOCUMENT_PARSING' })
+        .mockRejectedValueOnce(new Error('network blip'))
+        .mockResolvedValueOnce({ state: 'COMPLETED', sampleCount: 3 });
+
+      const { result } = renderHook(() => usePreprocessing());
+
+      // poll #1: DOCUMENT_PARSING -> next poll at +2000ms
+      await act(async () => {
+        await result.current.start('ds1', {
+          taskType: 'summarization',
+          chunkingStrategy: 'SECTION',
+        });
+      });
+
+      // poll #2 fires at +2000ms and throws - must NOT flip status to
+      // 'failed'. The retry-after-failure reuses the current delay (3000ms,
+      // since delay already grew to 2000*1.5 after poll #1's
+      // DOCUMENT_PARSING branch).
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      expect(result.current.status).toBe('running');
+      expect(result.current.error).toBeNull();
+
+      // poll #3 fires at +3000ms and succeeds despite the blip in between.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+
+      expect(result.current.status).toBe('succeeded');
+      expect(result.current.sampleCount).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('gives up after repeated consecutive poll failures, without claiming the job itself failed prematurely', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
+        executionArn: 'arn:1',
+        status: 'RUNNING',
+      });
+      vi.spyOn(api, 'getPreprocessingStatus').mockRejectedValue(
+        new Error('server unreachable'),
+      );
+
+      const { result } = renderHook(() => usePreprocessing());
+
+      await act(async () => {
+        await result.current.start('ds1', {
+          taskType: 'summarization',
+          chunkingStrategy: 'SECTION',
+        });
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60000);
+      });
+
+      expect(result.current.status).toBe('failed');
+      expect(result.current.error).toMatch(/lost contact/i);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not act on a stale run after repeated poll failures on a superseded execution', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(api, 'startPreprocessing')
+        .mockResolvedValueOnce({ executionArn: 'arn:1', status: 'RUNNING' })
+        .mockResolvedValueOnce({ executionArn: 'arn:2', status: 'RUNNING' });
+      vi.spyOn(api, 'getPreprocessingStatus').mockImplementation(
+        async (_datasetId: string, executionArn: string) => {
+          if (executionArn === 'arn:1') {
+            throw new Error('always fails for the superseded run');
+          }
+          return { state: 'DOCUMENT_PARSING' as const };
+        },
+      );
+
+      const { result } = renderHook(() => usePreprocessing());
+      const params = {
+        taskType: 'summarization' as const,
+        chunkingStrategy: 'SECTION' as const,
+      };
+
+      await act(async () => {
+        await result.current.start('ds1', params);
+      });
+      await act(async () => {
+        await result.current.start('ds1', params);
+      });
+
+      // Run 1's poll failures would eventually hit
+      // MAX_CONSECUTIVE_POLL_FAILURES and call setStatus('failed') if left
+      // unguarded - but run 1's timer was already cleared by run 2's
+      // start(), so it can never fire again.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60000);
+      });
+
+      expect(result.current.status).toBe('running');
+      expect(result.current.stage).toBe('DOCUMENT_PARSING');
+      expect(result.current.error).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
