@@ -4,8 +4,8 @@ import {
   PreprocessingState,
   PreprocessingStatusReport,
 } from '../../models/PreprocessingLifecycle';
-import { 
-  MapRunItemCounts, 
+import {
+  MapRunItemCounts,
   StateMachineService,
 } from '../../ports/StateMachineService';
 

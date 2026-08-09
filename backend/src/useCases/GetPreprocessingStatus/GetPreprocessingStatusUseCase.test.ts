@@ -1,6 +1,7 @@
 import { inject, reset } from '@trackit.io/di-container';
 import { describe, expect, it } from 'vitest';
 
+import { structuredDatasetS3Key } from 'backend/src/services/DatasetService/DatasetServiceS3';
 import { PreprocessingState } from '../../models/PreprocessingLifecycle';
 import {
   FakeStateMachineService,
@@ -8,7 +9,6 @@ import {
 } from '../../services/StateMachineService/FakeStateMachineService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { GetPreprocessingStatusUseCaseImpl } from './GetPreprocessingStatusUseCase';
-import { structuredDatasetS3Key } from 'backend/src/services/DatasetService/DatasetServiceS3';
 
 describe('GetPreprocessingStatusUseCase', () => {
   it('returns the preprocessing status report for the execution', async () => {

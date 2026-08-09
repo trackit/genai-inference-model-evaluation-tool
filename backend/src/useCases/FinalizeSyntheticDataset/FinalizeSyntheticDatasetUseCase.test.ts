@@ -2,12 +2,15 @@ import { inject, reset } from '@trackit.io/di-container';
 import { describe, expect, it } from 'vitest';
 
 import {
+  structuredDatasetS3Key,
+  syntheticDatasetS3Key,
+} from 'backend/src/services/DatasetService/DatasetServiceS3';
+import {
   FakeDatasetService,
   tokenFakeDatasetService,
 } from '../../services/DatasetService/FakeDatasetService';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import { FinalizeSyntheticDatasetUseCaseImpl } from './FinalizeSyntheticDatasetUseCase';
-import { structuredDatasetS3Key, syntheticDatasetS3Key } from 'backend/src/services/DatasetService/DatasetServiceS3';
 
 describe('FinalizeSyntheticDatasetUseCase', () => {
   it('reconstructs the synthetic dataset from the manifest and generates the structured dataset', async () => {

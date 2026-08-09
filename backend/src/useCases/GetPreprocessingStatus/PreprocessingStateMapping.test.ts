@@ -33,8 +33,7 @@ describe('STATE_BY_STATE_NAME', () => {
     };
 
     const allStateNames = Object.keys(
-      template.Resources.PreprocessingStateMachine.Properties.Definition
-        .States,
+      template.Resources.PreprocessingStateMachine.Properties.Definition.States,
     );
 
     for (const stateName of Object.keys(STATE_BY_STATE_NAME)) {

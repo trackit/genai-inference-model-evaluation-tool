@@ -8,13 +8,13 @@ import {
 } from '@/types/evaluation';
 import { useEffect } from 'react';
 
-import { PreprocessingStages } from './PreprocessingStages';
 import {
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
 } from 'lucide-react';
+import { PreprocessingStages } from './PreprocessingStages';
 
 interface PreprocessingDoneResult {
   sampleCount: number | null;
@@ -44,7 +44,15 @@ export function PreprocessingStep({
   onDone,
   onBack,
 }: PreprocessingStepProps) {
-  const { status, stage, sampleCount, failedCount, processedCount, totalCount, start } = usePreprocessing();
+  const {
+    status,
+    stage,
+    sampleCount,
+    failedCount,
+    processedCount,
+    totalCount,
+    start,
+  } = usePreprocessing();
 
   useEffect(() => {
     void start(datasetId, { taskType, chunkingStrategy });
@@ -98,11 +106,11 @@ export function PreprocessingStep({
         >
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
           <span>
-            <strong>{sampleCount ?? 0}</strong> of <strong>{total}</strong>{' '}
-            rows generated successfully. <strong>{failedCount}</strong>{' '}
+            <strong>{sampleCount ?? 0}</strong> of <strong>{total}</strong> rows
+            generated successfully. <strong>{failedCount}</strong>{' '}
             {failedCount === 1 ? 'row' : 'rows'} failed and{' '}
-            {failedCount === 1 ? 'was' : 'were'} excluded from the dataset.
-            You can still continue with the {sampleCount ?? 0} successful{' '}
+            {failedCount === 1 ? 'was' : 'were'} excluded from the dataset. You
+            can still continue with the {sampleCount ?? 0} successful{' '}
             {sampleCount === 1 ? 'sample' : 'samples'}.
           </span>
         </div>

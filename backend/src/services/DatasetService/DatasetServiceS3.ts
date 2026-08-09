@@ -683,7 +683,11 @@ function validateSyntheticRow(
     row.model_id = readOptionalSyntheticString(value, 'model_id', lineNumber);
   }
 
-  if (row.status === 'completed' && row.summary === undefined && row.class === undefined) {
+  if (
+    row.status === 'completed' &&
+    row.summary === undefined &&
+    row.class === undefined
+  ) {
     throw invalidSyntheticRow(
       lineNumber,
       'either "summary" or "class" must be present',

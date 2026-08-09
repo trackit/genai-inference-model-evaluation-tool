@@ -124,5 +124,14 @@ export function usePreprocessing() {
     [clear],
   );
 
-  return { status, stage, error, sampleCount, processedCount, totalCount, failedCount, start };
+  return {
+    status,
+    stage,
+    error,
+    sampleCount,
+    processedCount,
+    totalCount,
+    failedCount,
+    start,
+  };
 }

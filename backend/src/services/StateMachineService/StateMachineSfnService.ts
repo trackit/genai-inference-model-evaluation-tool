@@ -1,8 +1,8 @@
 import {
   DescribeExecutionCommand,
+  DescribeMapRunCommand,
   ExecutionStatus,
   GetExecutionHistoryCommand,
-  DescribeMapRunCommand,
   ListMapRunsCommand,
   SFNClient,
   StartExecutionCommand,
@@ -13,9 +13,9 @@ import {
   PreprocessingState,
   PreprocessingStatusReport,
 } from '../../models/PreprocessingLifecycle';
-import { 
-  StateMachineService,
+import {
   MapRunItemCounts,
+  StateMachineService,
 } from '../../ports/StateMachineService';
 
 export const STATE_BY_STATE_NAME: Record<string, PreprocessingState> = {
