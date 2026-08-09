@@ -7,6 +7,8 @@ import { Check, Loader2 } from 'lucide-react';
 
 interface PreprocessingStagesProps {
   stage: PreprocessingStage | null;
+  processedCount?: number | null;
+  totalCount?: number | null;
 }
 
 const STATE_LABELS = {
@@ -15,7 +17,11 @@ const STATE_LABELS = {
   pending: 'Pending',
 } as const;
 
-export function PreprocessingStages({ stage }: PreprocessingStagesProps) {
+export function PreprocessingStages({
+  stage,
+  processedCount,
+  totalCount,
+}: PreprocessingStagesProps) {
   const currentIndex = PREPROCESSING_STAGES.findIndex(
     (entry) => entry.stage === stage,
   );
@@ -72,6 +78,13 @@ export function PreprocessingStages({ stage }: PreprocessingStagesProps) {
                   )}
                 >
                   {entry.label}
+                  {state === 'current' &&
+                    typeof processedCount === 'number' &&
+                    typeof totalCount === 'number' && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        {processedCount} of {totalCount}
+                      </span>
+                    )}
                 </span>
                 <span className="sr-only">{STATE_LABELS[state]}</span>
               </li>
