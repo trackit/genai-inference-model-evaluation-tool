@@ -9,6 +9,7 @@ import { mockClient } from 'aws-sdk-client-mock';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { PreprocessingState } from '../../models/PreprocessingLifecycle';
+import { structuredDatasetS3Key } from '../DatasetService/DatasetServiceS3';
 import {
   StateMachineSfnService,
   tokenClientSFN,
@@ -30,7 +31,7 @@ describe('StateMachineSfnService', () => {
       sfnMock.on(DescribeExecutionCommand).resolves({
         status: 'SUCCEEDED',
         output: JSON.stringify({
-          structuredDatasetArtifactKey: 'datasets/ds1/ds1.jsonl',
+          structuredDatasetArtifactKey: structuredDatasetS3Key('ds1'),
           sampleCount: 8,
           failedCount: 2,
         }),
@@ -40,7 +41,7 @@ describe('StateMachineSfnService', () => {
 
       expect(result).toEqual({
         state: PreprocessingState.COMPLETED,
-        structuredDatasetArtifactKey: 'datasets/ds1/ds1.jsonl',
+        structuredDatasetArtifactKey: structuredDatasetS3Key('ds1'),
         sampleCount: 8,
         failedCount: 2,
       });

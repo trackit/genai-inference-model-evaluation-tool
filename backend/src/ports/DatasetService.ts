@@ -67,18 +67,7 @@ export interface DatasetService {
   ): Promise<{ structuredDatasetArtifactKey: string }>;
 
   /**
-   * Reads the raw string content of an S3 object by key. Used by
-   * `FinalizeSyntheticDataset` to read Step Functions Distributed Map
-   * ResultWriter output files (manifest.json, SUCCEEDED_n.json, etc.).
+   * Reads the raw string content of an S3 object by key.
    */
   readRawObject(key: string): Promise<string>;
-
-  /**
-   * Finds a raw object key under a prefix. Supports ResultWriter layouts such as
-   * `{prefix}/manifest.json` and `{prefix}/{mapRunId}/manifest.json`.
-   */
-  findRawObjectKey(
-    prefix: string,
-    objectName: string,
-  ): Promise<string | undefined>;
 }

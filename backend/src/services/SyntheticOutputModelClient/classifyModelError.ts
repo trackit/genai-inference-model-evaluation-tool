@@ -37,6 +37,11 @@ export class EmptyModelOutputError extends Error {
   }
 }
 
+// Error names and classifications below are taken from the Converse
+// operation's documented "Errors" section:
+// https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html#API_runtime_Converse_Errors
+// If Bedrock adds or changes error types, check that page before editing these sets.
+
 const TRANSIENT_ERROR_NAMES = new Set<string>([
   'ThrottlingException', // 429 - account quota exceeded, retry with backoff
   'ModelTimeoutException', // 408 - processing exceeded the model timeout

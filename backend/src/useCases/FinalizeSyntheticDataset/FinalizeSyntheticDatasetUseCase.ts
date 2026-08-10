@@ -7,6 +7,7 @@ import { tokenGenerateStructuredDatasetUseCase } from '../GenerateStructuredData
 /**
  * Shape of a Step Functions Distributed Map ResultWriter manifest.json.
  * https://docs.aws.amazon.com/step-functions/latest/dg/input-output-resultwriter.html
+ * If Step Functions changes the manifest format, check that page before editing this interface.
  */
 interface ResultWriterManifest {
   ResultFiles: {
