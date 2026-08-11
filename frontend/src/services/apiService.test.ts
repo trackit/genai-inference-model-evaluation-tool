@@ -422,7 +422,7 @@ describe('endpoint functions', () => {
 
       const request = {
         dataset_id: 'd1',
-        models: [{ type: 'default' as const, identifier: 'claude-sonnet' }],
+        models: [{ identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0' }],
         weights: { accuracy: 0.5, latency: 0.3, cost: 0.2 },
       };
       const result = await createEvaluation(request);

@@ -80,12 +80,10 @@ describe('BedrockModelValidationService', () => {
     });
 
     const result = await service.resolveModelsForPersistence([
-      { type: 'default', identifier: 'amazon-nova' },
+      { identifier: 'amazon.nova-pro-v1:0' },
     ]);
 
-    expect(result).toEqual([
-      { type: 'default', identifier: 'us.amazon.nova-pro-v1:0' },
-    ]);
+    expect(result).toEqual([{ identifier: 'us.amazon.nova-pro-v1:0' }]);
   });
 
   it('lists profiles and foundation models, maps to inference profile id, and validates TEXT + streaming', async () => {
@@ -100,7 +98,7 @@ describe('BedrockModelValidationService', () => {
     });
 
     const result = await service.resolveModelsForPersistence([
-      { type: 'custom', identifier: 'us.amazon.nova-pro-v1:0' },
+      { identifier: 'us.amazon.nova-pro-v1:0' },
     ]);
 
     const profileCalls = bedrockClientMock.commandCalls(
@@ -112,9 +110,7 @@ describe('BedrockModelValidationService', () => {
     expect(profileCalls.length).toBeGreaterThan(0);
     expect(foundationCalls).toHaveLength(1);
     expect(foundationCalls[0].args[0].input).toEqual({});
-    expect(result).toEqual([
-      { type: 'custom', identifier: 'us.amazon.nova-pro-v1:0' },
-    ]);
+    expect(result).toEqual([{ identifier: 'us.amazon.nova-pro-v1:0' }]);
   });
 
   it('accepts a direct foundation model id when no inference profile matches (same TEXT + streaming checks)', async () => {
@@ -129,12 +125,10 @@ describe('BedrockModelValidationService', () => {
     });
 
     const result = await service.resolveModelsForPersistence([
-      { type: 'custom', identifier: 'us.amazon.nova-pro-v1:0' },
+      { identifier: 'us.amazon.nova-pro-v1:0' },
     ]);
 
-    expect(result).toEqual([
-      { type: 'custom', identifier: 'us.amazon.nova-pro-v1:0' },
-    ]);
+    expect(result).toEqual([{ identifier: 'us.amazon.nova-pro-v1:0' }]);
   });
 
   it('validates multiple models from one list response', async () => {
@@ -174,8 +168,8 @@ describe('BedrockModelValidationService', () => {
     });
 
     await service.resolveModelsForPersistence([
-      { type: 'custom', identifier: 'us.amazon.nova-pro-v1:0' },
-      { type: 'custom', identifier: 'us.amazon.nova-lite-v1:0' },
+      { identifier: 'us.amazon.nova-pro-v1:0' },
+      { identifier: 'us.amazon.nova-lite-v1:0' },
     ]);
 
     expect(
@@ -216,7 +210,7 @@ describe('BedrockModelValidationService', () => {
 
     await expect(
       service.resolveModelsForPersistence([
-        { type: 'custom', identifier: 'vendor.image-only:0' },
+        { identifier: 'vendor.image-only:0' },
       ]),
     ).rejects.toMatchObject({ code: 'INVALID_BEDROCK_MODEL' });
   });
@@ -243,10 +237,7 @@ describe('BedrockModelValidationService', () => {
 
     await expect(
       service.resolveModelsForPersistence([
-        {
-          type: 'custom',
-          identifier: 'stability.stable-image-style-guide-v1:0',
-        },
+        { identifier: 'stability.stable-image-style-guide-v1:0' },
       ]),
     ).rejects.toMatchObject({ code: 'INVALID_BEDROCK_MODEL' });
   });

@@ -22,16 +22,9 @@ const EvaluationRequestSchema = z.object({
   dataset_id: z.string().min(1),
   models: z
     .array(
-      z.discriminatedUnion('type', [
-        z.object({
-          type: z.literal('default'),
-          identifier: z.string().min(1),
-        }),
-        z.object({
-          type: z.literal('custom'),
-          identifier: z.string().min(1),
-        }),
-      ]),
+      z.object({
+        identifier: z.string().min(1),
+      }),
     )
     .min(1),
   weights: z
