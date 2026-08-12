@@ -1,27 +1,14 @@
 import logging
 import time
-from dataclasses import dataclass
 from typing import Optional
 import boto3
 from botocore.exceptions import ClientError
 
+from models import ConverseStreamError, InvocationResult
+
 logger = logging.getLogger(__name__)
 
 
-class ConverseStreamError(RuntimeError):
-    pass
-
-
-@dataclass
-class InvocationResult:
-    response_text: str
-    input_tokens: int
-    output_tokens: int
-    time_to_first_token_ms: float
-    total_latency_ms: float
-    model_id: str
-    document_id: Optional[str] = None
-    error: Optional[str] = None
 
 
 MODEL_ID_MAP = {
@@ -140,7 +127,8 @@ class BedrockClient:
         
         for model in models:
             model_id = self.resolve_model_id(model['identifier'])
-            logger.info(f"Starting evaluation for model: {model_id} (from: {model['identifier']})")
+            mode = model.get('mode', 'runtime')
+            logger.info(f"Starting evaluation for model: {model_id} (from: {model['identifier']}) mode={mode}")
             
             db_service.update_progress(
                 evaluation_id=evaluation_id,
@@ -156,11 +144,8 @@ class BedrockClient:
                 document_id = f"doc_{idx}"
                 prompt = f"{task_instruction}\n\n{document}" if task_instruction else document
                 
-                result = self.converse_stream(
-                    model_id=model_id,
-                    document=prompt,
-                    document_id=document_id
-                )
+                from invocation_router import invoke
+                result = invoke(model_id, prompt, document_id, mode=mode)
                 
                 model_results.append(result)
                 completed_invocations += 1

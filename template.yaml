@@ -275,6 +275,8 @@ Resources:
                 Action:
                   - bedrock:InvokeModel
                   - bedrock:InvokeModelWithResponseStream
+                  - bedrock-mantle:CreateInference
+                  - bedrock-mantle:CallWithBearerToken
                 Resource: '*'
 
   # Fargate Task Definition

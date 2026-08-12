@@ -27,10 +27,12 @@ export class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
 
   async launchEvaluation(request: EvaluationRequest): Promise<EvaluationJob> {
     this.validateModels(request.models);
-
+    // TODO: To validate mantle mode models in the future
+    const modelsValid = request.models.filter((m) => m.mode === 'mantle');
+    const modelsValidate = request.models.filter((m) => m.mode === 'runtime');
     const modelsToPersist =
       await this.bedrockModelValidation.resolveModelsForPersistence(
-        request.models,
+        modelsValidate,
       );
 
     const normalizedWeights = this.normalizeWeights(request.weights);
@@ -49,11 +51,10 @@ export class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
 
     const job = await this.evaluationJobsRepository.createEvaluation(
       request.dataset_id,
-      modelsToPersist,
+      [...modelsValid, ...modelsToPersist],
       normalizedWeights,
       metrics,
     );
-
     await this.fargateService.launchTask(job.evaluation_id);
 
     return job;

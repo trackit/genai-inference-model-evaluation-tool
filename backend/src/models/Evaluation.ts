@@ -1,6 +1,7 @@
 export interface ModelConfig {
   type: 'default' | 'custom';
   identifier: string;
+  mode?: 'mantle' | 'runtime';
 }
 
 export interface WeightConfig {

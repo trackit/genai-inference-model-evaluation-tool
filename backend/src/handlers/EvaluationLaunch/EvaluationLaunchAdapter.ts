@@ -26,10 +26,12 @@ const EvaluationRequestSchema = z.object({
         z.object({
           type: z.literal('default'),
           identifier: z.string().min(1),
+          mode: z.enum(['mantle', 'runtime']).optional(),
         }),
         z.object({
           type: z.literal('custom'),
           identifier: z.string().min(1),
+          mode: z.enum(['mantle', 'runtime']).optional(),
         }),
       ]),
     )
@@ -62,7 +64,6 @@ export class EvaluationLaunchAdapter {
     });
 
     const job = await this.useCase.launchEvaluation(body);
-
     return {
       evaluation_id: job.evaluation_id,
       status: job.status,
