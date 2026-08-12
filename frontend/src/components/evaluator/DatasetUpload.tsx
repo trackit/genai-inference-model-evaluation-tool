@@ -730,7 +730,7 @@ export function DatasetUpload({
                 maxLength={50}
                 value={customDelimiter}
                 onChange={(e) => setCustomDelimiter(e.target.value)}
-                placeholder="Enter delimiter pattern (e.g., ## or ---END---)"
+                placeholder="Enter delimiter regex pattern (e.g., ## , ---END---, Chapter \d+)"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
               />
             </div>
