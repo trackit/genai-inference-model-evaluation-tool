@@ -186,6 +186,34 @@ describe('BedrockModelValidationService', () => {
     ).toBeGreaterThan(0);
   });
 
+  it('preserves mode through resolution and profile mapping', async () => {
+    const { service, bedrockClientMock } = setup();
+
+    bedrockClientMock.on(ListInferenceProfilesCommand).resolves({
+      inferenceProfileSummaries: [mockNovaProInferenceProfile],
+      nextToken: undefined,
+    });
+    bedrockClientMock.on(ListFoundationModelsCommand).resolves({
+      modelSummaries: [eligibleNovaPro],
+    });
+
+    const result = await service.resolveModelsForPersistence([
+      {
+        type: 'custom',
+        identifier: 'us.amazon.nova-pro-v1:0',
+        mode: 'runtime',
+      },
+    ]);
+
+    expect(result).toEqual([
+      {
+        type: 'custom',
+        identifier: 'us.amazon.nova-pro-v1:0',
+        mode: 'runtime',
+      },
+    ]);
+  });
+
   it('rejects custom model that exists but is not eligible (non-text)', async () => {
     const { service, bedrockClientMock } = setup();
 

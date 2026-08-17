@@ -49,13 +49,12 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
       </p>
 
       <div className="rounded-xl bg-surface shadow-card overflow-hidden">
-        <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto] gap-0 text-xs font-medium uppercase tracking-wider text-muted-foreground border-b border-border px-4 py-3">
+        <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr] gap-0 text-xs font-medium uppercase tracking-wider text-muted-foreground border-b border-border px-4 py-3">
           <span className="w-8" />
           <span>Model</span>
           <span>Provider</span>
           <span>Context</span>
           <span className="text-right">$/1K tokens</span>
-          <span className="pl-4">Mode</span>
         </div>
         {AVAILABLE_MODELS.map((model) => {
           const selectedEntry = selected.find((m) => m.id === model.id);
@@ -65,7 +64,7 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
               key={model.id}
               onClick={() => toggle(model.id)}
               className={cn(
-                'grid w-full grid-cols-[auto_1fr_1fr_1fr_1fr_auto] gap-0 items-center px-4 py-3 text-sm text-left transition-colors border-b border-border last:border-0',
+                'grid w-full grid-cols-[auto_1fr_1fr_1fr_1fr] gap-0 items-center px-4 py-3 text-sm text-left transition-colors border-b border-border last:border-0',
                 isSelected ? 'bg-primary/[0.03]' : 'hover:bg-muted/50',
               )}
             >
@@ -82,29 +81,6 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
               <span className="text-right font-mono">
                 ${model.costPer1kTokens}
               </span>
-              <div
-                className="pl-4 flex items-center"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {isSelected && (
-                  <div className="flex gap-0.5">
-                    {(['runtime', 'mantle'] as const).map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => setMode(model.id, m)}
-                        className={cn(
-                          'rounded px-1.5 py-0.5 text-[10px] font-medium capitalize transition-colors',
-                          selectedEntry.mode === m
-                            ? 'bg-primary text-primary-foreground'
-                            : 'text-muted-foreground hover:text-foreground',
-                        )}
-                      >
-                        {m}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
             </button>
           );
         })}
@@ -137,36 +113,70 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
 
         {customModels.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
-            {customModels.map(({ id: id, mode }) => (
-              <span
-                key={id}
-                className="flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1 text-xs font-mono"
-              >
-                {id}
-                <div className="flex gap-0.5">
-                  {(['runtime', 'mantle'] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setMode(id, m)}
+            {customModels.map(({ id, mode }) => {
+              const isRuntime = mode === 'runtime';
+
+              return (
+                <div
+                  key={id}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5"
+                >
+                  <span className="text-sm font-mono text-foreground">
+                    {id}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMode(id, isRuntime ? 'mantle' : 'runtime')
+                    }
+                    className={cn(
+                      'relative flex h-9 w-[130px] items-center rounded-full p-1 transition-colors duration-200',
+                      isRuntime ? 'bg-blue-500/15' : 'bg-green-500/15',
+                    )}
+                  >
+                    <span
                       className={cn(
-                        'rounded px-1 py-0.5 text-[10px] font-medium capitalize transition-colors',
-                        mode === m
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
+                        'absolute top-1 h-7 w-[62px] rounded-full shadow-sm transition-all duration-200',
+                        isRuntime
+                          ? 'left-1 bg-blue-500'
+                          : 'left-[67px] bg-green-500',
+                      )}
+                    />
+
+                    <span
+                      className={cn(
+                        'relative z-10 flex-1 text-center text-sm font-semibold',
+                        isRuntime
+                          ? 'text-white'
+                          : 'text-green-700 dark:text-green-300',
                       )}
                     >
-                      {m}
-                    </button>
-                  ))}
+                      Runtime
+                    </span>
+
+                    <span
+                      className={cn(
+                        'relative z-10 flex-1 text-center text-sm font-semibold',
+                        !isRuntime
+                          ? 'text-white'
+                          : 'text-blue-700 dark:text-blue-300',
+                      )}
+                    >
+                      Mantle
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggle(id)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => toggle(id)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
