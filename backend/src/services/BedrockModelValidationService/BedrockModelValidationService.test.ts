@@ -12,6 +12,7 @@ import {
 import { inject, reset } from '@trackit.io/di-container';
 import { mockClient } from 'aws-sdk-client-mock';
 import { describe, expect, it, vi } from 'vitest';
+import { ModelMode } from '../../models/Evaluation';
 import { registerTestInfrastructure } from '../../test/registerTestInfrastructure';
 import {
   BedrockModelValidationServiceImpl,
@@ -80,11 +81,15 @@ describe('BedrockModelValidationService', () => {
     });
 
     const result = await service.resolveModelsForPersistence([
-      { type: 'default', identifier: 'amazon-nova' },
+      { type: 'default', identifier: 'amazon-nova', mode: ModelMode.RUNTIME },
     ]);
 
     expect(result).toEqual([
-      { type: 'default', identifier: 'us.amazon.nova-pro-v1:0' },
+      {
+        type: 'default',
+        identifier: 'us.amazon.nova-pro-v1:0',
+        mode: ModelMode.RUNTIME,
+      },
     ]);
   });
 
@@ -100,7 +105,11 @@ describe('BedrockModelValidationService', () => {
     });
 
     const result = await service.resolveModelsForPersistence([
-      { type: 'custom', identifier: 'us.amazon.nova-pro-v1:0' },
+      {
+        type: 'custom',
+        identifier: 'us.amazon.nova-pro-v1:0',
+        mode: ModelMode.RUNTIME,
+      },
     ]);
 
     const profileCalls = bedrockClientMock.commandCalls(
@@ -113,7 +122,11 @@ describe('BedrockModelValidationService', () => {
     expect(foundationCalls).toHaveLength(1);
     expect(foundationCalls[0].args[0].input).toEqual({});
     expect(result).toEqual([
-      { type: 'custom', identifier: 'us.amazon.nova-pro-v1:0' },
+      {
+        type: 'custom',
+        identifier: 'us.amazon.nova-pro-v1:0',
+        mode: ModelMode.RUNTIME,
+      },
     ]);
   });
 
@@ -129,11 +142,19 @@ describe('BedrockModelValidationService', () => {
     });
 
     const result = await service.resolveModelsForPersistence([
-      { type: 'custom', identifier: 'us.amazon.nova-pro-v1:0' },
+      {
+        type: 'custom',
+        identifier: 'us.amazon.nova-pro-v1:0',
+        mode: ModelMode.RUNTIME,
+      },
     ]);
 
     expect(result).toEqual([
-      { type: 'custom', identifier: 'us.amazon.nova-pro-v1:0' },
+      {
+        type: 'custom',
+        identifier: 'us.amazon.nova-pro-v1:0',
+        mode: ModelMode.RUNTIME,
+      },
     ]);
   });
 
@@ -174,8 +195,16 @@ describe('BedrockModelValidationService', () => {
     });
 
     await service.resolveModelsForPersistence([
-      { type: 'custom', identifier: 'us.amazon.nova-pro-v1:0' },
-      { type: 'custom', identifier: 'us.amazon.nova-lite-v1:0' },
+      {
+        type: 'custom',
+        identifier: 'us.amazon.nova-pro-v1:0',
+        mode: ModelMode.RUNTIME,
+      },
+      {
+        type: 'custom',
+        identifier: 'us.amazon.nova-lite-v1:0',
+        mode: ModelMode.RUNTIME,
+      },
     ]);
 
     expect(
@@ -201,7 +230,7 @@ describe('BedrockModelValidationService', () => {
       {
         type: 'custom',
         identifier: 'us.amazon.nova-pro-v1:0',
-        mode: 'runtime',
+        mode: ModelMode.RUNTIME,
       },
     ]);
 
@@ -209,7 +238,7 @@ describe('BedrockModelValidationService', () => {
       {
         type: 'custom',
         identifier: 'us.amazon.nova-pro-v1:0',
-        mode: 'runtime',
+        mode: ModelMode.RUNTIME,
       },
     ]);
   });
@@ -244,7 +273,11 @@ describe('BedrockModelValidationService', () => {
 
     await expect(
       service.resolveModelsForPersistence([
-        { type: 'custom', identifier: 'vendor.image-only:0' },
+        {
+          type: 'custom',
+          identifier: 'vendor.image-only:0',
+          mode: ModelMode.RUNTIME,
+        },
       ]),
     ).rejects.toMatchObject({ code: 'INVALID_BEDROCK_MODEL' });
   });
@@ -274,6 +307,7 @@ describe('BedrockModelValidationService', () => {
         {
           type: 'custom',
           identifier: 'stability.stable-image-style-guide-v1:0',
+          mode: ModelMode.RUNTIME,
         },
       ]),
     ).rejects.toMatchObject({ code: 'INVALID_BEDROCK_MODEL' });

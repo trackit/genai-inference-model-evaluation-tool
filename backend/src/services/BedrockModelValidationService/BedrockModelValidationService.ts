@@ -430,6 +430,7 @@ export class BedrockModelValidationServiceImpl implements BedrockModelValidation
     models: ModelConfig[],
   ): Promise<ModelConfig[]> {
     try {
+      if (models.length === 0) return [];
       const inferenceProfiles = await listAllInferenceProfileSummaries(
         this.client,
       );

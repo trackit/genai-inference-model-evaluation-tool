@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from functools import lru_cache
 from typing import Optional
 
 from openai import OpenAI
@@ -19,10 +20,16 @@ def _mantle_base_url(model_id: str, region: str) -> str:
     return f"https://bedrock-mantle.{region}.api.aws/{path}"
 
 
+# mirrors the single boto3 client on the runtime
+# path so mantle latency is measured on a warm connection too.
+@lru_cache(maxsize=None)
+def _client(base_url: str, region: str) -> OpenAI:
+    return OpenAI(provider=bedrock(region=region, base_url=base_url))
+
+
 def converse_stream_mantle(
     model_id: str, document: str, document_id: Optional[str] = None
 ) -> InvocationResult:
-    start = time.time()
     ttft: Optional[float] = None
     text = ""
     in_tok = 0
@@ -32,12 +39,8 @@ def converse_stream_mantle(
         region = os.environ.get("AWS_REGION")
         if not region:
             raise ValueError("AWS_REGION is not set")
-        client = OpenAI(
-            provider=bedrock(
-                region=region,
-                base_url=_mantle_base_url(model_id, region),
-            )
-        )
+        client = _client(_mantle_base_url(model_id, region), region)
+        start = time.time()
         stream = client.chat.completions.create(
             model=model_id,
             messages=[{"role": "user", "content": document}],

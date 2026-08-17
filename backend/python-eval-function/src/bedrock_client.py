@@ -8,9 +8,6 @@ from models import ConverseStreamError, InvocationResult
 
 logger = logging.getLogger(__name__)
 
-
-
-
 MODEL_ID_MAP = {
     "amazon-nova-lite": "us.amazon.nova-lite-v1:0",
     "amazon-nova-micro": "us.amazon.nova-micro-v1:0",

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_METRICS_CONFIG,
   type EvaluationRequest,
+  ModelMode,
 } from '../../models/Evaluation.js';
 import { tokenFakeEvaluationJobsRepository } from '../../services/EvaluationJobsRepository/FakeEvaluationJobsRepository';
 import { tokenFakeFargateService } from '../../services/FargateService/FakeFargateService';
@@ -13,7 +14,9 @@ const DEFAULT_WEIGHTS = { accuracy: 0.4, latency: 0.3, cost: 0.3 };
 
 const validLaunchRequest = (): EvaluationRequest => ({
   dataset_id: 'test-dataset-id',
-  models: [{ type: 'default', identifier: 'claude-sonnet', mode: 'runtime' }],
+  models: [
+    { type: 'default', identifier: 'claude-sonnet', mode: ModelMode.RUNTIME },
+  ],
   weights: DEFAULT_WEIGHTS,
 });
 
@@ -33,7 +36,7 @@ describe('EvaluationLaunchUseCase', () => {
           {
             type: 'default',
             identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-            mode: 'runtime',
+            mode: ModelMode.RUNTIME,
           },
         ],
         DEFAULT_WEIGHTS,
@@ -52,7 +55,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           // No weights provided
         };
@@ -65,7 +72,7 @@ describe('EvaluationLaunchUseCase', () => {
             {
               type: 'default',
               identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
           ],
           {
@@ -82,7 +89,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {}, // Empty weights object
         };
@@ -95,7 +106,7 @@ describe('EvaluationLaunchUseCase', () => {
             {
               type: 'default',
               identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
           ],
           {
@@ -114,7 +125,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
         };
 
@@ -130,7 +145,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
 
           metrics: {
@@ -159,7 +178,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           metrics: {
             rouge: true,
@@ -185,7 +208,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           metrics: { bleu: false, rouge: true },
         };
@@ -211,7 +238,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           metrics: allDisabled,
         };
@@ -228,7 +259,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: -0.5,
@@ -247,7 +282,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: 0.5,
@@ -266,7 +305,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: 0.5,
@@ -285,7 +328,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: -0.1,
@@ -306,7 +353,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: 0.5,
@@ -335,7 +386,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: 0,
@@ -352,7 +407,7 @@ describe('EvaluationLaunchUseCase', () => {
             {
               type: 'default',
               identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
           ],
           {
@@ -369,7 +424,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: 0.8,
@@ -398,7 +457,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: 0.7,
@@ -428,7 +491,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: 1.5,
@@ -460,7 +527,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: 0.5,
@@ -490,12 +561,12 @@ describe('EvaluationLaunchUseCase', () => {
             {
               type: 'custom',
               identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
             {
               type: 'custom',
               identifier: 'us.amazon.nova-pro-v1:0',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
           ],
         };
@@ -522,12 +593,12 @@ describe('EvaluationLaunchUseCase', () => {
             {
               type: 'default',
               identifier: 'amazon-nova-lite',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
             {
               type: 'custom',
               identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
           ],
         };
@@ -540,12 +611,12 @@ describe('EvaluationLaunchUseCase', () => {
             {
               type: 'default',
               identifier: 'us.amazon.nova-lite-v1:0',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
             {
               type: 'custom',
               identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
           ],
           {
@@ -565,12 +636,12 @@ describe('EvaluationLaunchUseCase', () => {
             {
               type: 'default',
               identifier: 'amazon-nova-lite',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
             {
               type: 'custom',
               identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-              mode: 'mantle',
+              mode: ModelMode.MANTLE,
             },
           ],
         };
@@ -583,12 +654,12 @@ describe('EvaluationLaunchUseCase', () => {
             {
               type: 'custom',
               identifier: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-              mode: 'mantle',
+              mode: ModelMode.MANTLE,
             },
             {
               type: 'default',
               identifier: 'us.amazon.nova-lite-v1:0',
-              mode: 'runtime',
+              mode: ModelMode.RUNTIME,
             },
           ],
           {
@@ -622,7 +693,11 @@ describe('EvaluationLaunchUseCase', () => {
         const request: EvaluationRequest = {
           dataset_id: 'test-dataset-id',
           models: [
-            { type: 'default', identifier: 'claude-sonnet', mode: 'runtime' },
+            {
+              type: 'default',
+              identifier: 'claude-sonnet',
+              mode: ModelMode.RUNTIME,
+            },
           ],
           weights: {
             accuracy: 0,

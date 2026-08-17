@@ -5,6 +5,7 @@ import {
   EvaluationJob,
   EvaluationRequest,
   ModelConfig,
+  ModelMode,
   resolveMetricsConfig,
   WeightConfig,
 } from '../../models/Evaluation';
@@ -27,12 +28,17 @@ export class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
 
   async launchEvaluation(request: EvaluationRequest): Promise<EvaluationJob> {
     this.validateModels(request.models);
-    // TODO: To validate mantle mode models in the future
-    const modelsValid = request.models.filter((m) => m.mode === 'mantle');
-    const modelsValidate = request.models.filter((m) => m.mode === 'runtime');
-    const modelsToPersist =
+
+    // TODO: validate MANTLE models against the Chat Completions catalog.
+    const mantleModels = request.models.filter(
+      (m) => m.mode === ModelMode.MANTLE,
+    );
+    const runtimeModels = request.models.filter(
+      (m) => m.mode !== ModelMode.MANTLE,
+    );
+    const resolvedRuntimeModels =
       await this.bedrockModelValidation.resolveModelsForPersistence(
-        modelsValidate,
+        runtimeModels,
       );
 
     const normalizedWeights = this.normalizeWeights(request.weights);
@@ -51,7 +57,7 @@ export class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
 
     const job = await this.evaluationJobsRepository.createEvaluation(
       request.dataset_id,
-      [...modelsValid, ...modelsToPersist],
+      [...mantleModels, ...resolvedRuntimeModels],
       normalizedWeights,
       metrics,
     );

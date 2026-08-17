@@ -1,7 +1,12 @@
+export enum ModelMode {
+  RUNTIME = 'runtime',
+  MANTLE = 'mantle',
+}
+
 export interface ModelConfig {
   type: 'default' | 'custom';
   identifier: string;
-  mode?: 'mantle' | 'runtime';
+  mode: ModelMode;
 }
 
 export interface WeightConfig {
