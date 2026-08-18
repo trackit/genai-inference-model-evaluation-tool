@@ -270,4 +270,32 @@ describe('DatasetConfirm', () => {
       },
     });
   });
+
+  it('sends a cleared field as an empty edit instead of skipping it', () => {
+    previewState = {
+      ...previewState,
+      data: {
+        dataset_id: 'dataset-1',
+        samples: [
+          {
+            sample_id: '550e8400-e29b-41d4-a716-446655440000',
+            document: 'Doc 1',
+            summary: 'Summary 1',
+          },
+        ],
+      },
+    };
+
+    renderWithProviders(<DatasetConfirm {...defaultProps} />);
+
+    const summaryField = screen.getByDisplayValue('Summary 1');
+    fireEvent.change(summaryField, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(editGroundTruthMock).toHaveBeenCalledWith({
+      edits: {
+        '550e8400-e29b-41d4-a716-446655440000': '',
+      },
+    });
+  });
 });

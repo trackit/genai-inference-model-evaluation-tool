@@ -15,7 +15,7 @@ const EditGroundTruthPathSchema = z.object({
 
 const EditGroundTruthBodySchema = z.object({
   edits: z
-    .record(z.string().uuid(), z.string().min(1))
+    .record(z.string().uuid(), z.string())
     .refine((edits) => Object.keys(edits).length > 0, {
       message: 'At least one edit is required',
     }),

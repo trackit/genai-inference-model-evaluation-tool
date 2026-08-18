@@ -149,26 +149,29 @@ describe('EditGroundTruthUseCase', () => {
     });
   });
 
-  it('rejects empty corrected ground truth', async () => {
-    const { useCase, datasetService } = setup();
-    await seedDataset(datasetService, [
-      {
-        sample_id: SAMPLE_ID,
-        document: 'Doc 1',
-        summary: 'Summary',
-      },
-    ]);
+  it.each(['', '   '])(
+    'rejects empty corrected ground truth (%j)',
+    async (value) => {
+      const { useCase, datasetService } = setup();
+      await seedDataset(datasetService, [
+        {
+          sample_id: SAMPLE_ID,
+          document: 'Doc 1',
+          summary: 'Summary',
+        },
+      ]);
 
-    await expect(
-      useCase.editGroundTruth({
-        datasetId: 'ds-1',
-        edits: { [SAMPLE_ID]: '   ' },
-      }),
-    ).rejects.toMatchObject({
-      type: BasicErrorType.BAD_REQUEST,
-      code: 'CORRECTED_GROUND_TRUTH_REQUIRED',
-    });
-  });
+      await expect(
+        useCase.editGroundTruth({
+          datasetId: 'ds-1',
+          edits: { [SAMPLE_ID]: value },
+        }),
+      ).rejects.toMatchObject({
+        type: BasicErrorType.BAD_REQUEST,
+        code: 'CORRECTED_GROUND_TRUTH_REQUIRED',
+      });
+    },
+  );
 
   it('rejects an empty edits map', async () => {
     const { useCase } = setup();
