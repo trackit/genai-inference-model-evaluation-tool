@@ -24,18 +24,19 @@ describe('chunkDocumentByCustomDelimiter', () => {
     expect(chunks[2].text).toBe('C');
   });
 
-  it('splits by regex delimiter', () => {
+  it('treats regex-looking delimiters as literals', () => {
     const chunks = chunkDocumentByCustomDelimiter(
       {
         document_id,
-        text: 'Chapter 1\nContent\nChapter 2\nMore content',
+        text: 'Chapter 1. Content. Chapter 2. More content',
       },
-      'Chapter \\d+',
+      '.',
     );
 
-    expect(chunks).toHaveLength(2);
-    expect(chunks[0].text).toBe('Content');
-    expect(chunks[1].text).toBe('More content');
+    expect(chunks).toHaveLength(4);
+    expect(chunks[0].text).toBe('Chapter 1');
+    expect(chunks[1].text).toBe('Content');
+    expect(chunks[2].text).toBe('Chapter 2');
   });
 
   it('returns single chunk when delimiter not found', () => {
@@ -92,22 +93,7 @@ describe('chunkDocumentByCustomDelimiter', () => {
     expect(chunks[0].text).toBe('A');
   });
 
-  it('handles invalid regex as plain string', () => {
-    const chunks = chunkDocumentByCustomDelimiter(
-      {
-        document_id,
-        text: 'A[invalidB[invalidC',
-      },
-      '[invalid',
-    );
-
-    expect(chunks).toHaveLength(3);
-    expect(chunks[0].text).toBe('A');
-    expect(chunks[1].text).toBe('B');
-    expect(chunks[2].text).toBe('C');
-  });
-
-  it('returns single chunk for empty document', () => {
+  it('returns no chunks for empty document', () => {
     const chunks = chunkDocumentByCustomDelimiter(
       {
         document_id,
@@ -116,8 +102,19 @@ describe('chunkDocumentByCustomDelimiter', () => {
       '##',
     );
 
-    expect(chunks).toHaveLength(1);
-    expect(chunks[0].text).toBe('');
+    expect(chunks).toHaveLength(0);
+  });
+
+  it('returns no chunks for whitespace-only document', () => {
+    const chunks = chunkDocumentByCustomDelimiter(
+      {
+        document_id,
+        text: '   ',
+      },
+      '##',
+    );
+
+    expect(chunks).toHaveLength(0);
   });
 });
 
@@ -141,6 +138,12 @@ describe('validateCustomDelimiter', () => {
     const delimiter = 'a'.repeat(51);
     expect(() => validateCustomDelimiter(delimiter)).toThrow(
       'Custom delimiter must be between 1 and 50 characters',
+    );
+  });
+
+  it('throws for whitespace-only delimiter', () => {
+    expect(() => validateCustomDelimiter('   ')).toThrow(
+      'Custom delimiter must not be whitespace only',
     );
   });
 

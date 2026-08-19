@@ -326,7 +326,7 @@ describe('DocumentConversionUseCase execute', () => {
     await useCase.execute({
       dataset_id,
       chunking_strategy: ChunkingStrategy.CUSTOM,
-      custom_delimiter: 'Chapter \\d+',
+      custom_delimiter: 'Chapter ',
     });
 
     const lines = parseJsonlLines(getStoredJsonl(datasetService));

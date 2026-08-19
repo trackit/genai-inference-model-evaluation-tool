@@ -355,39 +355,6 @@ describe('DocumentConversionService', () => {
         expect(chunks[2].text).toContain('Implementation Details');
       });
 
-      it('splits sections when delimiter matches the beginning of a line', async () => {
-        const service = new DocumentConversionServiceImpl();
-
-        const pdfBuffer = readFileSync(
-          new URL(
-            '../../test/fixtures/testcustomdelimiter.pdf',
-            import.meta.url,
-          ),
-        );
-
-        const extracted = await service.parse(pdfBuffer, 'pdf');
-
-        const chunks = chunkDocumentByCustomDelimiter(
-          {
-            document_id: 'pdf-custom-1',
-            text: extracted,
-          },
-          '^architecture',
-        );
-
-        expect(chunks).toHaveLength(2);
-
-        expect(chunks[0].text).toContain('Appendix A.1 : Conclusion');
-
-        expect(chunks[1].text).toContain(
-          'combined with effective testing practices',
-        );
-
-        expect(chunks[1].text).toContain(
-          'Future improvements can focus on automation',
-        );
-      });
-
       it('shows that the extracted PDF contains line breaks before "architecture"', async () => {
         const service = new DocumentConversionServiceImpl();
 
@@ -436,10 +403,12 @@ describe('DocumentConversionService', () => {
             document_id: 'pdf-custom-3',
             text: extracted,
           },
-          '(?=^architecture)',
+          'architecture',
         );
 
-        expect(chunks.at(-1)?.text.startsWith('architecture')).toBe(true);
+        expect(chunks.at(-1)?.text.includes('combined with effective')).toBe(
+          true,
+        );
       });
     });
   });

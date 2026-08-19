@@ -5,27 +5,14 @@ export function chunkDocumentByCustomDelimiter(
   document: ExtractedDocument,
   delimiter: string,
 ): DocumentChunk[] {
-  let splitter: string | RegExp;
-  try {
-    splitter = new RegExp(delimiter, 'm');
-  } catch {
-    splitter = delimiter;
+  if (!document.text.trim()) {
+    return [];
   }
 
   const chunks = document.text
-    .split(splitter)
+    .split(delimiter)
     .map((chunk) => chunk.trim())
     .filter(Boolean);
-
-  if (chunks.length === 0) {
-    return [
-      {
-        document_id: document.document_id,
-        chunk_id: `${document.document_id}-0`,
-        text: document.text.trim(),
-      },
-    ];
-  }
 
   return chunks.map((text, index) => ({
     document_id: document.document_id,
@@ -42,6 +29,14 @@ export function validateCustomDelimiter(delimiter: string | undefined): void {
       'INVALID_DELIMITER',
       'Custom delimiter must be between 1 and 50 characters',
       `Received delimiter of length ${delimiter.length}`,
+    );
+  }
+  if (delimiter.trim().length === 0) {
+    throw new BasicError(
+      BasicErrorType.BAD_REQUEST,
+      'INVALID_DELIMITER',
+      'Custom delimiter must not be whitespace only',
+      `Received delimiter: "${delimiter}"`,
     );
   }
 }
