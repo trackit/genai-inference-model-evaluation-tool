@@ -149,7 +149,7 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
                         'relative z-10 flex-1 text-center text-sm font-semibold',
                         isRuntime
                           ? 'text-white'
-                          : 'text-green-700 dark:text-green-300',
+                          : 'text-blue-700 dark:text-blue-300',
                       )}
                     >
                       Runtime
@@ -160,7 +160,7 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
                         'relative z-10 flex-1 text-center text-sm font-semibold',
                         !isRuntime
                           ? 'text-white'
-                          : 'text-blue-700 dark:text-blue-300',
+                          : 'text-green-700 dark:text-green-300',
                       )}
                     >
                       Mantle

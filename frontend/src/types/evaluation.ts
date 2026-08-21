@@ -274,7 +274,7 @@ export interface CreateEvaluationRequest {
   models: {
     type: 'default' | 'custom';
     identifier: string;
-    mode?: 'mantle' | 'runtime';
+    mode: 'mantle' | 'runtime';
   }[];
   weights: { accuracy: number; latency: number; cost: number };
   metrics?: Partial<Record<MetricKey, boolean>>;
