@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AVAILABLE_MODELS } from '@/types/evaluation';
@@ -28,10 +28,15 @@ describe('ModelSelection', () => {
     );
 
     fireEvent.click(screen.getByText('Nova Pro'));
-    expect(onChange).toHaveBeenCalledWith([modelId]);
+    expect(onChange).toHaveBeenCalledWith([{ id: modelId, mode: 'runtime' }]);
 
     onChange.mockClear();
-    rerender(<ModelSelection selected={[modelId]} onChange={onChange} />);
+    rerender(
+      <ModelSelection
+        selected={[{ id: modelId, mode: 'runtime' }]}
+        onChange={onChange}
+      />,
+    );
     fireEvent.click(screen.getByText('Nova Pro'));
     expect(onChange).toHaveBeenCalledWith([]);
   });
@@ -48,17 +53,23 @@ describe('ModelSelection', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /add/i }));
 
-    expect(onChange).toHaveBeenCalledWith([customId]);
+    expect(onChange).toHaveBeenCalledWith([{ id: customId, mode: 'runtime' }]);
   });
 
   it('removes a custom model chip', () => {
     const onChange = vi.fn();
     const customId = 'us.amazon.nova-custom-v1:0';
 
-    render(<ModelSelection selected={[customId]} onChange={onChange} />);
+    render(
+      <ModelSelection
+        selected={[{ id: customId, mode: 'runtime' }]}
+        onChange={onChange}
+      />,
+    );
 
     expect(screen.getByText(customId)).toBeInTheDocument();
-    fireEvent.click(screen.getByText(customId).querySelector('button')!);
+    const card = screen.getByText(customId).parentElement!;
+    fireEvent.click(within(card).getAllByRole('button').at(-1)!);
 
     expect(onChange).toHaveBeenCalledWith([]);
   });

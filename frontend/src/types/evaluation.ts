@@ -194,10 +194,15 @@ export interface ModelOption {
   costPer1kTokens: number;
 }
 
+export interface SelectedModel {
+  id: string;
+  mode: 'mantle' | 'runtime';
+}
+
 export interface EvaluationConfig {
   weights: MetricsWeights;
   metrics: MetricsToggles;
-  selectedModels: string[];
+  selectedModels: SelectedModel[];
   datasetFiles: File[];
 }
 
@@ -266,7 +271,11 @@ export const AVAILABLE_MODELS: ModelOption[] = [
 
 export interface CreateEvaluationRequest {
   dataset_id: string;
-  models: { type: 'default' | 'custom'; identifier: string }[];
+  models: {
+    type: 'default' | 'custom';
+    identifier: string;
+    mode: 'mantle' | 'runtime';
+  }[];
   weights: { accuracy: number; latency: number; cost: number };
   metrics?: Partial<Record<MetricKey, boolean>>;
 }

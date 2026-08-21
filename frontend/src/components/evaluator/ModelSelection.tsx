@@ -1,35 +1,40 @@
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { AVAILABLE_MODELS } from '@/types/evaluation';
+import { AVAILABLE_MODELS, type SelectedModel } from '@/types/evaluation';
 import { motion } from 'framer-motion';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface ModelSelectionProps {
-  selected: string[];
-  onChange: (models: string[]) => void;
+  selected: SelectedModel[];
+  onChange: (models: SelectedModel[]) => void;
 }
 
 export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
   const [customInput, setCustomInput] = useState('');
 
   const toggle = (id: string) => {
+    const exists = selected.find((m) => m.id === id);
     onChange(
-      selected.includes(id)
-        ? selected.filter((m) => m !== id)
-        : [...selected, id],
+      exists
+        ? selected.filter((m) => m.id !== id)
+        : [...selected, { id: id, mode: 'runtime' }],
     );
+  };
+
+  const setMode = (id: string, mode: 'mantle' | 'runtime') => {
+    onChange(selected.map((m) => (m.id === id ? { ...m, mode } : m)));
   };
 
   const addCustom = () => {
     const id = customInput.trim();
-    if (!id || selected.includes(id)) return;
-    onChange([...selected, id]);
+    if (!id || selected.find((m) => m.id === id)) return;
+    onChange([...selected, { id: id, mode: 'runtime' }]);
     setCustomInput('');
   };
 
   const customModels = selected.filter(
-    (id) => !AVAILABLE_MODELS.find((m) => m.id === id),
+    ({ id: id }) => !AVAILABLE_MODELS.find((m) => m.id === id),
   );
 
   return (
@@ -52,7 +57,8 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
           <span className="text-right">$/1K tokens</span>
         </div>
         {AVAILABLE_MODELS.map((model) => {
-          const isSelected = selected.includes(model.id);
+          const selectedEntry = selected.find((m) => m.id === model.id);
+          const isSelected = !!selectedEntry;
           return (
             <button
               key={model.id}
@@ -96,7 +102,8 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
           <button
             onClick={addCustom}
             disabled={
-              !customInput.trim() || selected.includes(customInput.trim())
+              !customInput.trim() ||
+              !!selected.find((m) => m.id === customInput.trim())
             }
             className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
           >
@@ -106,20 +113,70 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
 
         {customModels.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
-            {customModels.map((id) => (
-              <span
-                key={id}
-                className="flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1 text-xs font-mono"
-              >
-                {id}
-                <button
-                  onClick={() => toggle(id)}
-                  className="text-muted-foreground hover:text-foreground"
+            {customModels.map(({ id, mode }) => {
+              const isRuntime = mode === 'runtime';
+
+              return (
+                <div
+                  key={id}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5"
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
+                  <span className="text-sm font-mono text-foreground">
+                    {id}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMode(id, isRuntime ? 'mantle' : 'runtime')
+                    }
+                    className={cn(
+                      'relative flex h-9 w-[130px] items-center rounded-full p-1 transition-colors duration-200',
+                      isRuntime ? 'bg-blue-500/15' : 'bg-green-500/15',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'absolute top-1 h-7 w-[62px] rounded-full shadow-sm transition-all duration-200',
+                        isRuntime
+                          ? 'left-1 bg-blue-500'
+                          : 'left-[67px] bg-green-500',
+                      )}
+                    />
+
+                    <span
+                      className={cn(
+                        'relative z-10 flex-1 text-center text-sm font-semibold',
+                        isRuntime
+                          ? 'text-white'
+                          : 'text-blue-700 dark:text-blue-300',
+                      )}
+                    >
+                      Runtime
+                    </span>
+
+                    <span
+                      className={cn(
+                        'relative z-10 flex-1 text-center text-sm font-semibold',
+                        !isRuntime
+                          ? 'text-white'
+                          : 'text-green-700 dark:text-green-300',
+                      )}
+                    >
+                      Mantle
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggle(id)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
