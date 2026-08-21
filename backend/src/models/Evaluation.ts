@@ -1,6 +1,7 @@
 export enum ModelMode {
   RUNTIME = 'runtime',
   MANTLE = 'mantle',
+  RESPONSES = 'responses',
 }
 
 export interface ModelConfig {

@@ -3,7 +3,7 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AVAILABLE_MODELS } from '@/types/evaluation';
+import { AVAILABLE_MODELS, ModelMode } from '@/types/evaluation';
 
 import { ModelSelection } from './ModelSelection';
 
@@ -28,12 +28,14 @@ describe('ModelSelection', () => {
     );
 
     fireEvent.click(screen.getByText('Nova Pro'));
-    expect(onChange).toHaveBeenCalledWith([{ id: modelId, mode: 'runtime' }]);
+    expect(onChange).toHaveBeenCalledWith([
+      { id: modelId, mode: ModelMode.RUNTIME },
+    ]);
 
     onChange.mockClear();
     rerender(
       <ModelSelection
-        selected={[{ id: modelId, mode: 'runtime' }]}
+        selected={[{ id: modelId, mode: ModelMode.RUNTIME }]}
         onChange={onChange}
       />,
     );
@@ -53,7 +55,9 @@ describe('ModelSelection', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /add/i }));
 
-    expect(onChange).toHaveBeenCalledWith([{ id: customId, mode: 'runtime' }]);
+    expect(onChange).toHaveBeenCalledWith([
+      { id: customId, mode: ModelMode.RUNTIME },
+    ]);
   });
 
   it('removes a custom model chip', () => {
@@ -62,7 +66,7 @@ describe('ModelSelection', () => {
 
     render(
       <ModelSelection
-        selected={[{ id: customId, mode: 'runtime' }]}
+        selected={[{ id: customId, mode: ModelMode.RUNTIME }]}
         onChange={onChange}
       />,
     );
@@ -72,5 +76,25 @@ describe('ModelSelection', () => {
     fireEvent.click(within(card).getAllByRole('button').at(-1)!);
 
     expect(onChange).toHaveBeenCalledWith([]);
+  });
+  it('switches a custom model to responses mode', () => {
+    const onChange = vi.fn();
+    const customId = 'openai.gpt-5.6-terra';
+
+    render(
+      <ModelSelection
+        selected={[{ id: customId, mode: ModelMode.RUNTIME }]}
+        onChange={onChange}
+      />,
+    );
+
+    const card = screen.getByText(customId).parentElement!;
+    fireEvent.click(
+      within(card).getByRole('button', { name: /Mantle \(Responses\)/i }),
+    );
+
+    expect(onChange).toHaveBeenCalledWith([
+      { id: customId, mode: ModelMode.RESPONSES },
+    ]);
   });
 });

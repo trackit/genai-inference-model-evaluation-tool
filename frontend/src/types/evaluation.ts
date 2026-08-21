@@ -194,9 +194,16 @@ export interface ModelOption {
   costPer1kTokens: number;
 }
 
+export const ModelMode = {
+  RUNTIME: 'runtime',
+  MANTLE: 'mantle',
+  RESPONSES: 'responses',
+} as const;
+export type ModelMode = (typeof ModelMode)[keyof typeof ModelMode];
+
 export interface SelectedModel {
   id: string;
-  mode: 'mantle' | 'runtime';
+  mode: ModelMode;
 }
 
 export interface EvaluationConfig {
@@ -274,7 +281,7 @@ export interface CreateEvaluationRequest {
   models: {
     type: 'default' | 'custom';
     identifier: string;
-    mode: 'mantle' | 'runtime';
+    mode: ModelMode;
   }[];
   weights: { accuracy: number; latency: number; cost: number };
   metrics?: Partial<Record<MetricKey, boolean>>;
