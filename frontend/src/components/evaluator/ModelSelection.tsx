@@ -9,6 +9,13 @@ import { motion } from 'framer-motion';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 
+const MODEL_MODE_OPTIONS: Array<{ value: ModelMode; label: string }> = [
+  { value: ModelMode.RUNTIME, label: 'Runtime' },
+  { value: ModelMode.MANTLE, label: 'Mantle (Chat Completions)' },
+  { value: ModelMode.RESPONSES, label: 'Mantle (Responses)' },
+  { value: ModelMode.MESSAGES, label: 'Mantle (Messages)' },
+];
+
 interface ModelSelectionProps {
   selected: SelectedModel[];
   onChange: (models: SelectedModel[]) => void;
@@ -40,24 +47,6 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
   const customModels = selected.filter(
     ({ id: id }) => !AVAILABLE_MODELS.find((m) => m.id === id),
   );
-
-  const MODEL_MODE_OPTIONS: Array<{
-    value: ModelMode;
-    label: string;
-  }> = [
-    {
-      value: ModelMode.RUNTIME,
-      label: 'Runtime',
-    },
-    {
-      value: ModelMode.MANTLE,
-      label: 'Mantle (Chat Completions)',
-    },
-    {
-      value: ModelMode.RESPONSES,
-      label: 'Mantle (Responses)',
-    },
-  ];
 
   return (
     <motion.div

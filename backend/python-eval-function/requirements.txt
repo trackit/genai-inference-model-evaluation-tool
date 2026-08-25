@@ -1,3 +1,4 @@
+anthropic
 boto3
 openai>=1.0
 python-dateutil

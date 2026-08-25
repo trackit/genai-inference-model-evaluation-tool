@@ -320,6 +320,9 @@ Resources:
               Value: '30'
             - Name: AWS_REGION
               Value: !Ref AWS::Region
+            # Anthropic Mantle models are only available in us-east-1; other clients still use AWS_REGION
+            - Name: ANTHROPIC_MANTLE_REGION
+              Value: us-east-1
 
   # CloudFront
   CloudFrontOAC:

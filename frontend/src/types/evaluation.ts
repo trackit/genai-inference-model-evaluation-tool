@@ -198,6 +198,7 @@ export const ModelMode = {
   RUNTIME: 'runtime',
   MANTLE: 'mantle',
   RESPONSES: 'responses',
+  MESSAGES: 'messages',
 } as const;
 export type ModelMode = (typeof ModelMode)[keyof typeof ModelMode];
 
