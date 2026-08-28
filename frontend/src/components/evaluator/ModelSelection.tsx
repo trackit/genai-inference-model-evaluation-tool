@@ -1,9 +1,20 @@
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { AVAILABLE_MODELS, type SelectedModel } from '@/types/evaluation';
+import {
+  AVAILABLE_MODELS,
+  ModelMode,
+  type SelectedModel,
+} from '@/types/evaluation';
 import { motion } from 'framer-motion';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
+
+const MODEL_MODE_OPTIONS: Array<{ value: ModelMode; label: string }> = [
+  { value: ModelMode.RUNTIME, label: 'Runtime' },
+  { value: ModelMode.MANTLE, label: 'Mantle (Chat Completions)' },
+  { value: ModelMode.RESPONSES, label: 'Mantle (Responses)' },
+  { value: ModelMode.MESSAGES, label: 'Mantle (Messages)' },
+];
 
 interface ModelSelectionProps {
   selected: SelectedModel[];
@@ -18,18 +29,18 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
     onChange(
       exists
         ? selected.filter((m) => m.id !== id)
-        : [...selected, { id: id, mode: 'runtime' }],
+        : [...selected, { id, mode: ModelMode.RUNTIME }],
     );
   };
 
-  const setMode = (id: string, mode: 'mantle' | 'runtime') => {
+  const setMode = (id: string, mode: ModelMode) => {
     onChange(selected.map((m) => (m.id === id ? { ...m, mode } : m)));
   };
 
   const addCustom = () => {
     const id = customInput.trim();
     if (!id || selected.find((m) => m.id === id)) return;
-    onChange([...selected, { id: id, mode: 'runtime' }]);
+    onChange([...selected, { id, mode: ModelMode.RUNTIME }]);
     setCustomInput('');
   };
 
@@ -113,70 +124,41 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
 
         {customModels.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
-            {customModels.map(({ id, mode }) => {
-              const isRuntime = mode === 'runtime';
+            {customModels.map(({ id, mode }) => (
+              <div
+                key={id}
+                className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5"
+              >
+                <span className="text-sm font-mono text-foreground">{id}</span>
 
-              return (
-                <div
-                  key={id}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5"
-                >
-                  <span className="text-sm font-mono text-foreground">
-                    {id}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setMode(id, isRuntime ? 'mantle' : 'runtime')
-                    }
-                    className={cn(
-                      'relative flex h-9 w-[130px] items-center rounded-full p-1 transition-colors duration-200',
-                      isRuntime ? 'bg-blue-500/15' : 'bg-green-500/15',
-                    )}
-                  >
-                    <span
+                <div className="flex items-center gap-0.5 rounded-full bg-muted p-1">
+                  {MODEL_MODE_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={mode === value}
+                      onClick={() => setMode(id, value)}
                       className={cn(
-                        'absolute top-1 h-7 w-[62px] rounded-full shadow-sm transition-all duration-200',
-                        isRuntime
-                          ? 'left-1 bg-blue-500'
-                          : 'left-[67px] bg-green-500',
-                      )}
-                    />
-
-                    <span
-                      className={cn(
-                        'relative z-10 flex-1 text-center text-sm font-semibold',
-                        isRuntime
-                          ? 'text-white'
-                          : 'text-blue-700 dark:text-blue-300',
+                        'rounded-full px-3 py-1 text-sm font-semibold transition-colors',
+                        mode === value
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground',
                       )}
                     >
-                      Runtime
-                    </span>
-
-                    <span
-                      className={cn(
-                        'relative z-10 flex-1 text-center text-sm font-semibold',
-                        !isRuntime
-                          ? 'text-white'
-                          : 'text-green-700 dark:text-green-300',
-                      )}
-                    >
-                      Mantle
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => toggle(id)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                      {label}
+                    </button>
+                  ))}
                 </div>
-              );
-            })}
+
+                <button
+                  type="button"
+                  onClick={() => toggle(id)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>

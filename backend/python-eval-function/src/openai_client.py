@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 from functools import lru_cache
@@ -7,12 +6,10 @@ from typing import Optional
 from openai import OpenAI
 from openai.providers import bedrock
 
-from models import ConverseStreamError, InvocationResult
-
-logger = logging.getLogger(__name__)
+from models import InvocationResult, _fail, _finish
 
 #INFO: prefix tuple, expand when new models need /openai/v1 path
-_OPENAI_PATH_PREFIXES = ("xai.", "google.gemma-4")
+_OPENAI_PATH_PREFIXES = ("xai.", "google.gemma-4", "openai.gpt-5")
 
 
 def _mantle_base_url(model_id: str, region: str) -> str:
@@ -27,6 +24,13 @@ def _client(base_url: str, region: str) -> OpenAI:
     return OpenAI(provider=bedrock(region=region, base_url=base_url))
 
 
+def _mantle_client(model_id: str) -> OpenAI:
+    region = os.environ.get("AWS_REGION")
+    if not region:
+        raise ValueError("AWS_REGION is not set")
+    return _client(_mantle_base_url(model_id, region), region)
+
+
 def converse_stream_mantle(
     model_id: str, document: str, document_id: Optional[str] = None
 ) -> InvocationResult:
@@ -36,10 +40,7 @@ def converse_stream_mantle(
     out_tok = 0
 
     try:
-        region = os.environ.get("AWS_REGION")
-        if not region:
-            raise ValueError("AWS_REGION is not set")
-        client = _client(_mantle_base_url(model_id, region), region)
+        client = _mantle_client(model_id)
         start = time.time()
         stream = client.chat.completions.create(
             model=model_id,
@@ -57,32 +58,43 @@ def converse_stream_mantle(
                 in_tok = chunk.usage.prompt_tokens
                 out_tok = chunk.usage.completion_tokens
 
-        total = (time.time() - start) * 1000
-        if ttft is None:
-            ttft = total
-
-        logger.info(
-            "mantle converse_stream ok model=%s ttft_ms=%.2f latency_ms=%.2f "
-            "input_tokens=%d output_tokens=%d",
-            model_id, ttft, total, in_tok, out_tok,
-        )
-        return InvocationResult(
-            response_text=text,
-            input_tokens=in_tok,
-            output_tokens=out_tok,
-            time_to_first_token_ms=ttft,
-            total_latency_ms=total,
-            model_id=model_id,
-            document_id=document_id,
+        return _finish(
+            "converse_stream", model_id, document_id, start, ttft, text, in_tok, out_tok
         )
     except Exception as e:
-        error_msg = (
-            f"Mantle converse_stream failed for model \"{model_id}\" "
-            f"(document {document_id or 'unknown'}): {e!s}"
+        raise _fail("converse_stream", model_id, document_id, e) from e
+
+
+def responses_stream_mantle(
+    model_id: str, document: str, document_id: Optional[str] = None
+) -> InvocationResult:
+    ttft: Optional[float] = None
+    text = ""
+    in_tok = 0
+    out_tok = 0
+
+    try:
+        client = _mantle_client(model_id)
+        start = time.time()
+        stream = client.responses.create(
+            model=model_id,
+            input=[{"role": "user", "content": document}],
+            stream=True,
+            store=False,
         )
-        logger.error(
-            "mantle converse_stream failed model_id=%s document_id=%s error=%s",
-            model_id, document_id or "unknown", error_msg,
-            exc_info=True,
+        for event in stream:
+            if event.type == "response.output_text.delta":
+                if ttft is None:
+                    ttft = (time.time() - start) * 1000
+                text += event.delta
+            elif event.type == "response.completed":
+                usage = event.response.usage
+                if usage:
+                    in_tok = usage.input_tokens
+                    out_tok = usage.output_tokens
+
+        return _finish(
+            "responses", model_id, document_id, start, ttft, text, in_tok, out_tok
         )
-        raise ConverseStreamError(error_msg) from e
+    except Exception as e:
+        raise _fail("responses", model_id, document_id, e) from e

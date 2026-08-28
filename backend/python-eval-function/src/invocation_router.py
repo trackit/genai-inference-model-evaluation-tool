@@ -1,9 +1,10 @@
 import logging
 from typing import Optional
 
+from anthropic_client import messages_stream_mantle
 from bedrock_client import BedrockClient
 from models import InvocationResult
-from openai_client import converse_stream_mantle
+from openai_client import converse_stream_mantle, responses_stream_mantle
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,12 @@ def invoke(
     document_id: Optional[str] = None,
     mode: str = "runtime",
 ) -> InvocationResult:
+    if mode == "messages":
+        logger.info("router: messages path model=%s", model_id)
+        return messages_stream_mantle(model_id, document, document_id)
+    if mode == "responses":
+        logger.info("router: responses path model=%s", model_id)
+        return responses_stream_mantle(model_id, document, document_id)
     if mode == "mantle":
         logger.info("router: mantle path model=%s", model_id)
         return converse_stream_mantle(model_id, document, document_id)

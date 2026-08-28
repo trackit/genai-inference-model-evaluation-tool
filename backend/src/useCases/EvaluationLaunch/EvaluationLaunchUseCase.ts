@@ -29,12 +29,12 @@ export class EvaluationLaunchUseCaseImpl implements EvaluationLaunchUseCase {
   async launchEvaluation(request: EvaluationRequest): Promise<EvaluationJob> {
     this.validateModels(request.models);
 
-    // TODO: validate MANTLE models against the Chat Completions catalog.
-    const mantleModels = request.models.filter(
-      (m) => m.mode === ModelMode.MANTLE,
-    );
+    // TODO: validate mantle models against the Chat Completions / Responses catalogs.
     const runtimeModels = request.models.filter(
-      (m) => m.mode !== ModelMode.MANTLE,
+      (m) => m.mode === ModelMode.RUNTIME,
+    );
+    const mantleModels = request.models.filter(
+      (m) => m.mode !== ModelMode.RUNTIME,
     );
     const resolvedRuntimeModels =
       await this.bedrockModelValidation.resolveModelsForPersistence(

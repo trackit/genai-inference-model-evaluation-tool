@@ -7,9 +7,24 @@ A serverless tool for benchmarking and comparing Amazon Bedrock models against c
 The tool guides users through a four-step workflow:
 
 1. **Set metric weights** — tune how much accuracy, latency, and cost matter for your workload
-2. **Select models** — choose which Amazon Bedrock models to evaluate
+2. **Select models** — choose which models to evaluate and how to call them (see [Model modes](#model-modes) below)
 3. **Upload a dataset** — CSV or JSONL file containing documents and optional reference outputs (summaries or class labels)
 4. **Run evaluation and review results** — track progress in real time and get a ranked recommendation with per-model metrics
+
+## Model modes
+
+Each model in an evaluation has a **mode** that controls which inference endpoint the engine calls:
+
+| Mode                          | Endpoint                                 | When to use                                                                                    |
+| ----------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Runtime**                   | Bedrock Converse API (`bedrock-runtime`) | Standard Bedrock models with versioned IDs (`us.anthropic.claude-*`, `us.amazon.nova-*`, etc.) |
+| **Mantle (Chat Completions)** | Bedrock Mantle `/v1`                     | Most third-party Mantle models (DeepSeek, Mistral, Meta, Qwen, Kimi, …)                        |
+| **Mantle (Responses)**        | Bedrock Mantle `/v1` via Responses API   | OpenAI GPT-5.x models and any model that only supports the Responses surface                   |
+| **Mantle (Messages)**         | Bedrock Mantle `/anthropic/v1/messages`  | Anthropic Claude models accessed via Mantle (short IDs like `anthropic.claude-haiku-4-5`)      |
+
+Models in the predefined list always use **Runtime** mode. The mode selector appears on the chip when you type a custom model ID — pick the right surface for your model.
+
+> **Region note:** Anthropic Mantle models are currently only available in `us-east-1`. If your stack is deployed to another region the evaluation engine automatically routes Messages-mode calls to `us-east-1` via the `ANTHROPIC_MANTLE_REGION` environment variable (set in the task definition).
 
 ### Supported task types
 
@@ -43,10 +58,11 @@ flowchart TD
     DDB <-->|read state / write results| Fargate["ECS Fargate · Python<br/>evaluation engine"]
 
     Fargate -->|load dataset| S3_data
-    Fargate -->|inference| Bedrock["Amazon Bedrock<br/>available models"]
+    Fargate -->|runtime inference| Bedrock["Amazon Bedrock<br/>Converse API"]
+    Fargate -->|mantle inference| Mantle["Bedrock Mantle<br/>Chat Completions · Responses · Messages"]
 ```
 
-The Python evaluation engine runs as a Docker container on ECS Fargate. It loads the dataset from S3, calls Bedrock for each model, computes all metrics, and writes results back to DynamoDB. Evaluation jobs time out after 30 minutes; partial results are stored if a timeout occurs.
+The Python evaluation engine runs as a Docker container on ECS Fargate. It loads the dataset from S3, calls Bedrock (or Bedrock Mantle) for each model, computes all metrics, and writes results back to DynamoDB. Evaluation jobs time out after 30 minutes; partial results are stored if a timeout occurs.
 
 ## Prerequisites
 
@@ -212,7 +228,11 @@ Three sample files are included at the repo root for manual smoke-testing:
 │   └── python-eval-function/  # Fargate evaluation engine
 │       ├── src/               # Python source
 │       │   ├── main.py
-│       │   ├── bedrock_client.py
+│       │   ├── invocation_router.py   # dispatches by mode → runtime / mantle / responses / messages
+│       │   ├── bedrock_client.py      # Bedrock Converse (runtime mode)
+│       │   ├── openai_client.py       # Bedrock Mantle Chat Completions + Responses
+│       │   ├── anthropic_client.py    # Bedrock Mantle Messages (Anthropic SDK)
+│       │   ├── models.py              # shared dataclasses + logging helpers
 │       │   ├── accuracy_evaluator.py
 │       │   ├── classification_evaluator.py
 │       │   ├── geval_evaluator.py
