@@ -395,6 +395,7 @@ export interface EvaluationResultsData {
 
 export interface ModelEvaluationResult {
   identifier: string;
+  mode: string;
   metrics: {
     accuracy?: {
       bleu?: number;

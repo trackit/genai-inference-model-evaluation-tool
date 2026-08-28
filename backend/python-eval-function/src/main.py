@@ -135,7 +135,7 @@ def main():
             from accuracy_evaluator import AccuracyEvaluator
             accuracy_evaluator = AccuracyEvaluator()
 
-            for model_id, invocation_results in results_by_model.items():
+            for (model_id, mode), invocation_results in results_by_model.items():
                 successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
                 predictions = [invocation_results[i].response_text for i in successful_indices]
                 references = [all_references[i] for i in successful_indices] if all_references else None
@@ -143,7 +143,7 @@ def main():
                 accuracy_metrics = accuracy_evaluator.calculate_accuracy_metrics(
                     predictions, references, selected=metrics_config
                 )
-                accuracy_results[model_id] = accuracy_metrics or AccuracyMetrics()
+                accuracy_results[(model_id, mode)] = accuracy_metrics or AccuracyMetrics()
 
             logger.info(f"Summarization accuracy complete for {len(accuracy_results)} models")
 
@@ -151,7 +151,7 @@ def main():
             from classification_evaluator import ClassificationEvaluator
             classification_evaluator = ClassificationEvaluator()
 
-            for model_id, invocation_results in results_by_model.items():
+            for (model_id, mode), invocation_results in results_by_model.items():
                 successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
                 predictions = [invocation_results[i].response_text for i in successful_indices]
                 references = [all_references[i] for i in successful_indices] if all_references else None
@@ -168,7 +168,7 @@ def main():
                     acc.recall_macro = cls_metrics.recall_macro
                     acc.f1_macro = cls_metrics.f1_macro
                     acc.f1_weighted = cls_metrics.f1_weighted
-                accuracy_results[model_id] = acc
+                accuracy_results[(model_id, mode)] = acc
 
             logger.info(f"Classification accuracy complete for {len(accuracy_results)} models")
 
@@ -176,7 +176,7 @@ def main():
         geval_evaluator = GEvalEvaluator(metrics_config=metrics_config)
 
         if geval_evaluator.enabled:
-            for model_id, invocation_results in results_by_model.items():
+            for (model_id, mode), invocation_results in results_by_model.items():
                 successful_indices = [i for i, r in enumerate(invocation_results) if r.error is None]
                 predictions = [invocation_results[i].response_text for i in successful_indices]
                 inputs = [dataset.documents[i] for i in successful_indices]
@@ -189,17 +189,17 @@ def main():
                     inputs, predictions, task_type=task_type,
                 )
 
-                acc = accuracy_results.get(model_id)
+                acc = accuracy_results.get((model_id, mode))
                 if acc is None:
                     acc = AccuracyMetrics()
-                    accuracy_results[model_id] = acc
+                    accuracy_results[(model_id, mode)] = acc
 
                 if geval_evaluator.compute_reasoning:
                     acc.geval_reasoning = geval_metrics.reasoning
                 if geval_evaluator.compute_faithfulness:
                     acc.geval_faithfulness = geval_metrics.faithfulness
 
-                logger.info(f"G-Eval complete for {model_id}")
+                logger.info(f"G-Eval complete for {model_id} [{mode}]")
 
             logger.info("G-Eval evaluation complete for all models")
         else:
@@ -209,19 +209,19 @@ def main():
         cost_calculator = CostCalculator()
         
         model_results = []
-        for model_id, invocation_results in results_by_model.items():
+        for (model_id, mode), invocation_results in results_by_model.items():
             successful = [r for r in invocation_results if r.error is None]
             error_count = len(invocation_results) - len(successful)
-            
+
             avg_latency = sum(r.total_latency_ms for r in successful) / len(successful) if successful else 0
             avg_ttft = sum(r.time_to_first_token_ms for r in successful) / len(successful) if successful else 0
             total_input = sum(r.input_tokens for r in successful)
             total_output = sum(r.output_tokens for r in successful)
             tokens_per_sec = (total_output / (avg_latency / 1000)) if avg_latency > 0 else 0
-            
+
             cost_data = cost_calculator.calculate_total_cost(model_id, total_input, total_output)
-            
-            acc = accuracy_results.get(model_id)
+
+            acc = accuracy_results.get((model_id, mode))
             accuracy_dict = None
             if acc:
                 accuracy_dict = {
@@ -238,9 +238,9 @@ def main():
                     "f1_macro": acc.f1_macro,
                     "f1_weighted": acc.f1_weighted,
                 }
-            
+
             model_results.append({
-                "identifier": model_id,
+                "identifier": f"{model_id} [{mode}]",
                 "status": "completed" if successful else "failed",
                 "error_count": error_count,
                 "metrics": {

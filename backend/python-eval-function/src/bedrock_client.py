@@ -156,7 +156,7 @@ class BedrockClient:
                         samples_processed=completed_invocations // len(models)
                     )
             
-            results_by_model[model_id] = model_results
+            results_by_model[(model_id, mode)] = model_results
             
             logger.info(
                 f"Completed invocations for model {model_id}: "
