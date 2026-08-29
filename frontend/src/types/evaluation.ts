@@ -297,6 +297,7 @@ export interface StructuredDatasetUploadData {
 }
 
 export interface DatasetSample {
+  sample_id?: string;
   document: string;
   summary?: string;
   class_label?: string;
@@ -341,6 +342,13 @@ export interface PreprocessingStatusData {
   state: PreprocessingState;
   structuredDatasetArtifactKey?: string;
   sampleCount?: number;
+}
+export interface EditGroundTruthRequest {
+  edits: Record<string, string>;
+}
+
+export interface EditGroundTruthData {
+  datasetId: string;
 }
 
 export interface DocumentDatasetUploadData {

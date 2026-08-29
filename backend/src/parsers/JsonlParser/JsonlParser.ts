@@ -28,12 +28,17 @@ export class JsonlParserImpl implements JsonlParser {
         }
 
         const sample: {
+          sample_id?: string;
           document: string;
           summary?: string;
           class_label?: string;
         } = {
           document: obj.document,
         };
+
+        if (obj.sample_id && obj.sample_id !== '') {
+          sample.sample_id = obj.sample_id;
+        }
 
         if (obj.summary && obj.summary !== '') {
           sample.summary = obj.summary;
