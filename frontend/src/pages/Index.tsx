@@ -48,6 +48,9 @@ export default function Index() {
   const [preprocessingDone, setPreprocessingDone] = useState(false);
   const [chunkingStrategy, setChunkingStrategy] =
     useState<PreprocessingChunkingStrategy>('DOCUMENT');
+  const [customDelimiter, setCustomDelimiter] = useState<string | undefined>(
+    undefined,
+  );
   const [sampleCount, setSampleCount] = useState(0);
   const [detectedTaskType, setDetectedTaskType] = useState<
     TaskType | undefined
@@ -152,11 +155,13 @@ export default function Index() {
       taskType: TaskType;
       chunkingStrategy: PreprocessingChunkingStrategy;
       file_count: number;
+      customDelimiter?: string;
     }) => {
       setDatasetId(data.dataset_id);
       setDatasetKind('documents');
       setDetectedTaskType(data.taskType);
       setChunkingStrategy(data.chunkingStrategy);
+      setCustomDelimiter(data.customDelimiter);
       setSampleCount(data.file_count);
       setPreprocessingDone(false);
       setConfig((prev) => ({
@@ -186,6 +191,7 @@ export default function Index() {
     setDatasetKind(null);
     setPreprocessingDone(false);
     setChunkingStrategy('DOCUMENT');
+    setCustomDelimiter(undefined);
     setSampleCount(0);
     setDetectedTaskType(undefined);
     setEvaluationId(null);
@@ -255,6 +261,7 @@ export default function Index() {
                     datasetId={datasetId}
                     taskType={detectedTaskType ?? 'summarization'}
                     chunkingStrategy={chunkingStrategy}
+                    customDelimiter={customDelimiter}
                     onDone={handlePreprocessingDone}
                     onBack={() => {
                       setDatasetId(null);

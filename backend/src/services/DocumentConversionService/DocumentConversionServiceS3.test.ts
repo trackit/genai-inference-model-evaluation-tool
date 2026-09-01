@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
 import { chunkDocumentBySection } from '../../utils/chapterChunking';
+import { chunkDocumentByCustomDelimiter } from '../../utils/customChunking';
 import { DocumentConversionServiceImpl } from './DocumentConversionServiceS3';
 
 describe('DocumentConversionService', () => {
@@ -320,6 +321,93 @@ describe('DocumentConversionService', () => {
         expect(chunks[5].text).toContain('combined with effective');
         expect(chunks[5].text).toContain(
           'Future improvements can focus on automation, monitoring, and continuous delivery.',
+        );
+      });
+    });
+
+    describe('Custom delimiter chunking regression', () => {
+      it('splits on a literal delimiter', async () => {
+        const service = new DocumentConversionServiceImpl();
+
+        const pdfBuffer = readFileSync(
+          new URL(
+            '../../test/fixtures/testcustomdelimiter.pdf',
+            import.meta.url,
+          ),
+        );
+
+        const extracted = await service.parse(pdfBuffer, 'pdf');
+
+        const chunks = chunkDocumentByCustomDelimiter(
+          {
+            document_id: 'pdf-custom-1',
+            text: extracted,
+          },
+          '#####',
+        );
+
+        expect(chunks).toHaveLength(4);
+
+        expect(chunks[0].text).toContain(
+          'Software Engineering Architecture Guide',
+        );
+        expect(chunks[1].text).toContain('Introduction');
+        expect(chunks[2].text).toContain('Implementation Details');
+      });
+
+      it('shows that the extracted PDF contains line breaks before "architecture"', async () => {
+        const service = new DocumentConversionServiceImpl();
+
+        const pdfBuffer = readFileSync(
+          new URL(
+            '../../test/fixtures/testcustomdelimiter.pdf',
+            import.meta.url,
+          ),
+        );
+
+        const extracted = await service.parse(pdfBuffer, 'pdf');
+
+        expect(extracted).toMatch(/\n+\s*architecture combined/i);
+      });
+
+      it('shows that multiline regex would match the expected location', async () => {
+        const service = new DocumentConversionServiceImpl();
+
+        const pdfBuffer = readFileSync(
+          new URL(
+            '../../test/fixtures/testcustomdelimiter.pdf',
+            import.meta.url,
+          ),
+        );
+
+        const extracted = await service.parse(pdfBuffer, 'pdf');
+
+        expect(extracted.match(/^architecture/im)).not.toBeNull();
+        expect(extracted.match(/^architecture/i)).toBeNull();
+      });
+
+      it('preserves the delimiter when using a lookahead', async () => {
+        const service = new DocumentConversionServiceImpl();
+
+        const pdfBuffer = readFileSync(
+          new URL(
+            '../../test/fixtures/testcustomdelimiter.pdf',
+            import.meta.url,
+          ),
+        );
+
+        const extracted = await service.parse(pdfBuffer, 'pdf');
+
+        const chunks = chunkDocumentByCustomDelimiter(
+          {
+            document_id: 'pdf-custom-3',
+            text: extracted,
+          },
+          'architecture',
+        );
+
+        expect(chunks.at(-1)?.text.includes('combined with effective')).toBe(
+          true,
         );
       });
     });

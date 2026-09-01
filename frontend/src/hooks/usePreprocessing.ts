@@ -40,6 +40,7 @@ export function usePreprocessing() {
       params: {
         taskType: PreprocessingTaskType;
         chunkingStrategy: PreprocessingChunkingStrategy;
+        customDelimiter?: string;
       },
     ): Promise<void> => {
       clear();

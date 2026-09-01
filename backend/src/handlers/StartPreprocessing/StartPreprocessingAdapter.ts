@@ -15,10 +15,19 @@ const StartPreprocessingModulePathSchema = z.object({
   datasetId: z.string().min(1),
 });
 
-const RunSyntheticPreprocessingBodySchema = z.object({
-  taskType: z.enum(SYNTHETIC_OUTPUT_TASK_TYPES),
-  chunkingStrategy: z.enum(ChunkingStrategy),
-});
+const RunSyntheticPreprocessingBodySchema = z
+  .object({
+    taskType: z.enum(SYNTHETIC_OUTPUT_TASK_TYPES),
+    chunkingStrategy: z.enum(ChunkingStrategy),
+    customDelimiter: z.string().min(1).max(50).optional(),
+  })
+  .refine(
+    (data) => !(data.chunkingStrategy === 'CUSTOM' && !data.customDelimiter),
+    {
+      message: 'customDelimiter is required when chunkingStrategy is CUSTOM',
+      path: ['customDelimiter'],
+    },
+  );
 
 export class StartPreprocessingAdapter {
   private readonly useCase = inject(tokenStartPreprocessingUseCase);
@@ -43,6 +52,7 @@ export class StartPreprocessingAdapter {
       datasetId: pathParameters.datasetId,
       taskType: body.taskType,
       chunkingStrategy: body.chunkingStrategy,
+      customDelimiter: body.customDelimiter,
     });
   }
 }
