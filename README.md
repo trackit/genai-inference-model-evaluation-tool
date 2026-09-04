@@ -15,12 +15,12 @@ The tool guides users through a four-step workflow:
 
 Each model in an evaluation has a **mode** that controls which inference endpoint the engine calls:
 
-| Mode                          | Endpoint                                 | When to use                                                                                    |
-| ----------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| **Runtime**                   | Bedrock Converse API (`bedrock-runtime`) | Standard Bedrock models with versioned IDs (`us.anthropic.claude-*`, `us.amazon.nova-*`, etc.) |
-| **Mantle (Chat Completions)** | Bedrock Mantle `/v1`                     | Most third-party Mantle models (DeepSeek, Mistral, Meta, Qwen, Kimi, …)                        |
-| **Mantle (Responses)**        | Bedrock Mantle `/v1` via Responses API   | OpenAI GPT-5.x models and any model that only supports the Responses surface                   |
-| **Mantle (Messages)**         | Bedrock Mantle `/anthropic/v1/messages`  | Anthropic Claude models accessed via Mantle (short IDs like `anthropic.claude-haiku-4-5`)      |
+| Mode                          | Endpoint                                      | When to use                                                                                    |
+| ----------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Runtime**                   | Bedrock Converse API (`bedrock-runtime`)      | Standard Bedrock models with versioned IDs (`us.anthropic.claude-*`, `us.amazon.nova-*`, etc.) |
+| **Mantle (Chat Completions)** | Bedrock Mantle `/v1` and `/openai/v1`         | Most third-party Mantle models (DeepSeek, Mistral, Meta, Qwen, Kimi, …)                        |
+| **Mantle (Responses)**        | Bedrock Mantle `/openai/v1` via Responses API | Models that support the Responses surface (GPT-5.x, Google Gemma 4 …)                          |
+| **Mantle (Messages)**         | Bedrock Mantle `/anthropic/v1/messages`       | Anthropic Claude models accessed via Mantle (short IDs like `anthropic.claude-haiku-4-5`)      |
 
 Models in the predefined list always use **Runtime** mode. The mode selector appears on the chip when you type a custom model ID — pick the right surface for your model.
 

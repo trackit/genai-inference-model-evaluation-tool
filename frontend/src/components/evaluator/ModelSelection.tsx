@@ -33,14 +33,30 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
     );
   };
 
-  const setMode = (id: string, mode: ModelMode) => {
-    onChange(selected.map((m) => (m.id === id ? { ...m, mode } : m)));
+  const setMode = (
+    currentId: string,
+    currentMode: ModelMode,
+    newMode: ModelMode,
+  ) => {
+    if (selected.some((m) => m.id === currentId && m.mode === newMode)) return;
+    onChange(
+      selected.map((m) =>
+        m.id === currentId && m.mode === currentMode
+          ? { ...m, mode: newMode }
+          : m,
+      ),
+    );
   };
 
   const addCustom = () => {
     const id = customInput.trim();
-    if (!id || selected.find((m) => m.id === id)) return;
-    onChange([...selected, { id, mode: ModelMode.RUNTIME }]);
+    if (!id) return;
+    const used = new Set(
+      selected.filter((m) => m.id === id).map((m) => m.mode),
+    );
+    const mode = Object.values(ModelMode).find((m) => !used.has(m));
+    if (!mode) return;
+    onChange([...selected, { id, mode }]);
     setCustomInput('');
   };
 
@@ -114,7 +130,11 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
             onClick={addCustom}
             disabled={
               !customInput.trim() ||
-              !!selected.find((m) => m.id === customInput.trim())
+              Object.values(ModelMode).every((m) =>
+                selected.some(
+                  (s) => s.id === customInput.trim() && s.mode === m,
+                ),
+              )
             }
             className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
           >
@@ -126,7 +146,7 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
           <div className="flex flex-wrap gap-2 mt-3">
             {customModels.map(({ id, mode }) => (
               <div
-                key={id}
+                key={`${id}-${mode}`}
                 className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5"
               >
                 <span className="text-sm font-mono text-foreground">{id}</span>
@@ -137,7 +157,7 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
                       key={value}
                       type="button"
                       aria-pressed={mode === value}
-                      onClick={() => setMode(id, value)}
+                      onClick={() => setMode(id, mode, value)}
                       className={cn(
                         'rounded-full px-3 py-1 text-sm font-semibold transition-colors',
                         mode === value
@@ -152,7 +172,11 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
 
                 <button
                   type="button"
-                  onClick={() => toggle(id)}
+                  onClick={() =>
+                    onChange(
+                      selected.filter((m) => !(m.id === id && m.mode === mode)),
+                    )
+                  }
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4" />

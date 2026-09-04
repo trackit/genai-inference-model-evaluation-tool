@@ -27,7 +27,21 @@ interface ResultsViewProps {
   onReset: () => void;
 }
 
+const MODE_DISPLAY: Record<string, string> = {
+  mantle: 'Chat Completions',
+  responses: 'Responses',
+  messages: 'Messages',
+  runtime: 'Runtime',
+};
+
 function getDisplayName(identifier: string): string {
+  const modeMatch = identifier.match(/^(.+) \[(\w+)\]$/);
+  if (modeMatch) {
+    const [, modelId, mode] = modeMatch;
+    const name =
+      AVAILABLE_MODELS.find((m) => m.id === modelId)?.name ?? modelId;
+    return `${name} [${MODE_DISPLAY[mode] ?? mode}]`;
+  }
   return AVAILABLE_MODELS.find((m) => m.id === identifier)?.name ?? identifier;
 }
 
