@@ -275,7 +275,19 @@ Resources:
                 Action:
                   - bedrock:InvokeModel
                   - bedrock:InvokeModelWithResponseStream
+                  - bedrock-mantle:CreateInference
                 Resource: '*'
+              # Third-party Mantle models (openai, anthropic ... )
+              # are Marketplace products; Bedrock subscribes on first use.
+              - Sid: MarketplaceOperationsFromBedrockMantleFor3pModels
+                Effect: Allow
+                Action:
+                  - aws-marketplace:Subscribe
+                  - aws-marketplace:ViewSubscriptions
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    aws:CalledViaLast: bedrock-mantle.amazonaws.com
 
   # Fargate Task Definition
   EvaluationTaskDefinition:
@@ -308,6 +320,9 @@ Resources:
               Value: '30'
             - Name: AWS_REGION
               Value: !Ref AWS::Region
+            # Anthropic Mantle models are only available in us-east-1; other clients still use AWS_REGION
+            - Name: ANTHROPIC_MANTLE_REGION
+              Value: us-east-1
 
   # CloudFront
   CloudFrontOAC:

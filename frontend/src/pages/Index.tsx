@@ -94,9 +94,10 @@ export default function Index() {
     createEvaluationMutation.mutate(
       {
         dataset_id: datasetId,
-        models: config.selectedModels.map((id) => ({
+        models: config.selectedModels.map(({ id, mode }) => ({
           type: 'custom' as const,
           identifier: id,
+          mode,
         })),
         weights: {
           accuracy: config.weights.accuracy / 100,

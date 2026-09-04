@@ -5,7 +5,7 @@ import type {
 } from 'aws-lambda';
 import { z, ZodRawShape } from 'zod';
 
-import { METRIC_KEYS } from '../../models/Evaluation';
+import { METRIC_KEYS, ModelMode } from '../../models/Evaluation';
 import { tokenEvaluationLaunchUseCase } from '../../useCases/EvaluationLaunch/EvaluationLaunchUseCase';
 import { handleHttpRequest } from '../api/handleHttpRequest';
 import { parseApiEvent } from '../api/parseApiEvent';
@@ -26,10 +26,12 @@ const EvaluationRequestSchema = z.object({
         z.object({
           type: z.literal('default'),
           identifier: z.string().min(1),
+          mode: z.enum(ModelMode),
         }),
         z.object({
           type: z.literal('custom'),
           identifier: z.string().min(1),
+          mode: z.enum(ModelMode),
         }),
       ]),
     )
@@ -62,7 +64,6 @@ export class EvaluationLaunchAdapter {
     });
 
     const job = await this.useCase.launchEvaluation(body);
-
     return {
       evaluation_id: job.evaluation_id,
       status: job.status,

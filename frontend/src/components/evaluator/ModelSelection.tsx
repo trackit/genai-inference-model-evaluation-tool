@@ -1,35 +1,67 @@
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { AVAILABLE_MODELS } from '@/types/evaluation';
+import {
+  AVAILABLE_MODELS,
+  ModelMode,
+  type SelectedModel,
+} from '@/types/evaluation';
 import { motion } from 'framer-motion';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 
+const MODEL_MODE_OPTIONS: Array<{ value: ModelMode; label: string }> = [
+  { value: ModelMode.RUNTIME, label: 'Runtime' },
+  { value: ModelMode.MANTLE, label: 'Mantle (Chat Completions)' },
+  { value: ModelMode.RESPONSES, label: 'Mantle (Responses)' },
+  { value: ModelMode.MESSAGES, label: 'Mantle (Messages)' },
+];
+
 interface ModelSelectionProps {
-  selected: string[];
-  onChange: (models: string[]) => void;
+  selected: SelectedModel[];
+  onChange: (models: SelectedModel[]) => void;
 }
 
 export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
   const [customInput, setCustomInput] = useState('');
 
   const toggle = (id: string) => {
+    const exists = selected.find((m) => m.id === id);
     onChange(
-      selected.includes(id)
-        ? selected.filter((m) => m !== id)
-        : [...selected, id],
+      exists
+        ? selected.filter((m) => m.id !== id)
+        : [...selected, { id, mode: ModelMode.RUNTIME }],
+    );
+  };
+
+  const setMode = (
+    currentId: string,
+    currentMode: ModelMode,
+    newMode: ModelMode,
+  ) => {
+    if (selected.some((m) => m.id === currentId && m.mode === newMode)) return;
+    onChange(
+      selected.map((m) =>
+        m.id === currentId && m.mode === currentMode
+          ? { ...m, mode: newMode }
+          : m,
+      ),
     );
   };
 
   const addCustom = () => {
     const id = customInput.trim();
-    if (!id || selected.includes(id)) return;
-    onChange([...selected, id]);
+    if (!id) return;
+    const used = new Set(
+      selected.filter((m) => m.id === id).map((m) => m.mode),
+    );
+    const mode = Object.values(ModelMode).find((m) => !used.has(m));
+    if (!mode) return;
+    onChange([...selected, { id, mode }]);
     setCustomInput('');
   };
 
   const customModels = selected.filter(
-    (id) => !AVAILABLE_MODELS.find((m) => m.id === id),
+    ({ id: id }) => !AVAILABLE_MODELS.find((m) => m.id === id),
   );
 
   return (
@@ -52,7 +84,8 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
           <span className="text-right">$/1K tokens</span>
         </div>
         {AVAILABLE_MODELS.map((model) => {
-          const isSelected = selected.includes(model.id);
+          const selectedEntry = selected.find((m) => m.id === model.id);
+          const isSelected = !!selectedEntry;
           return (
             <button
               key={model.id}
@@ -96,7 +129,12 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
           <button
             onClick={addCustom}
             disabled={
-              !customInput.trim() || selected.includes(customInput.trim())
+              !customInput.trim() ||
+              Object.values(ModelMode).every((m) =>
+                selected.some(
+                  (s) => s.id === customInput.trim() && s.mode === m,
+                ),
+              )
             }
             className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
           >
@@ -106,19 +144,44 @@ export function ModelSelection({ selected, onChange }: ModelSelectionProps) {
 
         {customModels.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
-            {customModels.map((id) => (
-              <span
-                key={id}
-                className="flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1 text-xs font-mono"
+            {customModels.map(({ id, mode }) => (
+              <div
+                key={`${id}-${mode}`}
+                className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5"
               >
-                {id}
+                <span className="text-sm font-mono text-foreground">{id}</span>
+
+                <div className="flex items-center gap-0.5 rounded-full bg-muted p-1">
+                  {MODEL_MODE_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={mode === value}
+                      onClick={() => setMode(id, mode, value)}
+                      className={cn(
+                        'rounded-full px-3 py-1 text-sm font-semibold transition-colors',
+                        mode === value
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 <button
-                  onClick={() => toggle(id)}
+                  type="button"
+                  onClick={() =>
+                    onChange(
+                      selected.filter((m) => !(m.id === id && m.mode === mode)),
+                    )
+                  }
                   className="text-muted-foreground hover:text-foreground"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-4 w-4" />
                 </button>
-              </span>
+              </div>
             ))}
           </div>
         )}

@@ -376,7 +376,7 @@ describe('endpoint functions', () => {
 
       const result = await startPreprocessing('ds1', {
         taskType: 'summarization',
-        chunkingStrategy: 'CHAPTER',
+        chunkingStrategy: 'SECTION',
       });
 
       expect(result).toEqual({ executionArn: 'arn:1', status: 'RUNNING' });
@@ -385,7 +385,7 @@ describe('endpoint functions', () => {
       expect(init.method).toBe('POST');
       expect(JSON.parse(init.body as string)).toEqual({
         taskType: 'summarization',
-        chunkingStrategy: 'CHAPTER',
+        chunkingStrategy: 'SECTION',
       });
     });
   });
@@ -393,12 +393,12 @@ describe('endpoint functions', () => {
   describe('getPreprocessingStatus', () => {
     it('calls GET /datasets/:id/preprocess/status with the execution arn', async () => {
       mockFetch.mockResolvedValueOnce(
-        jsonResponse({ success: true, data: { status: 'RUNNING' } }),
+        jsonResponse({ success: true, data: { state: 'STARTING' } }),
       );
 
       const result = await getPreprocessingStatus('ds1', 'arn:exec:1');
 
-      expect(result).toEqual({ status: 'RUNNING' });
+      expect(result).toEqual({ state: 'STARTING' });
       const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
       expect(url).toBe(
         'http://localhost:3000/datasets/ds1/preprocess/status?executionArn=arn%3Aexec%3A1',

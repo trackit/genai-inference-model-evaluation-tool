@@ -122,7 +122,7 @@ export function mapToInferenceProfileIds(
         `[BedrockModelValidation] "${id}" → inference profile "${profileId}"`,
       );
     }
-    return { type: m.type, identifier: profileId };
+    return { ...m, identifier: profileId };
   });
 }
 
@@ -392,7 +392,7 @@ export function resolveModelsFromSummaries(
           continue;
         }
       }
-      out.push({ type: m.type, identifier: resolvedId });
+      out.push({ ...m, identifier: resolvedId });
       continue;
     }
 
@@ -410,7 +410,7 @@ export function resolveModelsFromSummaries(
       );
       continue;
     }
-    out.push({ type: m.type, identifier: resolvedId });
+    out.push({ ...m, identifier: resolvedId });
   }
 
   if (out.length === 0 && models.length > 0) {
@@ -430,6 +430,7 @@ export class BedrockModelValidationServiceImpl implements BedrockModelValidation
     models: ModelConfig[],
   ): Promise<ModelConfig[]> {
     try {
+      if (models.length === 0) return [];
       const inferenceProfiles = await listAllInferenceProfileSummaries(
         this.client,
       );

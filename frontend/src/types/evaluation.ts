@@ -194,10 +194,23 @@ export interface ModelOption {
   costPer1kTokens: number;
 }
 
+export const ModelMode = {
+  RUNTIME: 'runtime',
+  MANTLE: 'mantle',
+  RESPONSES: 'responses',
+  MESSAGES: 'messages',
+} as const;
+export type ModelMode = (typeof ModelMode)[keyof typeof ModelMode];
+
+export interface SelectedModel {
+  id: string;
+  mode: ModelMode;
+}
+
 export interface EvaluationConfig {
   weights: MetricsWeights;
   metrics: MetricsToggles;
-  selectedModels: string[];
+  selectedModels: SelectedModel[];
   datasetFiles: File[];
 }
 
@@ -266,7 +279,11 @@ export const AVAILABLE_MODELS: ModelOption[] = [
 
 export interface CreateEvaluationRequest {
   dataset_id: string;
-  models: { type: 'default' | 'custom'; identifier: string }[];
+  models: {
+    type: 'default' | 'custom';
+    identifier: string;
+    mode: ModelMode;
+  }[];
   weights: { accuracy: number; latency: number; cost: number };
   metrics?: Partial<Record<MetricKey, boolean>>;
 }
@@ -298,8 +315,30 @@ export interface PreprocessingStartData {
   status: 'RUNNING';
 }
 
+export type PreprocessingStage =
+  | 'DOCUMENT_PARSING'
+  | 'GENERATING_SYNTHETIC_OUTPUTS';
+
+export type PreprocessingState =
+  | 'STARTING'
+  | 'DOCUMENT_PARSING'
+  | 'GENERATING_SYNTHETIC_OUTPUTS'
+  | 'COMPLETED'
+  | 'ERRORED';
+
+export const PREPROCESSING_STAGES: ReadonlyArray<{
+  stage: PreprocessingStage;
+  label: string;
+}> = [
+  { stage: 'DOCUMENT_PARSING', label: 'Parsing documents' },
+  {
+    stage: 'GENERATING_SYNTHETIC_OUTPUTS',
+    label: 'Generating synthetic outputs',
+  },
+];
+
 export interface PreprocessingStatusData {
-  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED';
+  state: PreprocessingState;
   structuredDatasetArtifactKey?: string;
   sampleCount?: number;
 }
@@ -356,6 +395,7 @@ export interface EvaluationResultsData {
 
 export interface ModelEvaluationResult {
   identifier: string;
+  mode: string;
   metrics: {
     accuracy?: {
       bleu?: number;

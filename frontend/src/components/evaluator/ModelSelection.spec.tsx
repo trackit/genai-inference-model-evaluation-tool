@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AVAILABLE_MODELS } from '@/types/evaluation';
+import { AVAILABLE_MODELS, ModelMode } from '@/types/evaluation';
 
 import { ModelSelection } from './ModelSelection';
 
@@ -28,10 +28,17 @@ describe('ModelSelection', () => {
     );
 
     fireEvent.click(screen.getByText('Nova Pro'));
-    expect(onChange).toHaveBeenCalledWith([modelId]);
+    expect(onChange).toHaveBeenCalledWith([
+      { id: modelId, mode: ModelMode.RUNTIME },
+    ]);
 
     onChange.mockClear();
-    rerender(<ModelSelection selected={[modelId]} onChange={onChange} />);
+    rerender(
+      <ModelSelection
+        selected={[{ id: modelId, mode: ModelMode.RUNTIME }]}
+        onChange={onChange}
+      />,
+    );
     fireEvent.click(screen.getByText('Nova Pro'));
     expect(onChange).toHaveBeenCalledWith([]);
   });
@@ -48,18 +55,67 @@ describe('ModelSelection', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /add/i }));
 
-    expect(onChange).toHaveBeenCalledWith([customId]);
+    expect(onChange).toHaveBeenCalledWith([
+      { id: customId, mode: ModelMode.RUNTIME },
+    ]);
   });
 
   it('removes a custom model chip', () => {
     const onChange = vi.fn();
     const customId = 'us.amazon.nova-custom-v1:0';
 
-    render(<ModelSelection selected={[customId]} onChange={onChange} />);
+    render(
+      <ModelSelection
+        selected={[{ id: customId, mode: ModelMode.RUNTIME }]}
+        onChange={onChange}
+      />,
+    );
 
     expect(screen.getByText(customId)).toBeInTheDocument();
-    fireEvent.click(screen.getByText(customId).querySelector('button')!);
+    const card = screen.getByText(customId).parentElement!;
+    fireEvent.click(within(card).getAllByRole('button').at(-1)!);
 
     expect(onChange).toHaveBeenCalledWith([]);
+  });
+  it('switches a custom model to responses mode', () => {
+    const onChange = vi.fn();
+    const customId = 'openai.gpt-5.6-terra';
+
+    render(
+      <ModelSelection
+        selected={[{ id: customId, mode: ModelMode.RUNTIME }]}
+        onChange={onChange}
+      />,
+    );
+
+    const card = screen.getByText(customId).parentElement!;
+    fireEvent.click(
+      within(card).getByRole('button', { name: /Mantle \(Responses\)/i }),
+    );
+
+    expect(onChange).toHaveBeenCalledWith([
+      { id: customId, mode: ModelMode.RESPONSES },
+    ]);
+  });
+
+  it('switches a custom model to messages mode', () => {
+    const onChange = vi.fn();
+    const customId = 'anthropic.claude-sonnet-5';
+
+    render(
+      <ModelSelection
+        selected={[{ id: customId, mode: ModelMode.RUNTIME }]}
+        onChange={onChange}
+      />,
+    );
+
+    const card = screen.getByText(customId).parentElement!;
+    fireEvent.click(
+      within(card).getByRole('button', { name: /Mantle \(Messages\)/i }),
+    );
+
+    expect(onChange).toHaveBeenCalledWith([
+      { id: customId, mode: ModelMode.MESSAGES },
+    ]);
   });
 });
