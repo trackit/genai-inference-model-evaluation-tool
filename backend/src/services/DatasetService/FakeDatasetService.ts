@@ -73,6 +73,18 @@ export class FakeDatasetService implements DatasetService {
     });
   }
 
+  seedRawObject(key: string, body: string): void {
+    this.artifacts.push({
+      key,
+      body,
+      contentType: 'application/json',
+    });
+  }
+
+  async readRawObject(key: string): Promise<string> {
+    return this.readArtifactContent(key);
+  }
+
   async upload(
     datasetId: string,
     content: string,

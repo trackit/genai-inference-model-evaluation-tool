@@ -1,4 +1,10 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as api from '@/services/apiService';
@@ -7,7 +13,7 @@ import { PreprocessingStep } from './PreprocessingStep';
 describe('PreprocessingStep', () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it('auto-starts preprocessing on mount and calls onDone on success', async () => {
+  it('auto-starts preprocessing on mount and calls onDone on a clean success', async () => {
     vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
       executionArn: 'arn:1',
       status: 'RUNNING',
@@ -116,7 +122,7 @@ describe('PreprocessingStep', () => {
       <PreprocessingStep
         datasetId="ds1"
         taskType="summarization"
-        chunkingStrategy="DOCUMENT"
+        chunkingStrategy="SECTION"
         onDone={() => {}}
         onBack={() => {}}
       />,
@@ -124,5 +130,41 @@ describe('PreprocessingStep', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     expect(screen.getByRole('alert')).toHaveTextContent('Preprocessing failed');
+  });
+
+  it('pauses with a summary on partial success instead of auto-advancing, and requires Continue', async () => {
+    vi.spyOn(api, 'startPreprocessing').mockResolvedValue({
+      executionArn: 'arn:1',
+      status: 'RUNNING',
+    });
+    vi.spyOn(api, 'getPreprocessingStatus').mockResolvedValue({
+      state: 'COMPLETED',
+      sampleCount: 8,
+      failedCount: 2,
+    });
+    const onDone = vi.fn();
+
+    render(
+      <PreprocessingStep
+        datasetId="ds1"
+        taskType="summarization"
+        chunkingStrategy="SECTION"
+        onDone={onDone}
+        onBack={() => {}}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /continue/i }),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByText('2')).toBeInTheDocument();
+    // Does not auto-advance when there were failures.
+    expect(onDone).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+
+    expect(onDone).toHaveBeenCalledWith({ sampleCount: 8, failedCount: 2 });
   });
 });

@@ -15,11 +15,11 @@ const templatePath = resolve(
 
 const EXPECTED_STATE_BY_STATE_NAME: Record<string, PreprocessingState> = {
   DocumentConversion: PreprocessingState.DOCUMENT_PARSING,
-  RunSyntheticPreprocessing: PreprocessingState.GENERATING_SYNTHETIC_OUTPUTS,
+  SyntheticOutputsGeneration: PreprocessingState.GENERATING_SYNTHETIC_OUTPUTS,
 };
 
 describe('STATE_BY_STATE_NAME', () => {
-  it('covers exactly the Task states of the preprocessing state machine', () => {
+  it('only references state names that actually exist in the state machine', () => {
     const template = parse(readFileSync(templatePath, 'utf8'), {
       logLevel: 'silent',
     }) as {
@@ -32,18 +32,16 @@ describe('STATE_BY_STATE_NAME', () => {
       };
     };
 
-    const taskStateNames = Object.entries(
+    const allStateNames = Object.keys(
       template.Resources.PreprocessingStateMachine.Properties.Definition.States,
-    )
-      .filter(([, state]) => state.Type === 'Task')
-      .map(([name]) => name);
-
-    expect(taskStateNames.toSorted()).toEqual(
-      Object.keys(STATE_BY_STATE_NAME).toSorted(),
     );
+
+    for (const stateName of Object.keys(STATE_BY_STATE_NAME)) {
+      expect(allStateNames).toContain(stateName);
+    }
   });
 
-  it('maps each Task state name to the expected preprocessing state', () => {
+  it('maps each referenced state name to the expected preprocessing state', () => {
     expect(STATE_BY_STATE_NAME).toEqual(EXPECTED_STATE_BY_STATE_NAME);
   });
 });

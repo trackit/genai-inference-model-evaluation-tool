@@ -46,4 +46,22 @@ describe('PreprocessingStages', () => {
 
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
+
+  it('shows a live counter next to the current stage when counts are available', () => {
+    render(
+      <PreprocessingStages
+        stage="GENERATING_SYNTHETIC_OUTPUTS"
+        processedCount={3}
+        totalCount={10}
+      />,
+    );
+
+    expect(screen.getByText('3 of 10')).toBeInTheDocument();
+  });
+
+  it('shows no counter when counts are not available', () => {
+    render(<PreprocessingStages stage="DOCUMENT_PARSING" />);
+
+    expect(screen.queryByText(/of/)).not.toBeInTheDocument();
+  });
 });

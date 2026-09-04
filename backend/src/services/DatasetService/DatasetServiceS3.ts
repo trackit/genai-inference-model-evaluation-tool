@@ -360,6 +360,31 @@ export class DatasetServiceImpl implements DatasetService {
     return { structuredDatasetArtifactKey };
   }
 
+  async readRawObject(key: string): Promise<string> {
+    if (!key.trim()) {
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'RAW_OBJECT_KEY_REQUIRED',
+        'Object key is required',
+      );
+    }
+
+    try {
+      return await this.retrieveArtifact(key);
+    } catch (error: unknown) {
+      if (isS3NotFound(error)) {
+        throw new BasicError(
+          BasicErrorType.NOT_FOUND,
+          'RAW_OBJECT_NOT_FOUND',
+          'Object not found',
+          `No object found at key: ${key}`,
+        );
+      }
+
+      throw error;
+    }
+  }
+
   private async retrieveArtifact(key: string): Promise<string> {
     const response = await this.s3Client.send(
       new GetObjectCommand({
@@ -628,7 +653,11 @@ function validateSyntheticRow(
     row.model_id = readOptionalSyntheticString(value, 'model_id', lineNumber);
   }
 
-  if (row.summary === undefined && row.class === undefined) {
+  if (
+    row.status === 'completed' &&
+    row.summary === undefined &&
+    row.class === undefined
+  ) {
     throw invalidSyntheticRow(
       lineNumber,
       'either "summary" or "class" must be present',

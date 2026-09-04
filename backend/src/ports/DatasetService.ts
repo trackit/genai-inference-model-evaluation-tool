@@ -65,4 +65,9 @@ export interface DatasetService {
     datasetId: string,
     samples: DatasetSample[],
   ): Promise<{ structuredDatasetArtifactKey: string }>;
+
+  /**
+   * Reads the raw string content of an S3 object by key.
+   */
+  readRawObject(key: string): Promise<string>;
 }

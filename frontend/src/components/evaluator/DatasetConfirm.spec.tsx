@@ -212,4 +212,34 @@ describe('DatasetConfirm', () => {
     fireEvent.click(screen.getByRole('button', { name: /back/i }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
+
+  it('shows a warning banner with the excluded row count when failedCount > 0', () => {
+    previewState = { ...previewState, data: previewData };
+
+    renderWithProviders(<DatasetConfirm {...defaultProps} failedCount={3} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /3 rows failed during generation/i,
+    );
+  });
+
+  it('uses singular wording for a single failed row', () => {
+    previewState = { ...previewState, data: previewData };
+
+    renderWithProviders(<DatasetConfirm {...defaultProps} failedCount={1} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /1 row failed during generation and was excluded/i,
+    );
+  });
+
+  it('does not show the warning banner when failedCount is 0 or omitted', () => {
+    previewState = { ...previewState, data: previewData };
+
+    renderWithProviders(<DatasetConfirm {...defaultProps} failedCount={0} />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    renderWithProviders(<DatasetConfirm {...defaultProps} />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
 });

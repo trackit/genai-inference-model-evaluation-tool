@@ -4,11 +4,15 @@ import {
   PreprocessingState,
   PreprocessingStatusReport,
 } from '../../models/PreprocessingLifecycle';
-import { StateMachineService } from '../../ports/StateMachineService';
+import {
+  MapRunItemCounts,
+  StateMachineService,
+} from '../../ports/StateMachineService';
 
 export class FakeStateMachineService implements StateMachineService {
   public readonly started: Array<{ name: string; input: string }> = [];
   public reportByArn: Record<string, PreprocessingStatusReport> = {};
+  public mapRunCountsByArn: Record<string, MapRunItemCounts> = {};
   private counter = 0;
 
   async startExecution({
@@ -29,6 +33,12 @@ export class FakeStateMachineService implements StateMachineService {
     return (
       this.reportByArn[executionArn] ?? { state: PreprocessingState.STARTING }
     );
+  }
+
+  async getMapRunItemCounts(
+    executionArn: string,
+  ): Promise<MapRunItemCounts | undefined> {
+    return this.mapRunCountsByArn[executionArn];
   }
 }
 
