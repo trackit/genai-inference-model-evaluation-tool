@@ -15,6 +15,7 @@ interface PreprocessingStepProps {
   datasetId: string;
   taskType: PreprocessingTaskType;
   chunkingStrategy: PreprocessingChunkingStrategy;
+  customDelimiter?: string;
   onDone: (sampleCount: number | null) => void;
   onBack: () => void;
 }
@@ -31,14 +32,15 @@ export function PreprocessingStep({
   datasetId,
   taskType,
   chunkingStrategy,
+  customDelimiter,
   onDone,
   onBack,
 }: PreprocessingStepProps) {
   const { status, sampleCount, stage, start } = usePreprocessing();
 
   useEffect(() => {
-    void start(datasetId, { taskType, chunkingStrategy });
-  }, [datasetId, taskType, chunkingStrategy, start]);
+    void start(datasetId, { taskType, chunkingStrategy, customDelimiter });
+  }, [datasetId, taskType, chunkingStrategy, customDelimiter, start]);
 
   useEffect(() => {
     if (status === 'succeeded') onDone(sampleCount);
@@ -63,7 +65,11 @@ export function PreprocessingStep({
           </Button>
           <Button
             onClick={() =>
-              void start(datasetId, { taskType, chunkingStrategy })
+              void start(datasetId, {
+                taskType,
+                chunkingStrategy,
+                customDelimiter,
+              })
             }
           >
             Retry

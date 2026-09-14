@@ -12,6 +12,10 @@ import {
 import { tokenDatasetService } from '../../services/DatasetService/DatasetServiceS3';
 import { tokenDocumentConversionService } from '../../services/DocumentConversionService/DocumentConversionServiceS3';
 import { chunkDocumentBySection } from '../../utils/chapterChunking';
+import {
+  chunkDocumentByCustomDelimiter,
+  validateCustomDelimiter,
+} from '../../utils/customChunking';
 
 export type DocumentConversionUseCase = {
   execute(request: DocumentConversionRequest): Promise<string>;
@@ -25,6 +29,7 @@ export type DocumentRequestEntry = {
 export interface DocumentConversionRequest {
   dataset_id: string;
   chunking_strategy: ChunkingStrategy;
+  custom_delimiter?: string;
 }
 
 function isSupportedDocumentType(
@@ -38,7 +43,22 @@ function isSupportedDocumentType(
 export function chunkDocuments(
   extracted: ExtractedDocument[],
   strategy: ChunkingStrategy,
+  customDelimiter?: string,
 ): DocumentChunk[] {
+  if (strategy === ChunkingStrategy.CUSTOM) {
+    if (!customDelimiter) {
+      throw new BasicError(
+        BasicErrorType.BAD_REQUEST,
+        'MISSING_DELIMITER',
+        'Custom delimiter is required when using CUSTOM chunking strategy',
+      );
+    }
+    validateCustomDelimiter(customDelimiter);
+    return extracted.flatMap((document) =>
+      chunkDocumentByCustomDelimiter(document, customDelimiter),
+    );
+  }
+
   return extracted.flatMap((document) => {
     if (strategy === ChunkingStrategy.DOCUMENT) {
       return [
@@ -81,7 +101,11 @@ export class DocumentConversionUseCaseImpl implements DocumentConversionUseCase 
       documents,
     );
 
-    const chunks = chunkDocuments(extracted, request.chunking_strategy);
+    const chunks = chunkDocuments(
+      extracted,
+      request.chunking_strategy,
+      request.custom_delimiter,
+    );
 
     const jsonl = buildConversionJsonl(chunks);
 

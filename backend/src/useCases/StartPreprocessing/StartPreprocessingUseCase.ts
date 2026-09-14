@@ -8,6 +8,7 @@ export interface StartPreprocessingInput {
   datasetId: string;
   taskType: SyntheticOutputTaskType;
   chunkingStrategy: ChunkingStrategy;
+  customDelimiter?: string;
 }
 
 export interface StartPreprocessingResult {
@@ -26,9 +27,15 @@ export class StartPreprocessingUseCaseImpl implements StartPreprocessingUseCase 
     datasetId,
     taskType,
     chunkingStrategy,
+    customDelimiter,
   }: StartPreprocessingInput): Promise<StartPreprocessingResult> {
     const name = `${datasetId}-${Date.now()}`;
-    const input = JSON.stringify({ datasetId, taskType, chunkingStrategy });
+    const input = JSON.stringify({
+      datasetId,
+      taskType,
+      chunkingStrategy,
+      customDelimiter,
+    });
 
     const { executionArn } = await this.stateMachine.startExecution({
       name,

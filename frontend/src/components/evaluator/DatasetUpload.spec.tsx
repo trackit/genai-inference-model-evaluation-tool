@@ -299,4 +299,84 @@ describe('DatasetUpload', () => {
 
     expect(screen.getByText('Invalid dataset format')).toBeInTheDocument();
   });
+  it('shows the custom delimiter input when custom chunking is selected', () => {
+    const file = new File(['doc'], 'report.pdf', { type: 'application/pdf' });
+
+    mutationState = {
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+      data: {
+        dataset_type: 'documents',
+        dataset_id: 'dataset-1',
+        file_count: 1,
+        documents: [],
+      },
+      error: null,
+    };
+
+    renderWithProviders(<DatasetUpload {...defaultProps} files={[file]} />);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /documents \(pdf \/ doc \/ docx\)/i,
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /custom delimiter/i }));
+
+    expect(screen.getByPlaceholderText(/enter delimiter/i)).toBeInTheDocument();
+  });
+
+  it('confirms documents with custom chunking strategy and delimiter', () => {
+    const onDocumentsConfirmed = vi.fn();
+    const file = new File(['doc'], 'report.pdf', { type: 'application/pdf' });
+
+    mutationState = {
+      isPending: false,
+      isSuccess: true,
+      isError: false,
+      data: {
+        dataset_type: 'documents',
+        dataset_id: 'dataset-1',
+        file_count: 1,
+        documents: [],
+      },
+      error: null,
+    };
+
+    renderWithProviders(
+      <DatasetUpload
+        {...defaultProps}
+        files={[file]}
+        onDocumentsConfirmed={onDocumentsConfirmed}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /documents \(pdf \/ doc \/ docx\)/i,
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /custom delimiter/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /summarization/i }));
+
+    fireEvent.change(screen.getByPlaceholderText(/enter delimiter/i), {
+      target: { value: '##' },
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /confirm & preprocess/i }),
+    );
+
+    expect(onDocumentsConfirmed).toHaveBeenCalledWith({
+      dataset_id: 'dataset-1',
+      taskType: 'summarization',
+      chunkingStrategy: 'CUSTOM',
+      file_count: 1,
+      customDelimiter: '##',
+    });
+  });
 });

@@ -12,6 +12,7 @@ const DocumentConversionTaskInputSchema = z.object({
   datasetId: z.string().min(1),
   taskType: z.enum(SYNTHETIC_OUTPUT_TASK_TYPES),
   chunkingStrategy: z.enum(ChunkingStrategy),
+  customDelimiter: z.string().min(1).max(50).optional(),
 });
 
 export interface DocumentConversionTaskOutput {
@@ -23,7 +24,7 @@ export interface DocumentConversionTaskOutput {
 export const handler = async (
   event: Record<string, unknown>,
 ): Promise<DocumentConversionTaskOutput> => {
-  const { datasetId, taskType, chunkingStrategy } =
+  const { datasetId, taskType, chunkingStrategy, customDelimiter } =
     DocumentConversionTaskInputSchema.parse(event);
 
   const convertedDatasetArtifactKey = await inject(
@@ -31,6 +32,7 @@ export const handler = async (
   ).execute({
     dataset_id: datasetId,
     chunking_strategy: chunkingStrategy,
+    custom_delimiter: customDelimiter,
   });
 
   return { datasetId, taskType, convertedDatasetArtifactKey };
