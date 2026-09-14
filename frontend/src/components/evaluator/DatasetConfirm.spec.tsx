@@ -9,6 +9,7 @@ import type { DatasetPreviewData } from '@/types/evaluation';
 import { DatasetConfirm } from './DatasetConfirm';
 
 const refetchMock = vi.fn();
+const editGroundTruthMock = vi.fn();
 
 let previewState: {
   data: DatasetPreviewData | undefined;
@@ -26,6 +27,13 @@ vi.mock('@/hooks/useEvaluation', () => ({
   useDatasetPreview: () => ({
     refetch: refetchMock,
     ...previewState,
+  }),
+  useEditGroundTruth: () => ({
+    mutateAsync: editGroundTruthMock,
+    isPending: false,
+    isError: false,
+    error: null,
+    variables: undefined,
   }),
 }));
 
@@ -211,5 +219,83 @@ describe('DatasetConfirm', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /back/i }));
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows download button only when a row is expanded', () => {
+    previewState = {
+      ...previewState,
+      data: {
+        dataset_id: 'dataset-1',
+        samples: [{ document: 'Doc 1', summary: 'Summary 1' }],
+      },
+    };
+
+    renderWithProviders(<DatasetConfirm {...defaultProps} />);
+
+    expect(
+      screen.queryByRole('button', { name: /download sample 1 as jsonl/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /expand row 1/i }));
+
+    expect(
+      screen.getByRole('button', { name: /download sample 1 as jsonl/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('allows editing and saving ground truth when samples have ids', async () => {
+    previewState = {
+      ...previewState,
+      data: {
+        dataset_id: 'dataset-1',
+        samples: [
+          {
+            sample_id: '550e8400-e29b-41d4-a716-446655440000',
+            document: 'Doc 1',
+            summary: 'Summary 1',
+          },
+        ],
+      },
+    };
+
+    renderWithProviders(<DatasetConfirm {...defaultProps} />);
+
+    const summaryField = screen.getByDisplayValue('Summary 1');
+    fireEvent.change(summaryField, { target: { value: 'Corrected summary' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(editGroundTruthMock).toHaveBeenCalledWith({
+      edits: {
+        '550e8400-e29b-41d4-a716-446655440000': 'Corrected summary',
+      },
+    });
+  });
+
+  it('sends a cleared field as an empty edit instead of skipping it', () => {
+    previewState = {
+      ...previewState,
+      data: {
+        dataset_id: 'dataset-1',
+        samples: [
+          {
+            sample_id: '550e8400-e29b-41d4-a716-446655440000',
+            document: 'Doc 1',
+            summary: 'Summary 1',
+          },
+        ],
+      },
+    };
+
+    renderWithProviders(<DatasetConfirm {...defaultProps} />);
+
+    const summaryField = screen.getByDisplayValue('Summary 1');
+    fireEvent.change(summaryField, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(editGroundTruthMock).toHaveBeenCalledWith({
+      edits: {
+        '550e8400-e29b-41d4-a716-446655440000': '',
+      },
+    });
   });
 });

@@ -1,6 +1,7 @@
 import type { ApiError } from '@/services/apiService';
 import {
   createEvaluation,
+  editGroundTruth,
   getDatasetPreview,
   getEvaluationResults,
   getEvaluationStatus,
@@ -10,11 +11,12 @@ import type {
   CreateEvaluationRequest,
   DatasetPreviewData,
   DatasetUploadData,
+  EditGroundTruthRequest,
   EvaluationLaunchData,
   EvaluationResultsData,
   EvaluationStatusData,
 } from '@/types/evaluation';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export function useUploadDataset() {
   return useMutation<DatasetUploadData, ApiError, File[]>({
@@ -28,6 +30,19 @@ export function useDatasetPreview(datasetId: string | null) {
     queryFn: () => getDatasetPreview(datasetId!),
     enabled: !!datasetId,
     staleTime: Infinity,
+  });
+}
+
+export function useEditGroundTruth(datasetId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, ApiError, EditGroundTruthRequest>({
+    mutationFn: (request) => editGroundTruth(datasetId!, request),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['datasetPreview', datasetId],
+      });
+    },
   });
 }
 

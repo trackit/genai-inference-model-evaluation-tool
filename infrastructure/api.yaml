@@ -122,6 +122,12 @@ Resources:
       LogGroupName: !Sub '/aws/lambda/${GetDatasetPreviewFunction}'
       RetentionInDays: !Ref LogRetentionInDays
 
+  EditGroundTruthFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${EditGroundTruthFunction}'
+      RetentionInDays: !Ref LogRetentionInDays
+
   RequestAccessCodeFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -297,6 +303,44 @@ Resources:
           - .js=.mjs
         EntryPoints:
           - src/handlers/GetDatasetPreview/GetDatasetPreview.ts
+
+  EditGroundTruthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs20.x
+      Handler: EditGroundTruth.handler
+      Timeout: 60
+      MemorySize: 512
+      Tags:
+        Name: !Sub '${AWS::StackName}-edit-ground-truth-function'
+      Environment:
+        Variables:
+          DATASET_BUCKET: !Ref DatasetBucketName
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DatasetBucketName
+      Events:
+        EditGroundTruthApi:
+          Type: HttpApi
+          Properties:
+            Path: /datasets/{datasetId}/edit
+            Method: POST
+            ApiId: !Ref Api
+            Auth:
+              Authorizer: AccessCodeAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        External:
+          - '@aws-sdk'
+        Minify: true
+        Target: es2023
+        Sourcemap: false
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - src/handlers/EditGroundTruth/EditGroundTruth.ts
 
   EvaluationLaunchFunction:
     Type: AWS::Serverless::Function

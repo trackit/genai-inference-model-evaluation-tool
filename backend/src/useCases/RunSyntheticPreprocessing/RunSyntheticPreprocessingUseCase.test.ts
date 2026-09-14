@@ -48,15 +48,25 @@ describe('RunSyntheticPreprocessingUseCase', () => {
       failedCount: 0,
       sampleCount: 2,
     });
+    const structuredBody = artifactBody(
+      fakeDatasetService,
+      'datasets/demo-dataset/demo-dataset.jsonl',
+    )!;
     expect(
-      artifactBody(
-        fakeDatasetService,
-        'datasets/demo-dataset/demo-dataset.jsonl',
-      ),
-    ).toBe(
-      '{"document":"First document chunk","summary":"Summary one"}\n' +
-        '{"document":"Second document chunk","summary":"Summary two"}\n',
-    );
+      structuredBody
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line) as Record<string, unknown>),
+    ).toEqual([
+      expect.objectContaining({
+        document: 'First document chunk',
+        summary: 'Summary one',
+      }),
+      expect.objectContaining({
+        document: 'Second document chunk',
+        summary: 'Summary two',
+      }),
+    ]);
   });
 
   it('retries failed rows and proceeds to structured dataset on recovery', async () => {

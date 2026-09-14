@@ -61,6 +61,7 @@ function toDatasetSample(row: SyntheticOutputRow): DatasetSample {
     }
 
     return {
+      sample_id: crypto.randomUUID(),
       document: row.text,
       summary: row.summary,
     };
@@ -72,6 +73,7 @@ function toDatasetSample(row: SyntheticOutputRow): DatasetSample {
     }
 
     return {
+      sample_id: crypto.randomUUID(),
       document: row.text,
       class_label: row.class,
     };

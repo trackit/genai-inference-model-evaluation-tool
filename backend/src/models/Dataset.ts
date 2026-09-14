@@ -1,4 +1,5 @@
 export interface DatasetSample {
+  sample_id?: string;
   document: string;
   summary?: string;
   class_label?: string;

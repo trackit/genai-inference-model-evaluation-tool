@@ -229,18 +229,18 @@ export class FakeDatasetService implements DatasetService {
     samples: DatasetSample[],
   ): Promise<{ structuredDatasetArtifactKey: string }> {
     const structuredDatasetArtifactKey = structuredDatasetS3Key(datasetId);
-    this.writeArtifactContent(
-      structuredDatasetArtifactKey,
-      serializeJsonlRows(
-        samples.map((sample) => ({
-          document: sample.document,
-          ...(sample.summary !== undefined && { summary: sample.summary }),
-          ...(sample.class_label !== undefined && {
-            class: sample.class_label,
-          }),
-        })),
-      ),
+    const body = serializeJsonlRows(
+      samples.map((sample) => ({
+        ...(sample.sample_id !== undefined && { sample_id: sample.sample_id }),
+        document: sample.document,
+        ...(sample.summary !== undefined && { summary: sample.summary }),
+        ...(sample.class_label !== undefined && {
+          class: sample.class_label,
+        }),
+      })),
     );
+    this.writeArtifactContent(structuredDatasetArtifactKey, body);
+    this.syncStructuredUpload(datasetId, body);
 
     return { structuredDatasetArtifactKey };
   }
@@ -305,6 +305,17 @@ export class FakeDatasetService implements DatasetService {
       this.artifacts[index] = artifact;
     } else {
       this.artifacts.push(artifact);
+    }
+  }
+
+  private syncStructuredUpload(datasetId: string, body: string): void {
+    const content = body.endsWith('\n') ? body.slice(0, -1) : body;
+    const entry = { datasetId, content, fileExtension: 'jsonl' as const };
+    const index = this.uploads.findIndex((u) => u.datasetId === datasetId);
+    if (index >= 0) {
+      this.uploads[index] = entry;
+    } else {
+      this.uploads.push(entry);
     }
   }
 }
