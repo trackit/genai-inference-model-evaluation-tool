@@ -9,7 +9,7 @@ from openai.providers import bedrock
 from models import InvocationResult, _fail, _finish
 
 #INFO: prefix tuple, expand when new models need /openai/v1 path
-_OPENAI_PATH_PREFIXES = ("xai.", "google.gemma-4", "openai.gpt-5")
+_OPENAI_PATH_PREFIXES = ("xai.", "google.gemma-4", "openai.gpt-5", "openai.gpt-6")
 
 
 def _mantle_base_url(model_id: str, region: str) -> str:
