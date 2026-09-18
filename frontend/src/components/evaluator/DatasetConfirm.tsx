@@ -3,6 +3,7 @@ import { useDatasetPreview } from '@/hooks/useEvaluation';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowLeft,
   ChevronDown,
   ChevronUp,
@@ -13,6 +14,7 @@ import { Fragment, useState } from 'react';
 interface DatasetConfirmProps {
   datasetId: string;
   sampleCount: number;
+  failedCount?: number | null;
   onConfirm: () => void;
   onBack: () => void;
   isStarting?: boolean;
@@ -21,6 +23,7 @@ interface DatasetConfirmProps {
 export function DatasetConfirm({
   datasetId,
   sampleCount,
+  failedCount,
   onConfirm,
   onBack,
   isStarting = false,
@@ -54,6 +57,21 @@ export function DatasetConfirm({
         {sampleCount} samples. Confirm to start evaluation, or go back to
         re-upload.
       </p>
+
+      {!!failedCount && (
+        <div
+          className="mb-6 flex items-start gap-3 rounded-lg bg-warning/10 p-4 text-sm text-warning"
+          role="status"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>
+            <strong>{failedCount}</strong> {failedCount === 1 ? 'row' : 'rows'}{' '}
+            failed during generation and {failedCount === 1 ? 'was' : 'were'}{' '}
+            excluded. Evaluation will run on the remaining{' '}
+            <strong>{sampleCount}</strong> samples shown below.
+          </span>
+        </div>
+      )}
 
       {isLoading && (
         <div className="flex items-center justify-center py-20 gap-3 text-muted-foreground">

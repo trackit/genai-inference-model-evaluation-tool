@@ -11,6 +11,10 @@ import type {
   SyntheticOutputModelRequest,
   SyntheticOutputModelResult,
 } from '../../ports/SyntheticOutputModelClient';
+import {
+  classifyModelError,
+  EmptyModelOutputError,
+} from './classifyModelError';
 
 const DEFAULT_SYNTHETIC_OUTPUT_MODEL_ID =
   process.env.SYNTHETIC_OUTPUT_MODEL_ID?.trim() ||
@@ -23,7 +27,8 @@ const TEMPERATURE = 0.2;
 
 export const tokenBedrockRuntimeClient =
   createInjectionToken<BedrockRuntimeClient>('BedrockRuntimeClient', {
-    useClass: BedrockRuntimeClient,
+    // Disable the SDK's own retry and let ASL be the single source of truth
+    useFactory: () => new BedrockRuntimeClient({ maxAttempts: 1 }),
   });
 
 export class BedrockSyntheticOutputModelClient implements SyntheticOutputModelClient {
@@ -57,16 +62,7 @@ export class BedrockSyntheticOutputModelClient implements SyntheticOutputModelCl
         modelId: resolvedModelId,
       };
     } catch (error: unknown) {
-      if (error instanceof BasicError) {
-        throw error;
-      }
-
-      throw new BasicError(
-        BasicErrorType.SERVICE_UNAVAILABLE,
-        'BEDROCK_SYNTHETIC_OUTPUT_GENERATION_FAILED',
-        'Bedrock synthetic output generation failed',
-        error instanceof Error ? error.message : undefined,
-      );
+      throw classifyModelError(error);
     }
   }
 }
@@ -96,11 +92,7 @@ function extractTextOutput(response: ConverseCommandOutput): string {
     .trim();
 
   if (!output) {
-    throw new BasicError(
-      BasicErrorType.UNPROCESSABLE_ENTITY,
-      'EMPTY_BEDROCK_SYNTHETIC_OUTPUT',
-      'Bedrock returned an empty synthetic output',
-    );
+    throw new EmptyModelOutputError();
   }
 
   return output;

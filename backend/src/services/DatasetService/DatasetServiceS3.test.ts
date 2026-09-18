@@ -17,6 +17,7 @@ import {
   datasetS3Key,
   DatasetServiceImpl,
   documentS3Key,
+  syntheticDatasetS3Key,
   tokenClientS3,
 } from './DatasetServiceS3';
 
@@ -251,6 +252,67 @@ describe('DatasetServiceImpl', () => {
         summary: 'Summary one',
         status: 'completed',
       });
+    });
+
+    it('reads failed rows (no summary/class) without throwing', async () => {
+      const { service, s3ClientMock } = setup();
+      const failedRow = JSON.stringify({
+        document_id: 'demo-dataset',
+        chunk_id: 'demo-dataset-1',
+        text: 'Second document chunk',
+        status: 'failed',
+        error_message: 'model failed',
+      });
+      s3ClientMock.on(GetObjectCommand).resolves({
+        Body: {
+          transformToString: async () => failedRow,
+        } as never,
+      } as never);
+
+      const rows = await service.readSyntheticDatasetRows(
+        syntheticDatasetS3Key('demo-dataset'),
+      );
+
+      expect(rows).toEqual([
+        {
+          document_id: 'demo-dataset',
+          chunk_id: 'demo-dataset-1',
+          text: 'Second document chunk',
+          status: 'failed',
+          error_message: 'model failed',
+        },
+      ]);
+    });
+
+    it('reads a mixed artifact containing both completed and failed rows', async () => {
+      const { service, s3ClientMock } = setup();
+      const mixedArtifact = [
+        JSON.stringify({
+          document_id: 'demo-dataset',
+          chunk_id: 'demo-dataset-0',
+          text: 'First chunk',
+          summary: 'Summary one',
+          status: 'completed',
+        }),
+        JSON.stringify({
+          document_id: 'demo-dataset',
+          chunk_id: 'demo-dataset-1',
+          text: 'Second chunk',
+          status: 'failed',
+          error_message: 'permanent model error',
+        }),
+      ].join('\n');
+      s3ClientMock.on(GetObjectCommand).resolves({
+        Body: { transformToString: async () => mixedArtifact } as never,
+      } as never);
+
+      const rows = await service.readSyntheticDatasetRows(
+        syntheticDatasetS3Key('demo-dataset'),
+      );
+
+      expect(rows).toHaveLength(2);
+      expect(rows[0].status).toBe('completed');
+      expect(rows[1].status).toBe('failed');
     });
 
     it('writes structured dataset samples to the final evaluator key', async () => {

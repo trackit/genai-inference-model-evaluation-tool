@@ -9,5 +9,10 @@ export enum PreprocessingState {
 export interface PreprocessingStatusReport {
   state: PreprocessingState;
   structuredDatasetArtifactKey?: string;
+  // When state === COMPLETED
   sampleCount?: number;
+  failedCount?: number;
+  // When state === GENERATING_SYNTHETIC_OUTPUTS
+  processedCount?: number;
+  totalCount?: number;
 }

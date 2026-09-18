@@ -15,7 +15,7 @@ const StartPreprocessingModulePathSchema = z.object({
   datasetId: z.string().min(1),
 });
 
-const RunSyntheticPreprocessingBodySchema = z.object({
+const StartPreprocessingBodySchema = z.object({
   taskType: z.enum(SYNTHETIC_OUTPUT_TASK_TYPES),
   chunkingStrategy: z.enum(ChunkingStrategy),
 });
@@ -36,7 +36,7 @@ export class StartPreprocessingAdapter {
   private async processRequest(event: APIGatewayProxyEventV2) {
     const { pathParameters, body } = parseApiEvent(event, {
       pathSchema: StartPreprocessingModulePathSchema,
-      bodySchema: RunSyntheticPreprocessingBodySchema,
+      bodySchema: StartPreprocessingBodySchema,
     });
 
     return this.useCase.execute({

@@ -6,16 +6,26 @@ import {
   type PreprocessingStage,
   type PreprocessingTaskType,
 } from '@/types/evaluation';
-import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { useEffect } from 'react';
 
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+} from 'lucide-react';
 import { PreprocessingStages } from './PreprocessingStages';
+
+interface PreprocessingDoneResult {
+  sampleCount: number | null;
+  failedCount: number | null;
+}
 
 interface PreprocessingStepProps {
   datasetId: string;
   taskType: PreprocessingTaskType;
   chunkingStrategy: PreprocessingChunkingStrategy;
-  onDone: (sampleCount: number | null) => void;
+  onDone: (result: PreprocessingDoneResult) => void;
   onBack: () => void;
 }
 
@@ -34,15 +44,25 @@ export function PreprocessingStep({
   onDone,
   onBack,
 }: PreprocessingStepProps) {
-  const { status, sampleCount, stage, start } = usePreprocessing();
+  const {
+    status,
+    stage,
+    sampleCount,
+    failedCount,
+    processedCount,
+    totalCount,
+    start,
+  } = usePreprocessing();
 
   useEffect(() => {
     void start(datasetId, { taskType, chunkingStrategy });
   }, [datasetId, taskType, chunkingStrategy, start]);
 
   useEffect(() => {
-    if (status === 'succeeded') onDone(sampleCount);
-  }, [status, sampleCount, onDone]);
+    if (status === 'succeeded' && !failedCount) {
+      onDone({ sampleCount, failedCount });
+    }
+  }, [status, sampleCount, failedCount, onDone]);
 
   if (status === 'failed') {
     return (
@@ -73,5 +93,47 @@ export function PreprocessingStep({
     );
   }
 
-  return <PreprocessingStages stage={stage} />;
+  if (status === 'succeeded' && failedCount) {
+    const total = (sampleCount ?? 0) + failedCount;
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Preprocessing complete
+        </h1>
+        <div
+          className="mt-4 flex items-start gap-3 rounded-lg bg-warning/10 p-4 text-sm text-warning"
+          role="status"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>
+            <strong>{sampleCount ?? 0}</strong> of <strong>{total}</strong> rows
+            generated successfully. <strong>{failedCount}</strong>{' '}
+            {failedCount === 1 ? 'row' : 'rows'} failed and{' '}
+            {failedCount === 1 ? 'was' : 'were'} excluded from the dataset. You
+            can still continue with the {sampleCount ?? 0} successful{' '}
+            {sampleCount === 1 ? 'sample' : 'samples'}.
+          </span>
+        </div>
+        <div className="flex justify-between mt-8">
+          <Button variant="outline" onClick={onBack} className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+          <Button
+            onClick={() => onDone({ sampleCount, failedCount })}
+            className="gap-2"
+          >
+            Continue <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <PreprocessingStages
+      stage={stage}
+      processedCount={processedCount}
+      totalCount={totalCount}
+    />
+  );
 }

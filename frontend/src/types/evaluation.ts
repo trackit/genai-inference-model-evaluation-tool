@@ -340,7 +340,12 @@ export const PREPROCESSING_STAGES: ReadonlyArray<{
 export interface PreprocessingStatusData {
   state: PreprocessingState;
   structuredDatasetArtifactKey?: string;
+  // When RUNNING
+  processedCount?: number;
+  totalCount?: number;
+  // When SUCCEEDED
   sampleCount?: number;
+  failedCount?: number;
 }
 
 export interface DocumentDatasetUploadData {

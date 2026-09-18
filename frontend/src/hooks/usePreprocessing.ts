@@ -11,13 +11,21 @@ import type {
 } from '@/types/evaluation';
 
 type Phase = 'idle' | 'running' | 'succeeded' | 'failed';
-const POLL_INTERVAL_MS = 3000;
+
+const POLL_INITIAL_DELAY_MS = 2000;
+const POLL_BACKOFF_RATE = 1.5;
+const POLL_MAX_DELAY_MS = 15000;
+
+const MAX_CONSECUTIVE_POLL_FAILURES = 5;
 
 export function usePreprocessing() {
   const [status, setStatus] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
   const [sampleCount, setSampleCount] = useState<number | null>(null);
   const [stage, setStage] = useState<PreprocessingStage | null>(null);
+  const [failedCount, setFailedCount] = useState<number | null>(null);
+  const [processedCount, setProcessedCount] = useState<number | null>(null);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runId = useRef(0);
 
@@ -49,17 +57,40 @@ export function usePreprocessing() {
       setError(null);
       setSampleCount(null);
       setStage(null);
+      setFailedCount(null);
+      setProcessedCount(null);
+      setTotalCount(null);
       setStatus('running');
+
+      let delay = POLL_INITIAL_DELAY_MS;
+      let consecutivePollFailures = 0;
+
       try {
         const { executionArn } = await startPreprocessing(datasetId, params);
         if (isStale()) return;
 
         const poll = async (): Promise<void> => {
-          const result = await getPreprocessingStatus(datasetId, executionArn);
+          let result;
+          try {
+            result = await getPreprocessingStatus(datasetId, executionArn);
+            consecutivePollFailures = 0;
+          } catch {
+            if (isStale()) return;
+            consecutivePollFailures += 1;
+            if (consecutivePollFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+              setStatus('failed');
+              setError('Lost contact with the server while checking status');
+              return;
+            }
+
+            timer.current = setTimeout(() => void poll(), delay);
+            return;
+          }
           if (isStale()) return;
 
           if (result.state === 'COMPLETED') {
             setSampleCount(result.sampleCount ?? null);
+            setFailedCount(result.failedCount ?? null);
             setStatus('succeeded');
             return;
           }
@@ -75,7 +106,12 @@ export function usePreprocessing() {
               ? result.state
               : null,
           );
-          timer.current = setTimeout(() => void poll(), POLL_INTERVAL_MS);
+          setProcessedCount(result.processedCount ?? null);
+          setTotalCount(result.totalCount ?? null);
+
+          const currentDelay = delay;
+          delay = Math.min(delay * POLL_BACKOFF_RATE, POLL_MAX_DELAY_MS);
+          timer.current = setTimeout(() => void poll(), currentDelay);
         };
 
         await poll();
@@ -88,5 +124,14 @@ export function usePreprocessing() {
     [clear],
   );
 
-  return { status, error, sampleCount, stage, start };
+  return {
+    status,
+    stage,
+    error,
+    sampleCount,
+    processedCount,
+    totalCount,
+    failedCount,
+    start,
+  };
 }

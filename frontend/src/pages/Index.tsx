@@ -49,6 +49,7 @@ export default function Index() {
   const [chunkingStrategy, setChunkingStrategy] =
     useState<PreprocessingChunkingStrategy>('DOCUMENT');
   const [sampleCount, setSampleCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
   const [detectedTaskType, setDetectedTaskType] = useState<
     TaskType | undefined
   >(undefined);
@@ -136,6 +137,7 @@ export default function Index() {
       setDatasetKind(data.dataset_type);
       setDetectedTaskType(data.taskType);
       setSampleCount(data.sample_count ?? 0);
+      setFailedCount(0);
       setPreprocessingDone(data.dataset_type === 'structured');
       setConfig((prev) => ({
         ...prev,
@@ -158,6 +160,7 @@ export default function Index() {
       setDetectedTaskType(data.taskType);
       setChunkingStrategy(data.chunkingStrategy);
       setSampleCount(data.file_count);
+      setFailedCount(0);
       setPreprocessingDone(false);
       setConfig((prev) => ({
         ...prev,
@@ -168,10 +171,14 @@ export default function Index() {
     [],
   );
 
-  const handlePreprocessingDone = useCallback((sampleCount: number | null) => {
-    if (sampleCount !== null) setSampleCount(sampleCount);
-    setPreprocessingDone(true);
-  }, []);
+  const handlePreprocessingDone = useCallback(
+    (result: { sampleCount: number | null; failedCount: number | null }) => {
+      if (result.sampleCount !== null) setSampleCount(result.sampleCount);
+      setFailedCount(result.failedCount ?? 0);
+      setPreprocessingDone(true);
+    },
+    [],
+  );
 
   const handleReset = () => {
     setPhase('config');
@@ -187,6 +194,7 @@ export default function Index() {
     setPreprocessingDone(false);
     setChunkingStrategy('DOCUMENT');
     setSampleCount(0);
+    setFailedCount(0);
     setDetectedTaskType(undefined);
     setEvaluationId(null);
     setError(null);
@@ -260,6 +268,7 @@ export default function Index() {
                       setDatasetId(null);
                       setDatasetKind(null);
                       setSampleCount(0);
+                      setFailedCount(0);
                       setDetectedTaskType(undefined);
                       setConfig((prev) => ({ ...prev, datasetFiles: [] }));
                       setStep(2);
@@ -282,10 +291,12 @@ export default function Index() {
                     <DatasetConfirm
                       datasetId={datasetId}
                       sampleCount={sampleCount}
+                      failedCount={failedCount}
                       onConfirm={handleStartEvaluation}
                       onBack={() => {
                         setDatasetId(null);
                         setSampleCount(0);
+                        setFailedCount(0);
                         setDetectedTaskType(undefined);
                         setConfig((prev) => ({ ...prev, datasetFiles: [] }));
                         setStep(2);
