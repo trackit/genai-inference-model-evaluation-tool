@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ApiError,
   createEvaluation,
+  editGroundTruth,
   getBaseUrl,
   getDatasetPreview,
   getEvaluationResults,
@@ -404,6 +405,25 @@ describe('endpoint functions', () => {
         'http://localhost:3000/datasets/ds1/preprocess/status?executionArn=arn%3Aexec%3A1',
       );
       expect(init.method).toBeUndefined();
+    });
+  });
+
+  // --- editGroundTruth ---
+
+  describe('editGroundTruth', () => {
+    it('posts edits to /datasets/:id/edit and resolves on an empty 204 body', async () => {
+      mockFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+      await expect(
+        editGroundTruth('ds1', { edits: { 'sample-1': 'Corrected' } }),
+      ).resolves.toBeUndefined();
+
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('http://localhost:3000/datasets/ds1/edit');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body as string)).toEqual({
+        edits: { 'sample-1': 'Corrected' },
+      });
     });
   });
 

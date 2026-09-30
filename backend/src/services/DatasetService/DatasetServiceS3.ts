@@ -453,6 +453,7 @@ function serializeSamples(samples: DatasetSample[]): string {
   return `${samples
     .map((sample) =>
       JSON.stringify({
+        ...(sample.sample_id !== undefined && { sample_id: sample.sample_id }),
         document: sample.document,
         ...(sample.summary !== undefined && { summary: sample.summary }),
         ...(sample.class_label !== undefined && { class: sample.class_label }),
