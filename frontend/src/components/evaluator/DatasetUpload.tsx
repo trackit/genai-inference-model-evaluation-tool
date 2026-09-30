@@ -32,6 +32,7 @@ interface DatasetUploadProps {
     taskType: TaskType;
     chunkingStrategy: PreprocessingChunkingStrategy;
     file_count: number;
+    customDelimiter?: string;
   }) => void;
 }
 
@@ -49,6 +50,11 @@ const CHUNKING_STRATEGIES: {
     id: 'DOCUMENT',
     label: 'Whole document',
     description: 'One dataset sample per uploaded file.',
+  },
+  {
+    id: 'CUSTOM',
+    label: 'Custom delimiter',
+    description: 'Split by your own delimiter pattern.',
   },
 ];
 
@@ -283,6 +289,7 @@ export function DatasetUpload({
   const [documentTask, setDocumentTask] = useState<TaskType | null>(null);
   const [chunkingStrategy, setChunkingStrategy] =
     useState<PreprocessingChunkingStrategy>('DOCUMENT');
+  const [customDelimiter, setCustomDelimiter] = useState('');
   const [formatTab, setFormatTab] = useState<FormatTab>('csv');
   const uploadMutation = useUploadDataset();
   const activeDatasetMode = DATASET_MODES.find(
@@ -297,6 +304,7 @@ export function DatasetUpload({
   const resetPreprocessingChoices = () => {
     setDocumentTask(null);
     setChunkingStrategy('DOCUMENT');
+    setCustomDelimiter('');
   };
 
   const handleAddFiles = (newFiles: File[]) => {
@@ -352,6 +360,8 @@ export function DatasetUpload({
       taskType: documentTask,
       chunkingStrategy,
       file_count: uploadMutation.data.file_count,
+      customDelimiter:
+        chunkingStrategy === 'CUSTOM' ? customDelimiter : undefined,
     });
   };
   const handleDrop = (e: React.DragEvent) => {
@@ -678,7 +688,7 @@ export function DatasetUpload({
             <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
               Chunking strategy
             </p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-3">
               {CHUNKING_STRATEGIES.map((strategy) => {
                 const isActive = strategy.id === chunkingStrategy;
                 return (
@@ -710,9 +720,28 @@ export function DatasetUpload({
             </div>
           </div>
 
+          {chunkingStrategy === 'CUSTOM' && (
+            <div>
+              <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
+                Delimiter
+              </p>
+              <input
+                type="text"
+                maxLength={50}
+                value={customDelimiter}
+                onChange={(e) => setCustomDelimiter(e.target.value)}
+                placeholder="Enter delimiter (e.g., ## , ---END---, Chapter )"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+              />
+            </div>
+          )}
+
           <Button
             className="w-full"
-            disabled={!documentTask}
+            disabled={
+              !documentTask ||
+              (chunkingStrategy === 'CUSTOM' && !customDelimiter.trim())
+            }
             onClick={handleConfirmDocuments}
           >
             Confirm & preprocess

@@ -26,12 +26,57 @@ describe('DocumentConversion task handler', () => {
     expect(execute).toHaveBeenCalledWith({
       dataset_id: 'ds1',
       chunking_strategy: ChunkingStrategy.SECTION,
+      custom_delimiter: undefined,
     });
     expect(output).toEqual({
       datasetId: 'ds1',
       taskType: 'summarization',
       convertedDatasetArtifactKey: 'datasets/ds1/ds1-converted.jsonl',
     });
+  });
+
+  it('passes custom delimiter with CUSTOM strategy', async () => {
+    const { handler } = await import('./DocumentConversion');
+    execute.mockResolvedValue('datasets/ds1/ds1-converted.jsonl');
+
+    await handler({
+      datasetId: 'ds1',
+      taskType: 'summarization',
+      chunkingStrategy: ChunkingStrategy.CUSTOM,
+      customDelimiter: '##',
+    });
+
+    expect(execute).toHaveBeenCalledWith({
+      dataset_id: 'ds1',
+      chunking_strategy: ChunkingStrategy.CUSTOM,
+      custom_delimiter: '##',
+    });
+  });
+
+  it('rejects empty custom delimiter', async () => {
+    const { handler } = await import('./DocumentConversion');
+
+    await expect(
+      handler({
+        datasetId: 'ds1',
+        taskType: 'summarization',
+        chunkingStrategy: ChunkingStrategy.CUSTOM,
+        customDelimiter: '',
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('rejects custom delimiter over 50 characters', async () => {
+    const { handler } = await import('./DocumentConversion');
+
+    await expect(
+      handler({
+        datasetId: 'ds1',
+        taskType: 'summarization',
+        chunkingStrategy: ChunkingStrategy.CUSTOM,
+        customDelimiter: 'a'.repeat(51),
+      }),
+    ).rejects.toThrow();
   });
 
   it('propagates errors so Step Functions can fail the execution', async () => {
