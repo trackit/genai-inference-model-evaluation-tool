@@ -80,6 +80,63 @@ describe('CsvParser', () => {
 
       expect(result.samples).toHaveLength(2);
     });
+
+    it('should keep line breaks inside quoted fields', () => {
+      const csv =
+        'document,summary\n' +
+        '"First paragraph.\n\nSecond paragraph.","Two paragraphs"\n' +
+        '"Single line","One line"';
+
+      const result = parser.parse(csv);
+
+      expect(result.samples).toEqual([
+        {
+          document: 'First paragraph.\n\nSecond paragraph.',
+          summary: 'Two paragraphs',
+        },
+        { document: 'Single line', summary: 'One line' },
+      ]);
+    });
+
+    it('should parse CRLF line endings', () => {
+      const csv =
+        'document,summary,class\r\n' +
+        '"What is AI?","Artificial Intelligence","tech"\r\n' +
+        '"Explain ML","Machine Learning explanation","tech"\r\n';
+
+      const result = parser.parse(csv);
+
+      expect(result.samples).toEqual([
+        {
+          document: 'What is AI?',
+          summary: 'Artificial Intelligence',
+          class_label: 'tech',
+        },
+        {
+          document: 'Explain ML',
+          summary: 'Machine Learning explanation',
+          class_label: 'tech',
+        },
+      ]);
+    });
+
+    it('should find a document column in last position with CRLF line endings', () => {
+      const csv = 'summary,document\r\n"A summary","A document"\r\n';
+
+      const result = parser.parse(csv);
+
+      expect(result.samples).toEqual([
+        { document: 'A document', summary: 'A summary' },
+      ]);
+    });
+
+    it('should keep CRLF line breaks inside quoted fields', () => {
+      const csv = 'document\r\n"Line one\r\nLine two"\r\n';
+
+      const result = parser.parse(csv);
+
+      expect(result.samples).toEqual([{ document: 'Line one\r\nLine two' }]);
+    });
   });
 
   describe('error handling', () => {
@@ -115,6 +172,12 @@ describe('CsvParser', () => {
       const csv = `document,summary
 "Valid document","Valid summary"
 "Invalid"`;
+
+      expect(() => parser.parse(csv)).toThrow('Expected 2 columns but found 1');
+    });
+
+    it('should reject a row whose quoted field is never closed', () => {
+      const csv = 'document,summary\n"Valid","Row"\n"Unclosed,"Summary"';
 
       expect(() => parser.parse(csv)).toThrow('Expected 2 columns but found 1');
     });

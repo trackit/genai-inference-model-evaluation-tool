@@ -9,7 +9,7 @@ export type CsvParser = {
 
 export class CsvParserImpl implements CsvParser {
   parse(content: string): Dataset {
-    const lines = content.trim().split('\n');
+    const lines = this.splitRecords(content.trim());
 
     if (lines.length < 2) {
       throw new BasicError(
@@ -88,6 +88,32 @@ export class CsvParserImpl implements CsvParser {
     }
 
     return { samples };
+  }
+
+  // Splits on line breaks outside quoted fields, so a quoted value may span
+  // several lines (RFC 4180). CRLF and bare CR count as a single line break.
+  private splitRecords(content: string): string[] {
+    const records: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < content.length; i++) {
+      const char = content[i];
+
+      if (char === '"') {
+        inQuotes = !inQuotes;
+        current += char;
+      } else if (!inQuotes && (char === '\n' || char === '\r')) {
+        if (char === '\r' && content[i + 1] === '\n') i++;
+        records.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+
+    records.push(current);
+    return records;
   }
 
   private parseCSVLine(line: string): string[] {
